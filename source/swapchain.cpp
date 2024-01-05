@@ -12,7 +12,7 @@ namespace gfx {
     extern ComPtr<ID3D12CommandQueue> _command_queue;
     extern HWND _window_hwnd;
 
-    static constexpr UINT backbuffer_count = 3;
+    constexpr UINT backbuffer_count = 3;
     ComPtr<IDXGISwapChain3> _swapchain = nullptr;
     ComPtr<ID3D12Resource> _render_targets[backbuffer_count];
     int _frame_wait_values[backbuffer_count];
