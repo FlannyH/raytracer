@@ -3,7 +3,6 @@
 #include "common.h"
 
 namespace gfx {
-    extern constexpr UINT backbuffer_count = 3;
     extern ComPtr<ID3D12Device> _device;
 
     ComPtr<ID3D12DescriptorHeap> _render_target_view_heap;
