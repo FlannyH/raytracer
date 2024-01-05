@@ -19,6 +19,7 @@ namespace gfx
     HWND _window_hwnd;
     ComPtr<ID3D12Debug1> _debug_layer;
     ComPtr<ID3D12Device> _device;
+    ComPtr<IDXGIFactory4> _factory;
     ComPtr<ID3D12DebugDevice> _device_debug;
 }
 
@@ -44,7 +45,6 @@ namespace gfx {
     }
 
     void init_device(const bool debug_layer_enabled) {
-        ComPtr<IDXGIFactory4> factory;
         UINT dxgi_factory_flags = 0;
 
         if (debug_layer_enabled) {
@@ -59,12 +59,12 @@ namespace gfx {
         }
 
         // Create factory
-        validate(CreateDXGIFactory2(dxgi_factory_flags, IID_PPV_ARGS(&factory)));
+        validate(CreateDXGIFactory2(dxgi_factory_flags, IID_PPV_ARGS(&_factory)));
 
         // Find adapter
         ComPtr<IDXGIAdapter1> adapter;
         UINT adapter_index = 0;
-        while (factory->EnumAdapters1(adapter_index, &adapter) != DXGI_ERROR_NOT_FOUND) {
+        while (_factory->EnumAdapters1(adapter_index, &adapter) != DXGI_ERROR_NOT_FOUND) {
             DXGI_ADAPTER_DESC1 desc;
             validate(adapter->GetDesc1(&desc));
 
