@@ -19,12 +19,14 @@ namespace gfx {
 
 namespace gfx {
     void create_command_queue() {
-        constexpr D3D12_COMMAND_QUEUE_DESC desc = {
-            .Type = D3D12_COMMAND_LIST_TYPE_DIRECT,
-            .Flags = D3D12_COMMAND_QUEUE_FLAG_NONE,
-        };
-        validate(_device->CreateCommandQueue(&desc, IID_PPV_ARGS(&_command_queue)));
-        validate(_device->CreateCommandAllocator(desc.Type,
-            IID_PPV_ARGS(&_command_allocator)));
+        if (_command_queue == nullptr) {
+            constexpr D3D12_COMMAND_QUEUE_DESC desc = {
+                .Type = D3D12_COMMAND_LIST_TYPE_DIRECT,
+                .Flags = D3D12_COMMAND_QUEUE_FLAG_NONE,
+            };
+            validate(_device->CreateCommandQueue(&desc, IID_PPV_ARGS(&_command_queue)));
+            validate(_device->CreateCommandAllocator(desc.Type,
+                IID_PPV_ARGS(&_command_allocator)));
+        }
     }
 }
