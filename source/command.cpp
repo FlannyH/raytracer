@@ -9,8 +9,6 @@
 
 #include "common.h"
 
-using Microsoft::WRL::ComPtr;
-
 namespace gfx {
     extern ComPtr<ID3D12Device> _device;
     ComPtr<ID3D12CommandQueue> _command_queue = nullptr;

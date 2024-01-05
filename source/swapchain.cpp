@@ -8,8 +8,6 @@
 #include <wrl.h>
 #include "common.h"
 
-using Microsoft::WRL::ComPtr;
-
 namespace gfx {
     extern ComPtr<IDXGIFactory4> _factory;
     extern ComPtr<ID3D12CommandQueue> _command_queue;

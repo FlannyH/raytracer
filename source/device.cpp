@@ -10,8 +10,6 @@
 #include <wrl.h>
 #include "common.h"
 
-using Microsoft::WRL::ComPtr;
-
 // Data
 namespace gfx
 {
