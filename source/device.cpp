@@ -15,11 +15,11 @@ using Microsoft::WRL::ComPtr;
 // Data
 namespace gfx
 {
-    GLFWwindow* window_glfw;
-    HWND window_hwnd;
-    ComPtr<ID3D12Debug1> debug_layer;
-    ComPtr<ID3D12Device> device;
-    ComPtr<ID3D12DebugDevice> device_debug;
+    GLFWwindow* _window_glfw;
+    HWND _window_hwnd;
+    ComPtr<ID3D12Debug1> _debug_layer;
+    ComPtr<ID3D12Device> _device;
+    ComPtr<ID3D12DebugDevice> _device_debug;
 }
 
 // Functions
@@ -27,16 +27,20 @@ namespace gfx {
     void create_window(const int width, const int height) {
         glfwInit();
         glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API); // use GLFW_NO_API, since we're not using OpenGL
-        window_glfw = glfwCreateWindow(width, height, "Ray Tracer (DirectX 12)", nullptr, nullptr);
-        window_hwnd = glfwGetWin32Window(window_glfw);
+        _window_glfw = glfwCreateWindow(width, height, "Ray Tracer (DirectX 12)", nullptr, nullptr);
+        _window_hwnd = glfwGetWin32Window(_window_glfw);
     }
 
     void resize_window(const int width, const int height) {
-        glfwSetWindowSize(window_glfw, width, height);
+        glfwSetWindowSize(_window_glfw, width, height);
     }
 
     void get_window_size(int& width, int& height) {
-        glfwGetWindowSize(window_glfw, &width, &height);
+        glfwGetWindowSize(_window_glfw, &width, &height);
+    }
+
+    ComPtr<ID3D12Device> device() {
+        return device;
     }
 
     void init_device(const bool debug_layer_enabled) {
@@ -46,12 +50,12 @@ namespace gfx {
         if (debug_layer_enabled) {
             // If we're in debug mode, create a debug layer for proper error tracking
             // Note: Errors will be printed in the Visual Studio output tab, and not in the console!
-            validate(D3D12GetDebugInterface(IID_PPV_ARGS(&debug_layer)));
-            validate(debug_layer->QueryInterface(IID_PPV_ARGS(&debug_layer)));
-            debug_layer->EnableDebugLayer();
-            debug_layer->SetEnableGPUBasedValidation(true);
+            validate(D3D12GetDebugInterface(IID_PPV_ARGS(&_debug_layer)));
+            validate(_debug_layer->QueryInterface(IID_PPV_ARGS(&_debug_layer)));
+            _debug_layer->EnableDebugLayer();
+            _debug_layer->SetEnableGPUBasedValidation(true);
             dxgi_factory_flags |= DXGI_CREATE_FACTORY_DEBUG;
-            debug_layer->Release();
+            _debug_layer->Release();
         }
 
         // Create factory
@@ -70,23 +74,23 @@ namespace gfx {
             }
 
             // Does this adapter support Direct3D 12.0?
-            if (SUCCEEDED(D3D12CreateDevice(adapter.Get(), D3D_FEATURE_LEVEL_12_0, IID_PPV_ARGS(&device)))) {
+            if (SUCCEEDED(D3D12CreateDevice(adapter.Get(), D3D_FEATURE_LEVEL_12_0, IID_PPV_ARGS(&_device)))) {
                 // Yes it does! We use this one.
                 break;
             }
 
             // It doesn't? Unfortunate, let's keep looking
-            device = nullptr;
+            _device = nullptr;
             adapter->Release();
             adapter_index++;
         }
 
-        if (device == nullptr) {
+        if (_device == nullptr) {
             throw std::exception();
         }
 
         if (debug_layer_enabled) {
-            validate(device->QueryInterface(device_debug.GetAddressOf()));
+            validate(_device->QueryInterface(_device_debug.GetAddressOf()));
         }
     }
 }
