@@ -35,7 +35,11 @@ namespace gfx {
         glfwSetWindowSize(window_glfw, width, height);
     }
 
-    void init_device(bool debug_layer_enabled) {
+    void get_window_size(int& width, int& height) {
+        glfwGetWindowSize(window_glfw, &width, &height);
+    }
+
+    void init_device(const bool debug_layer_enabled) {
         ComPtr<IDXGIFactory4> factory;
         UINT dxgi_factory_flags = 0;
 
