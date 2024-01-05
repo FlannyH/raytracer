@@ -40,10 +40,6 @@ namespace gfx {
         glfwGetWindowSize(_window_glfw, &width, &height);
     }
 
-    ComPtr<ID3D12Device> device() {
-        return device;
-    }
-
     void init_device(const bool debug_layer_enabled) {
         UINT dxgi_factory_flags = 0;
 
