@@ -7,8 +7,11 @@
 #include <d3d12sdklayers.h>
 #include <dxgi1_6.h>
 #include <wrl.h>
+
+#include "command.h"
 #include "common.h"
 #include "descriptor_heap.h"
+#include "swapchain.h"
 
 // Data
 namespace gfx
@@ -92,5 +95,8 @@ namespace gfx {
         // Create descriptor heaps
         _heap_rtv = DescriptorHeap::new_rtv_heap(backbuffer_count);
         _heap_bindless = DescriptorHeap::new_bindless_heap(D3D12_MAX_SHADER_VISIBLE_DESCRIPTOR_HEAP_SIZE_TIER_1);
+
+        gfx::create_command_queue();
+        gfx::create_swapchain();
     }
 }
