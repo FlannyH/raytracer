@@ -1,13 +1,6 @@
-#include "device.h"
-#include "swapchain.h"
-#include "command.h"
-#include "descriptor_heap.h"
+#include "hl_renderer.h"
 
 int main(int n_args, char** args) {
-    gfx::create_window(1280, 720);
-    gfx::init_device(true);
-    gfx::create_command_queue();
-    gfx::create_descriptor_heaps();
-    gfx::create_swapchain();
+    gfx::init_renderer(1280, 720, true);
     while (1);
 }
