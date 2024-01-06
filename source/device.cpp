@@ -8,6 +8,7 @@
 #include <dxgi1_6.h>
 #include <wrl.h>
 #include "common.h"
+#include "descriptor_heap.h"
 
 // Data
 namespace gfx
@@ -18,6 +19,8 @@ namespace gfx
     ComPtr<ID3D12Device> _device;
     ComPtr<IDXGIFactory4> _factory;
     ComPtr<ID3D12DebugDevice> _device_debug;
+    DescriptorHeap _heap_rtv;
+    DescriptorHeap _heap_bindless;
 }
 
 // Functions
@@ -85,5 +88,9 @@ namespace gfx {
         if (debug_layer_enabled) {
             validate(_device->QueryInterface(_device_debug.GetAddressOf()));
         }
+
+        // Create descriptor heaps
+        _heap_rtv = DescriptorHeap::new_rtv_heap(backbuffer_count);
+        _heap_bindless = DescriptorHeap::new_bindless_heap(D3D12_MAX_SHADER_VISIBLE_DESCRIPTOR_HEAP_SIZE_TIER_1);
     }
 }
