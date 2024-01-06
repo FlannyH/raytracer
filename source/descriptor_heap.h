@@ -4,8 +4,8 @@
 
 namespace gfx {
     struct DescriptorHeap {
-        DescriptorHeap new_bindless();
-        DescriptorHeap new_rtv();
+        [[nodiscard]] DescriptorHeap new_bindless() const;
+        [[nodiscard]] DescriptorHeap new_rtv() const;
     private:
         ComPtr<ID3D12DescriptorHeap> m_heap;
     };
