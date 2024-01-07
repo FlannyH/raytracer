@@ -1,4 +1,5 @@
 #pragma once
+#include <cstdio>
 #include <d3d12.h>
 #include <dxgi1_4.h>
 
@@ -12,9 +13,9 @@ namespace gfx {
         Swapchain(const Device& device, const CommandQueue& queue);
 
     private:    
-        ComPtr<IDXGISwapChain3> _swapchain = nullptr;
-        ComPtr<ID3D12Resource> _render_targets[backbuffer_count];
-        int _frame_wait_values[backbuffer_count]{};
-        int _frame_index;
+        ComPtr<IDXGISwapChain3> m_swapchain = nullptr;
+        ComPtr<ID3D12Resource> m_render_targets[backbuffer_count] = {};
+        int m_frame_wait_values[backbuffer_count]{};
+        int m_frame_index;
     };
 }

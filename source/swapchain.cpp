@@ -3,7 +3,7 @@
 
 namespace gfx {
     Swapchain::Swapchain(const Device& device, const CommandQueue& queue) {
-        _frame_index = 0;
+        m_frame_index = 0;
 
         int width, height;
         device.get_window_size(width, height);
@@ -34,10 +34,10 @@ namespace gfx {
         const HRESULT swapchain_support = new_swapchain->QueryInterface(__uuidof(IDXGISwapChain3), reinterpret_cast<void**>(&new_swapchain));
 
         if (SUCCEEDED(swapchain_support)) {
-            _swapchain = static_cast<IDXGISwapChain3*>(new_swapchain);
+            m_swapchain = static_cast<IDXGISwapChain3*>(new_swapchain);
         }
 
-        if (!_swapchain) {
+        if (!m_swapchain) {
             throw std::exception();
         }
     }

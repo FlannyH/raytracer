@@ -31,7 +31,7 @@ namespace gfx {
 
         // Allocate
         D3D12_CPU_DESCRIPTOR_HANDLE new_handle = m_start_cpu;
-        new_handle.ptr += m_alloc_index * m_descriptor_size;
+        new_handle.ptr += index * m_descriptor_size;
 
         return new_handle;
     }

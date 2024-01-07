@@ -64,10 +64,8 @@ namespace gfx {
         // Create descriptor heaps
         m_heap_rtv = std::make_shared<DescriptorHeap>(*this, D3D12_DESCRIPTOR_HEAP_TYPE_RTV, backbuffer_count);
         m_heap_bindless = std::make_shared<DescriptorHeap>(*this, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, D3D12_MAX_SHADER_VISIBLE_DESCRIPTOR_HEAP_SIZE_TIER_1);
-
-        m_queue = std::make_shared<CommandQueue>(*this);
-        m_swapchain = std::make_shared<Swapchain>(*this, *m_queue);
     }
+
 
     void Device::resize_window(const int width, const int height) const {
         glfwSetWindowSize(m_window_glfw, width, height);
@@ -75,5 +73,10 @@ namespace gfx {
 
     void Device::get_window_size(int& width, int& height) const {
         glfwGetWindowSize(m_window_glfw, &width, &height);
+    }
+
+    void Device::init_context() {
+        m_queue = std::make_shared<CommandQueue>(*this);
+        m_swapchain = std::make_shared<Swapchain>(*this, *m_queue);
     }
 }
