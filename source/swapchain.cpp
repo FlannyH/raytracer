@@ -4,8 +4,6 @@
 
 namespace gfx {
     Swapchain::Swapchain(const Device& device, const CommandQueue& queue, DescriptorHeap& rtv_heap) {
-        m_frame_index = 0;
-
         int width, height;
         device.get_window_size(width, height);
 
@@ -50,5 +48,7 @@ namespace gfx {
             validate(m_swapchain->GetBuffer(i, IID_PPV_ARGS(&m_render_targets[i])));
             device.device->CreateRenderTargetView(m_render_targets[i].Get(), nullptr, rtv_handle);
         }
+
+        m_frame_index = 0;
     }
 }
