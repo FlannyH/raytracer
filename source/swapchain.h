@@ -6,11 +6,12 @@
 #include "common.h"
 
 namespace gfx {
+    struct DescriptorHeap;
     struct Device;
     struct CommandQueue;
 
     struct Swapchain {
-        Swapchain(const Device& device, const CommandQueue& queue);
+        Swapchain(const Device& device, const CommandQueue& queue, DescriptorHeap& rtv_heap);
 
     private:    
         ComPtr<IDXGISwapChain3> m_swapchain = nullptr;

@@ -1,8 +1,9 @@
 #include "swapchain.h"
 #include "device.h"
+#include "descriptor_heap.h"
 
 namespace gfx {
-    Swapchain::Swapchain(const Device& device, const CommandQueue& queue) {
+    Swapchain::Swapchain(const Device& device, const CommandQueue& queue, DescriptorHeap& rtv_heap) {
         m_frame_index = 0;
 
         int width, height;
@@ -39,6 +40,15 @@ namespace gfx {
 
         if (!m_swapchain) {
             throw std::exception();
+        }
+
+        // Create render targets
+        for (UINT i = 0; i < backbuffer_count; i++) {
+            // Allocate descriptor
+            const auto rtv_handle = rtv_heap.alloc_descriptor();
+
+            validate(m_swapchain->GetBuffer(i, IID_PPV_ARGS(&m_render_targets[i])));
+            device.device->CreateRenderTargetView(m_render_targets[i].Get(), nullptr, rtv_handle);
         }
     }
 }
