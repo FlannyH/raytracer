@@ -1,6 +1,7 @@
 #include "swapchain.h"
 #include "device.h"
 #include "descriptor_heap.h"
+#include "command.h"
 
 namespace gfx {
     Swapchain::Swapchain(const Device& device, const CommandQueue& queue, DescriptorHeap& rtv_heap) {

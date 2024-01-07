@@ -1,18 +1,25 @@
 #pragma once
+#include <d3d12.h>
 #include <dxgi1_4.h>
 #include <memory>
 
-#include "command.h"
-#include "descriptor_heap.h"
-#include "swapchain.h"
+#include "common.h"
 #include "glfw/glfw3.h"
 
 namespace gfx {
+    struct Swapchain;
+    struct CommandQueue;
+    struct DescriptorHeap;
+    struct RenderPass;
+    struct Pipeline;
+
     struct Device {
         Device(int width, int height, bool debug_layer_enabled);
         void resize_window(int width, int height) const;
         void get_window_size(int& width, int& height) const;
         void init_context();
+        std::shared_ptr<RenderPass> create_render_pass();
+        std::shared_ptr<Pipeline> create_raster_pipeline(const RenderPass& render_pass);
 
     public:
         ComPtr<ID3D12Device> device = nullptr;

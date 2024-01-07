@@ -4,6 +4,10 @@
 #include <glfw/glfw3native.h>
 
 #include "swapchain.h"
+#include "render_pass.h"
+#include "pipeline.h"
+#include "descriptor_heap.h"
+#include "command.h"
 
 namespace gfx {
     Device::Device(const int width, const int height, const bool debug_layer_enabled) {
@@ -78,5 +82,13 @@ namespace gfx {
     void Device::init_context() {
         m_queue = std::make_shared<CommandQueue>(*this);
         m_swapchain = std::make_shared<Swapchain>(*this, *m_queue, *m_heap_rtv);
+    }
+
+    std::shared_ptr<RenderPass> Device::create_render_pass() {
+        return std::make_shared<RenderPass>(*this);
+    }
+
+    std::shared_ptr<Pipeline> Device::create_raster_pipeline(const RenderPass& render_pass) {
+        return std::make_shared<Pipeline>(*this, render_pass);
     }
 }
