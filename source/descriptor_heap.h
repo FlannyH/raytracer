@@ -5,9 +5,10 @@
 #include "common.h"
 
 namespace gfx {
+    struct Device;
+
     struct DescriptorHeap {
-        [[nodiscard]] static DescriptorHeap new_bindless_heap(size_t n_descriptors);
-        [[nodiscard]] static DescriptorHeap new_rtv_heap(size_t n_descriptors);
+        DescriptorHeap(const Device& device, D3D12_DESCRIPTOR_HEAP_TYPE type, size_t n_descriptors);
         D3D12_CPU_DESCRIPTOR_HANDLE alloc_descriptor();
 
     private:

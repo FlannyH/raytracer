@@ -1,29 +1,12 @@
+#include "swapchain.h"
 #include "device.h"
-#include <glfw/glfw3.h>
-#include <glfw/glfw3native.h>
-#include <d3d12.h>
-#include <d3d12sdklayers.h>
-#include <dxgi1_6.h>
-#include <wrl.h>
-#include "common.h"
 
 namespace gfx {
-    extern ComPtr<IDXGIFactory4> _factory;
-    extern ComPtr<ID3D12CommandQueue> _command_queue;
-    extern HWND _window_hwnd;
-
-    ComPtr<IDXGISwapChain3> _swapchain = nullptr;
-    ComPtr<ID3D12Resource> _render_targets[backbuffer_count];
-    int _frame_wait_values[backbuffer_count];
-    int _frame_index;
-}
-
-namespace gfx {
-    void create_swapchain() {
+    Swapchain::Swapchain(const Device& device, const CommandQueue& queue) {
         _frame_index = 0;
 
         int width, height;
-        gfx::get_window_size(width, height);
+        device.get_window_size(width, height);
 
         const DXGI_SWAP_CHAIN_DESC1 swapchain_desc = {
             .Width = static_cast<UINT>(width),
@@ -39,9 +22,9 @@ namespace gfx {
         };
 
         IDXGISwapChain1* new_swapchain;
-        validate(_factory->CreateSwapChainForHwnd(
-            _command_queue.Get(), 
-            _window_hwnd, 
+        validate(device.factory->CreateSwapChainForHwnd(
+            queue.command_queue.Get(),
+            device.window_hwnd, 
             &swapchain_desc, 
             nullptr, 
             nullptr, 

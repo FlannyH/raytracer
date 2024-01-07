@@ -4,45 +4,20 @@
 #include <dxgi1_6.h>
 
 #include "common.h"
+#include "device.h"
 
 namespace gfx {
-    extern ComPtr<ID3D12Device> _device;
-    extern ComPtr<IDXGISwapChain3> _swapchain;
-}
-
-namespace gfx {
-    DescriptorHeap DescriptorHeap::new_bindless_heap(const size_t n_descriptors) {
-        DescriptorHeap heap;
-
+    DescriptorHeap::DescriptorHeap(const Device& device, D3D12_DESCRIPTOR_HEAP_TYPE type, size_t n_descriptors) {
         const D3D12_DESCRIPTOR_HEAP_DESC desc = {
-            .Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV,
+            .Type = type,
             .NumDescriptors = static_cast<UINT>(n_descriptors),
             .Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE,
         };
 
-        validate(_device->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&heap.m_heap)));
+        validate(device.device->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&m_heap)));
 
-        heap.m_descriptor_size = _device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-        heap.m_start_cpu = heap.m_heap->GetCPUDescriptorHandleForHeapStart();
-
-        return heap;
-    }
-
-    DescriptorHeap DescriptorHeap::new_rtv_heap(const size_t n_descriptors) {
-        DescriptorHeap heap;
-
-        const D3D12_DESCRIPTOR_HEAP_DESC desc = {
-            .Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV,
-            .NumDescriptors = static_cast<UINT>(n_descriptors),
-            .Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE,
-        };
-
-        validate(_device->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&heap.m_heap)));
-
-        heap.m_descriptor_size = _device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
-        heap.m_start_cpu = heap.m_heap->GetCPUDescriptorHandleForHeapStart();
-
-        return heap;
+        m_descriptor_size = device.device->GetDescriptorHandleIncrementSize(type);
+        m_start_cpu = m_heap->GetCPUDescriptorHandleForHeapStart();
     }
     
     // Returns the CPU descriptor handle as a size_t

@@ -1,3 +1,5 @@
+#include "command.h"
+
 #include "device.h"
 #include <glfw/glfw3.h>
 #include <glfw/glfw3native.h>
@@ -9,21 +11,19 @@
 #include "common.h"
 
 namespace gfx {
-    extern ComPtr<ID3D12Device> _device;
-    ComPtr<ID3D12CommandQueue> _command_queue = nullptr;
     ComPtr<ID3D12CommandAllocator> _command_allocator = nullptr;
+
+    CommandQueue::CommandQueue(const Device& device) {
+        constexpr D3D12_COMMAND_QUEUE_DESC desc = {
+            .Type = D3D12_COMMAND_LIST_TYPE_DIRECT,
+            .Flags = D3D12_COMMAND_QUEUE_FLAG_NONE,
+        };
+
+        validate(device.device->CreateCommandQueue(&desc, IID_PPV_ARGS(&command_queue)));
+        validate(device.device->CreateCommandAllocator(desc.Type, IID_PPV_ARGS(&_command_allocator)));
+
+    }
 }
 
 namespace gfx {
-    void create_command_queue() {
-        if (_command_queue == nullptr) {
-            constexpr D3D12_COMMAND_QUEUE_DESC desc = {
-                .Type = D3D12_COMMAND_LIST_TYPE_DIRECT,
-                .Flags = D3D12_COMMAND_QUEUE_FLAG_NONE,
-            };
-            validate(_device->CreateCommandQueue(&desc, IID_PPV_ARGS(&_command_queue)));
-            validate(_device->CreateCommandAllocator(desc.Type,
-                IID_PPV_ARGS(&_command_allocator)));
-        }
-    }
 }
