@@ -12,7 +12,7 @@ endif()
 project ("raytracer")
 
 # Add source to this project's executable.
-add_executable (raytracer "source/main.cpp" "source/device.h" "source/device.cpp"   "source/common.h" "source/command.h" "source/command.cpp" "source/swapchain.cpp" "source/swapchain.h" "source/descriptor_heap.h" "source/descriptor_heap.cpp" "source/hl_renderer.h" "source/hl_renderer.cpp"  "source/fence.h" "source/fence.cpp")
+add_executable (raytracer "source/main.cpp" "source/device.h" "source/device.cpp"   "source/common.h" "source/command.h" "source/command.cpp" "source/swapchain.cpp" "source/swapchain.h" "source/descriptor_heap.h" "source/descriptor_heap.cpp" "source/hl_renderer.h" "source/hl_renderer.cpp"  "source/fence.h" "source/fence.cpp" "source/buffer.h" "source/buffer.cpp")
 
 target_include_directories(raytracer PUBLIC "external/include")
 target_link_directories(raytracer PUBLIC "external/libraries")
