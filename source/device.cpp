@@ -77,6 +77,6 @@ namespace gfx {
 
     void Device::init_context() {
         m_queue = std::make_shared<CommandQueue>(*this);
-        m_swapchain = std::make_shared<Swapchain>(*this, *m_queue);
+        m_swapchain = std::make_shared<Swapchain>(*this, *m_queue, *m_heap_rtv);
     }
 }
