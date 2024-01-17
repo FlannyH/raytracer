@@ -1,4 +1,4 @@
-#include "command.h"
+#include "command_queue.h"
 
 #include "device.h"
 #include <d3d12.h>
@@ -18,7 +18,6 @@ namespace gfx {
 
         validate(device.device->CreateCommandQueue(&desc, IID_PPV_ARGS(&command_queue)));
         validate(device.device->CreateCommandAllocator(desc.Type, IID_PPV_ARGS(&_command_allocator)));
-
     }
 }
 

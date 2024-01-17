@@ -7,7 +7,7 @@
 #include "render_pass.h"
 #include "pipeline.h"
 #include "descriptor_heap.h"
-#include "command.h"
+#include "command_queue.h"
 
 namespace gfx {
     Device::Device(const int width, const int height, const bool debug_layer_enabled) {

@@ -1,6 +1,6 @@
 #include "fence.h"
 #include "device.h"
-#include "command.h"
+#include "command_queue.h"
 
 namespace gfx {
     Fence::Fence(const Device& device) {

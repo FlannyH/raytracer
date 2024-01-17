@@ -10,6 +10,7 @@ namespace gfx {
     struct CommandQueue {
         explicit CommandQueue(const Device& device);
 
+
     public:
         ComPtr<ID3D12CommandQueue> command_queue = nullptr;
     };
