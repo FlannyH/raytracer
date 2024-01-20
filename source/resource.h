@@ -22,6 +22,11 @@ namespace gfx {
         uint8_t* data;
     };
 
+    enum class PixelFormat {
+        none = 0,
+        rgba_8
+    };
+
     struct Resource {
         ResourceType type;
         ComPtr<ID3D12Resource> handle;

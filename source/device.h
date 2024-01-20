@@ -25,6 +25,7 @@ namespace gfx {
         void begin_frame();
         void end_frame();
         ResourceID load_bindless_texture(const std::string& path);
+        ResourceID load_bindless_texture(uint32_t width, uint32_t height, void* data, PixelFormat pixel_format);
         void unload_bindless_resource(ResourceID id);
 
     public:

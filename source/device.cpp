@@ -105,15 +105,25 @@ namespace gfx {
         int width, height, channels;
         uint8_t* data = stbi_load(path.c_str(), &width, &height, &channels, 4);
 
-        Resource resource {
+        return load_bindless_texture(width, height, data, PixelFormat::rgba_8);
+    }
+
+    ResourceID Device::load_bindless_texture(uint32_t width, uint32_t height, void* data, PixelFormat pixel_format) {
+        Resource resource{
             .type = ResourceType::texture,
             .texture_resource = {
-                .width = static_cast<uint32_t>(width),
-                .height = static_cast<uint32_t>(height),
+                .width = width,
+                .height = height,
                 .pixel_format = DXGI_FORMAT_R8G8B8A8_UNORM,
-                .data = data
+                .data = static_cast<uint8_t*>(data)
             }
         };
+
+        switch (pixel_format) {
+        case PixelFormat::rgba_8:
+            resource.texture_resource.pixel_format = DXGI_FORMAT_R8G8B8A8_UNORM;
+            break;
+        }
 
         D3D12_RESOURCE_DESC resource_desc = {};
         resource_desc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;

@@ -9,16 +9,13 @@ int main(int n_args, char** args) {
     printf("Renderer initialized!\n");
 
     auto texture1 = device->load_bindless_texture("assets/textures/test.png");
-    auto texture2 = device->load_bindless_texture("assets/textures/test.png");
-    auto texture3 = device->load_bindless_texture("assets/textures/test.png");
-    device->unload_bindless_resource(texture2);
-    auto texture4 = device->load_bindless_texture("assets/textures/test.png");
-    device->unload_bindless_resource(texture1);
-    device->unload_bindless_resource(texture3);
-    device->unload_bindless_resource(texture4);
-    auto texture5 = device->load_bindless_texture("assets/textures/test.png");
-    auto texture6 = device->load_bindless_texture("assets/textures/test.png");
-    auto texture7 = device->load_bindless_texture("assets/textures/test.png");
+    std::vector<uint32_t> test_gradient;
+    for (int y = 0; y < 64; y++) {
+        for (int x = 0; x < 64; x++) {
+            test_gradient.push_back(x * 4 + y * 4 << 8);
+        }
+    }
+    auto texture2 = device->load_bindless_texture(64, 64, test_gradient.data(), gfx::PixelFormat::rgba_8);
 
 
     while (1) {
