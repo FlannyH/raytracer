@@ -6,6 +6,7 @@
 #include "common.h"
 #include "glfw/glfw3.h"
 #include "glm/matrix.hpp"
+#include "resource.h"
 
 namespace gfx {
     struct Swapchain;
@@ -23,7 +24,8 @@ namespace gfx {
         std::shared_ptr<Pipeline> create_raster_pipeline(const RenderPass& render_pass); // todo: give the user the option to specify custom shaders
         void begin_frame();
         void end_frame();
-        
+        ResourceID load_bindless_texture(const std::string& path);
+        void unload_bindless_resource(ResourceID id);
 
     public:
         ComPtr<ID3D12Device> device = nullptr;

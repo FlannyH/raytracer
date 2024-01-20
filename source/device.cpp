@@ -1,8 +1,11 @@
 #define GLFW_EXPOSE_NATIVE_WIN32
+#define STB_IMAGE_IMPLEMENTATION
 
 #include "device.h"
 #include <glfw/glfw3native.h>
+#include <stb/stb_image.h>
 
+#include "command_buffer.h"
 #include "swapchain.h"
 #include "render_pass.h"
 #include "pipeline.h"
@@ -96,5 +99,51 @@ namespace gfx {
     }
 
     void Device::end_frame() {
+    }
+
+    ResourceID Device::load_bindless_texture(const std::string& path) {
+        int width, height, channels;
+        uint8_t* data = stbi_load(path.c_str(), &width, &height, &channels, 4);
+
+        Resource resource {
+            .type = ResourceType::texture,
+            .texture_resource = {
+                .width = static_cast<uint32_t>(width),
+                .height = static_cast<uint32_t>(height),
+                .pixel_format = DXGI_FORMAT_R8G8B8A8_UNORM,
+                .data = data
+            }
+        };
+
+        D3D12_RESOURCE_DESC resource_desc = {};
+        resource_desc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+        resource_desc.Width = resource.texture_resource.width;
+        resource_desc.Height = resource.texture_resource.height;
+        resource_desc.DepthOrArraySize = 1;
+        resource_desc.MipLevels = 1;
+        resource_desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+        resource_desc.SampleDesc.Count = 1;
+        resource_desc.Flags = D3D12_RESOURCE_FLAG_NONE;
+
+        D3D12_HEAP_PROPERTIES heap_properties = {};
+        heap_properties.Type = D3D12_HEAP_TYPE_DEFAULT;
+
+        auto id = m_heap_bindless->alloc_descriptor(ResourceType::texture);
+        auto descriptor = m_heap_bindless->fetch_cpu_handle(id);
+        device->CreateCommittedResource(
+            &heap_properties,
+            D3D12_HEAP_FLAG_NONE,
+            &resource_desc,
+            D3D12_RESOURCE_STATE_COMMON,
+            nullptr,
+            IID_PPV_ARGS(&resource.handle)
+        );
+
+        id.is_loaded = true;
+        return id;
+    }
+
+    void Device::unload_bindless_resource(ResourceID id) {
+        m_heap_bindless->free_descriptor(id);
     }
 }

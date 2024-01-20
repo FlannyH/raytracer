@@ -44,7 +44,8 @@ namespace gfx {
         // Create render targets
         for (UINT i = 0; i < backbuffer_count; i++) {
             // Allocate descriptor
-            const auto rtv_handle = rtv_heap.alloc_descriptor();
+            const auto rtv_id = rtv_heap.alloc_descriptor(ResourceType::texture);
+            const auto rtv_handle = rtv_heap.fetch_cpu_handle(rtv_id);
 
             validate(m_swapchain->GetBuffer(i, IID_PPV_ARGS(&m_render_targets[i])));
             device.device->CreateRenderTargetView(m_render_targets[i].Get(), nullptr, rtv_handle);

@@ -35,7 +35,7 @@ namespace gfx {
         D3D12_RANGE range{ 0, 0 };
         void* begin;
         resource->Map(0, &range, &begin);
-        memcpy(begin, data, min(size_bytes, this->size));
+        memcpy(begin, data, std::min(size_bytes, this->size));
         resource->Unmap(0, nullptr);
     }
 }
