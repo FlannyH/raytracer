@@ -6,10 +6,9 @@
 #include <wrl.h>
 
 #include "common.h"
+#include "pipeline.h"
 
 namespace gfx {
-    ComPtr<ID3D12CommandAllocator> _command_allocator = nullptr;
-
     CommandQueue::CommandQueue(const Device& device) {
         constexpr D3D12_COMMAND_QUEUE_DESC desc = {
             .Type = D3D12_COMMAND_LIST_TYPE_DIRECT,
@@ -17,7 +16,7 @@ namespace gfx {
         };
 
         validate(device.device->CreateCommandQueue(&desc, IID_PPV_ARGS(&command_queue)));
-        validate(device.device->CreateCommandAllocator(desc.Type, IID_PPV_ARGS(&_command_allocator)));
+        validate(device.device->CreateCommandAllocator(desc.Type, IID_PPV_ARGS(&m_command_allocator)));
     }
 }
 

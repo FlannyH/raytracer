@@ -91,4 +91,10 @@ namespace gfx {
     std::shared_ptr<Pipeline> Device::create_raster_pipeline(const RenderPass& render_pass) {
         return std::make_shared<Pipeline>(*this, render_pass);
     }
+
+    void Device::begin_frame() {
+    }
+
+    void Device::end_frame() {
+    }
 }

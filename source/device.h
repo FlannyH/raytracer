@@ -5,6 +5,7 @@
 
 #include "common.h"
 #include "glfw/glfw3.h"
+#include "glm/matrix.hpp"
 
 namespace gfx {
     struct Swapchain;
@@ -19,7 +20,10 @@ namespace gfx {
         void get_window_size(int& width, int& height) const;
         void init_context();
         std::shared_ptr<RenderPass> create_render_pass();
-        std::shared_ptr<Pipeline> create_raster_pipeline(const RenderPass& render_pass);
+        std::shared_ptr<Pipeline> create_raster_pipeline(const RenderPass& render_pass); // todo: give the user the option to specify custom shaders
+        void begin_frame();
+        void end_frame();
+        
 
     public:
         ComPtr<ID3D12Device> device = nullptr;
