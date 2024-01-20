@@ -1,7 +1,6 @@
 #include "render_pass.h"
 #include "device.h"
 #include "shader.h"
-#include "structs.h"
 
 namespace gfx {
     RenderPass::RenderPass(const Device& device) {

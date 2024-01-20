@@ -2,7 +2,6 @@
 
 #include "render_pass.h"
 #include "shader.h"
-#include "structs.h"
 #include "device.h"
 
 namespace gfx {

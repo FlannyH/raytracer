@@ -12,11 +12,28 @@ int main(int n_args, char** args) {
     std::vector<uint32_t> test_gradient;
     for (int y = 0; y < 64; y++) {
         for (int x = 0; x < 64; x++) {
-            test_gradient.push_back(x * 4 + y * 4 << 8);
+            test_gradient.push_back((x * 4) + ((y * 4) << 8));
         }
     }
-    auto texture2 = device->load_bindless_texture(64, 64, test_gradient.data(), gfx::PixelFormat::rgba_8);
+    auto texture2 = device->load_bindless_texture("test-gradient", 64, 64, test_gradient.data(), gfx::PixelFormat::rgba_8);
 
+    gfx::Triangle triangle {
+        .verts = {
+            gfx::Vertex {
+                .position = {0.0, 0.5, 0.0},
+                .color = {1.0, 0.0, 0.0},
+            },
+            gfx::Vertex {
+                .position = {-0.5, -0.5, 0.0},
+                .color = {0.0, 1.0, 0.0},
+            },
+            gfx::Vertex {
+                .position = {0.5, -0.5, 0.0},
+                .color = {0.0, 0.0, 1.0},
+            },
+        }
+    };
+    auto triangle_vb = device->load_mesh("triangle" ,1, &triangle);
 
     while (1) {
         device->begin_frame();

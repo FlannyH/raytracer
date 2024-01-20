@@ -1,7 +1,9 @@
 #pragma once
 #include <d3d12.h>
 #include <dxgi1_4.h>
+#include <map>
 #include <memory>
+#include <unordered_map>
 
 #include "common.h"
 #include "glfw/glfw3.h"
@@ -25,7 +27,8 @@ namespace gfx {
         void begin_frame();
         void end_frame();
         ResourceID load_bindless_texture(const std::string& path);
-        ResourceID load_bindless_texture(uint32_t width, uint32_t height, void* data, PixelFormat pixel_format);
+        ResourceID load_bindless_texture(const std::string& name, uint32_t width, uint32_t height, void* data, PixelFormat pixel_format);
+        ResourceID load_mesh(const std::string& name, uint64_t n_triangles, Triangle* tris);
         void unload_bindless_resource(ResourceID id);
 
     public:
@@ -41,5 +44,7 @@ namespace gfx {
         std::shared_ptr<DescriptorHeap> m_heap_bindless = nullptr;
         std::shared_ptr<CommandQueue> m_queue = nullptr;
         std::shared_ptr<Swapchain> m_swapchain = nullptr;
+        std::unordered_map<std::string, ResourceID> m_resource_name_map; // so we don't load in duplicates
+        std::unordered_map<uint64_t, std::shared_ptr<Resource>> m_resources;
     };
 };

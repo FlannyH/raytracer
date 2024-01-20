@@ -105,34 +105,77 @@ namespace gfx {
         int width, height, channels;
         uint8_t* data = stbi_load(path.c_str(), &width, &height, &channels, 4);
 
-        return load_bindless_texture(width, height, data, PixelFormat::rgba_8);
+        return load_bindless_texture(path, width, height, data, PixelFormat::rgba_8);
     }
 
-    ResourceID Device::load_bindless_texture(uint32_t width, uint32_t height, void* data, PixelFormat pixel_format) {
-        Resource resource{
+    ResourceID Device::load_bindless_texture(const std::string& name, uint32_t width, uint32_t height, void* data, PixelFormat pixel_format) {
+        auto resource = std::make_shared<Resource>();
+        *resource = {
             .type = ResourceType::texture,
             .texture_resource = {
+                .data = static_cast<uint8_t*>(data),
                 .width = width,
                 .height = height,
                 .pixel_format = DXGI_FORMAT_R8G8B8A8_UNORM,
-                .data = static_cast<uint8_t*>(data)
             }
         };
 
         switch (pixel_format) {
         case PixelFormat::rgba_8:
-            resource.texture_resource.pixel_format = DXGI_FORMAT_R8G8B8A8_UNORM;
+            resource->expect_texture().pixel_format = DXGI_FORMAT_R8G8B8A8_UNORM;
             break;
         }
 
         D3D12_RESOURCE_DESC resource_desc = {};
         resource_desc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
-        resource_desc.Width = resource.texture_resource.width;
-        resource_desc.Height = resource.texture_resource.height;
+        resource_desc.Width = resource->expect_texture().width;
+        resource_desc.Height = resource->expect_texture().height;
         resource_desc.DepthOrArraySize = 1;
         resource_desc.MipLevels = 1;
         resource_desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
         resource_desc.SampleDesc.Count = 1;
+        resource_desc.Flags = D3D12_RESOURCE_FLAG_NONE;
+
+        D3D12_HEAP_PROPERTIES heap_properties = {};
+        heap_properties.Type = D3D12_HEAP_TYPE_DEFAULT;
+
+        auto id = m_heap_bindless->alloc_descriptor(ResourceType::buffer);
+        auto descriptor = m_heap_bindless->fetch_cpu_handle(id);
+        device->CreateCommittedResource(
+            &heap_properties,
+            D3D12_HEAP_FLAG_NONE,
+            &resource_desc,
+            D3D12_RESOURCE_STATE_COMMON,
+            nullptr,
+            IID_PPV_ARGS(&resource->handle)
+        );
+        id.is_loaded = true;
+
+        m_resource_name_map[name] = id;
+        m_resources[id.id] = resource;
+
+        return id;
+    }
+
+    ResourceID Device::load_mesh(const std::string& name, uint64_t n_triangles, Triangle* tris) {
+        auto resource = std::make_shared<Resource>();
+        *resource = {
+            .type = ResourceType::buffer,
+            .buffer_resource = {
+                .data = tris,
+                .size = n_triangles * sizeof(Triangle),
+            }
+        };
+
+        D3D12_RESOURCE_DESC resource_desc = {};
+        resource_desc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
+        resource_desc.Width = resource->expect_buffer().size;
+        resource_desc.Height = 1;
+        resource_desc.DepthOrArraySize = 1;
+        resource_desc.MipLevels = 1;
+        resource_desc.Format = DXGI_FORMAT_UNKNOWN;
+        resource_desc.SampleDesc.Count = 1;
+        resource_desc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
         resource_desc.Flags = D3D12_RESOURCE_FLAG_NONE;
 
         D3D12_HEAP_PROPERTIES heap_properties = {};
@@ -146,10 +189,14 @@ namespace gfx {
             &resource_desc,
             D3D12_RESOURCE_STATE_COMMON,
             nullptr,
-            IID_PPV_ARGS(&resource.handle)
+            IID_PPV_ARGS(&resource->handle)
         );
 
         id.is_loaded = true;
+
+        m_resource_name_map[name] = id;
+        m_resources[id.id] = resource;
+
         return id;
     }
 
