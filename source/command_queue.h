@@ -1,6 +1,7 @@
 #pragma once
 #include <cstdio>
 #include <d3d12.h>
+#include <deque>
 
 #include "common.h"
 
@@ -17,12 +18,16 @@ namespace gfx {
 
     struct CommandQueue {
         explicit CommandQueue(const Device& device);
-        std::shared_ptr<CommandBuffer> create_command_buffer(const Device& device, std::shared_ptr<Pipeline> pipeline, CommandBufferType type);
+        std::shared_ptr<CommandBuffer> create_command_buffer(const Device& device, std::shared_ptr<Pipeline> pipeline, CommandBufferType type, uint64_t frame_index);
+        int clean_up_old_command_buffers(int curr_index);
+        void end_frame();
 
     public:
         ComPtr<ID3D12CommandQueue> command_queue = nullptr;
 
     private:
-        ComPtr<ID3D12CommandAllocator> m_command_allocator = nullptr;
+        std::vector<std::shared_ptr<CommandBuffer>> m_command_buffer_pool;
+        std::deque<size_t> m_command_buffers_to_reuse;
+        std::deque<size_t> m_in_flight_command_buffers;
     };
 }

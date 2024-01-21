@@ -72,8 +72,8 @@ namespace gfx {
         }
 
         // Create descriptor heaps
-        m_heap_rtv = std::make_shared<DescriptorHeap>(*this, D3D12_DESCRIPTOR_HEAP_TYPE_RTV, backbuffer_count);
-        m_heap_bindless = std::make_shared<DescriptorHeap>(*this, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, D3D12_MAX_SHADER_VISIBLE_DESCRIPTOR_HEAP_SIZE_TIER_1);
+        m_heap_rtv = std::make_shared<DescriptorHeap>(*this, D3D12_DESCRIPTOR_HEAP_TYPE_RTV, D3D12_DESCRIPTOR_HEAP_FLAG_NONE, backbuffer_count);
+        m_heap_bindless = std::make_shared<DescriptorHeap>(*this, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE, D3D12_MAX_SHADER_VISIBLE_DESCRIPTOR_HEAP_SIZE_TIER_1 / 2);
     }
 
 
@@ -107,21 +107,27 @@ namespace gfx {
     }
 
     void Device::test(std::shared_ptr<Pipeline> pipeline, std::shared_ptr<RenderPass> render_pass) {
-        auto cmd = m_queue->create_command_buffer(*this, pipeline, CommandBufferType::graphics);
-        auto gfx_cmd = cmd->expect_graphics_command_list();
+        printf("--------------------------------\n");
 
         // Wait for next framebuffer to be available
         auto framebuffer = m_swapchain->next_framebuffer();
+        auto cmd = m_queue->create_command_buffer(*this, pipeline, CommandBufferType::graphics, m_swapchain->current_frame_index());
+        auto gfx_cmd = cmd->expect_graphics_command_list();
+        m_queue->clean_up_old_command_buffers(m_swapchain->current_frame_index());
 
         // Render triangle to that framebuffer
         m_swapchain->prepare_render(cmd);
+        ID3D12DescriptorHeap* heaps[] = {
+            m_heap_bindless->heap.Get(),
+        };
+        gfx_cmd->SetDescriptorHeaps(1, heaps);
         gfx_cmd->SetGraphicsRootSignature(render_pass->root_signature.Get());
         gfx_cmd->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
         gfx_cmd->SetPipelineState(pipeline->pipeline_state.Get());
         gfx_cmd->DrawInstanced(3, 1, 0, 0);
 
         // Present backbuffer
-        ID3D12CommandList* command_lists[] = { gfx_cmd.Get() }; // todo: store the command lists that we're allocating somewhere, maybe in the command queue struct, move this code to end_frame, and go from there
+        ID3D12CommandList* command_lists[] = { gfx_cmd }; // todo: store the command lists that we're allocating somewhere, maybe in the command queue struct, move this code to end_frame, and go from there
         m_swapchain->prepare_present(cmd);
         gfx_cmd->Close();
         m_queue->command_queue->ExecuteCommandLists(1, command_lists);

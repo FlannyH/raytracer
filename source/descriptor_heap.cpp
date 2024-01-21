@@ -7,17 +7,17 @@
 #include "device.h"
 
 namespace gfx {
-    DescriptorHeap::DescriptorHeap(const Device& device, D3D12_DESCRIPTOR_HEAP_TYPE type, size_t n_descriptors) {
+    DescriptorHeap::DescriptorHeap(const Device& device, D3D12_DESCRIPTOR_HEAP_TYPE type, D3D12_DESCRIPTOR_HEAP_FLAGS flags, size_t n_descriptors) {
         const D3D12_DESCRIPTOR_HEAP_DESC desc = {
             .Type = type,
             .NumDescriptors = static_cast<UINT>(n_descriptors * 2),
-            .Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE,
+            .Flags = flags,
         };
 
-        validate(device.device->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&m_heap)));
+        validate(device.device->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&heap)));
 
         m_descriptor_size = device.device->GetDescriptorHandleIncrementSize(type);
-        m_start_cpu = m_heap->GetCPUDescriptorHandleForHeapStart();
+        m_start_cpu = heap->GetCPUDescriptorHandleForHeapStart();
     }
     
     // Returns the CPU descriptor handle as a size_t

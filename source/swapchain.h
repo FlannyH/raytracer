@@ -19,6 +19,9 @@ namespace gfx {
         void present();
         void prepare_present(std::shared_ptr<CommandBuffer> command_buffer);
         void synchronize(std::shared_ptr<CommandQueue> queue);
+        int current_frame_index() const {
+            return m_frame_index;
+        }
 
     private:
         int framebuffer_index() const {

@@ -8,7 +8,11 @@ namespace gfx {
     }
 
     void Fence::cpu_wait(const size_t value) {
-        while (m_fence->GetCompletedValue() < value);
+        printf("%i -> %i\twaiting on fence", m_fence->GetCompletedValue(), value);
+        while (m_fence->GetCompletedValue() < value) {
+            printf(".");
+        };
+        printf("\n");
     }
 
     void Fence::cpu_signal(const size_t value) const {
@@ -21,5 +25,9 @@ namespace gfx {
 
     void Fence::gpu_signal(std::shared_ptr<CommandQueue> queue, const size_t value) const {
         queue->command_queue->Signal(m_fence.Get(), value);
+    }
+
+    bool Fence::reached_value(size_t value) {
+        return m_fence->GetCompletedValue() >= value;
     }
 }
