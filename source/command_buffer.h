@@ -31,11 +31,12 @@ namespace gfx {
         }
 
         bool is_finished(uint64_t curr_fence_value) {
+            //printf("is_finished() -> %i >= %i?\n", curr_fence_value, m_fence_value_when_finished);
             return curr_fence_value >= m_fence_value_when_finished;
         }
 
     private:
-        CommandBufferType m_type = CommandBufferType::none;
+        CommandBufferType m_type;
         ComPtr<ID3D12GraphicsCommandList> m_command_list;
         ComPtr<ID3D12CommandAllocator> m_command_allocator;
         uint64_t m_fence_value_when_finished = ~0;
