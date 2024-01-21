@@ -20,8 +20,8 @@ namespace gfx {
         validate(device.device->CreateCommandAllocator(desc.Type, IID_PPV_ARGS(&m_command_allocator)));
     }
 
-    std::shared_ptr<CommandBuffer> CommandQueue::create_command_buffer(const Device& device, std::shared_ptr<Pipeline> pipeline) {
-        return std::make_shared<CommandBuffer>(device, m_command_allocator.Get(), pipeline->pipeline_state.Get());
+    std::shared_ptr<CommandBuffer> CommandQueue::create_command_buffer(const Device& device, std::shared_ptr<Pipeline> pipeline, CommandBufferType type) {
+        return std::make_shared<CommandBuffer>(device, m_command_allocator.Get(), pipeline->pipeline_state.Get(), type);
     }
 }
 

@@ -9,9 +9,15 @@ namespace gfx {
     struct Pipeline;
     struct CommandBuffer;
 
+    enum class CommandBufferType {
+        none = 0,
+        graphics,
+        compute
+    };
+
     struct CommandQueue {
         explicit CommandQueue(const Device& device);
-        std::shared_ptr<CommandBuffer> create_command_buffer(const Device& device, std::shared_ptr<Pipeline> pipeline);
+        std::shared_ptr<CommandBuffer> create_command_buffer(const Device& device, std::shared_ptr<Pipeline> pipeline, CommandBufferType type);
 
     public:
         ComPtr<ID3D12CommandQueue> command_queue = nullptr;

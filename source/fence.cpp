@@ -15,11 +15,11 @@ namespace gfx {
         m_fence->Signal(value);
     }
 
-    void Fence::gpu_wait(const CommandQueue& queue, const size_t value) const {
-        queue.command_queue->Wait(m_fence.Get(), value);
+    void Fence::gpu_wait(std::shared_ptr<CommandQueue> queue, const size_t value) const {
+        queue->command_queue->Wait(m_fence.Get(), value);
     }
 
-    void Fence::gpu_signal(const CommandQueue& queue, const size_t value) const {
-        queue.command_queue->Signal(m_fence.Get(), value);
+    void Fence::gpu_signal(std::shared_ptr<CommandQueue> queue, const size_t value) const {
+        queue->command_queue->Signal(m_fence.Get(), value);
     }
 }

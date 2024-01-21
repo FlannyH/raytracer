@@ -3,7 +3,10 @@
 
 #include "device.h"
 #include <glfw/glfw3native.h>
+#include <d3d12sdklayers.h>
 #include <stb/stb_image.h>
+
+#include <utility>
 
 #include "command_buffer.h"
 #include "swapchain.h"
@@ -99,6 +102,31 @@ namespace gfx {
     }
 
     void Device::end_frame() {
+        glfwPollEvents();
+        glfwSwapBuffers(m_window_glfw);
+    }
+
+    void Device::test(std::shared_ptr<Pipeline> pipeline, std::shared_ptr<RenderPass> render_pass) {
+        auto cmd = m_queue->create_command_buffer(*this, pipeline, CommandBufferType::graphics);
+        auto gfx_cmd = cmd->expect_graphics_command_list();
+
+        // Wait for next framebuffer to be available
+        auto framebuffer = m_swapchain->next_framebuffer();
+
+        // Render triangle to that framebuffer
+        m_swapchain->prepare_render(cmd);
+        gfx_cmd->SetGraphicsRootSignature(render_pass->root_signature.Get());
+        gfx_cmd->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+        gfx_cmd->SetPipelineState(pipeline->pipeline_state.Get());
+        gfx_cmd->DrawInstanced(3, 1, 0, 0);
+
+        // Present backbuffer
+        ID3D12CommandList* command_lists[] = { gfx_cmd.Get() }; // todo: store the command lists that we're allocating somewhere, maybe in the command queue struct, move this code to end_frame, and go from there
+        m_swapchain->prepare_present(cmd);
+        gfx_cmd->Close();
+        m_queue->command_queue->ExecuteCommandLists(1, command_lists);
+        m_swapchain->synchronize(m_queue);
+        m_swapchain->present();
     }
 
     ResourceID Device::load_bindless_texture(const std::string& path) {

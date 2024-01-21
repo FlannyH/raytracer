@@ -6,6 +6,7 @@
 #include "common.h"
 
 namespace gfx {
+    struct CommandBuffer;
     struct Fence;
     struct DescriptorHeap;
     struct Device;
@@ -13,8 +14,16 @@ namespace gfx {
 
     struct Swapchain {
         Swapchain(const Device& device, const CommandQueue& queue, DescriptorHeap& rtv_heap);
+        ComPtr<ID3D12Resource> next_framebuffer();
+        void prepare_render(std::shared_ptr<CommandBuffer> command_buffer);
+        void present();
+        void prepare_present(std::shared_ptr<CommandBuffer> command_buffer);
+        void synchronize(std::shared_ptr<CommandQueue> queue);
 
-    private:    
+    private:
+        int framebuffer_index() const {
+            return m_swapchain->GetCurrentBackBufferIndex();
+        }
         ComPtr<IDXGISwapChain3> m_swapchain = nullptr;
         ComPtr<ID3D12Resource> m_render_targets[backbuffer_count] = {};
         std::shared_ptr<Fence> m_fence;

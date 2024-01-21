@@ -11,8 +11,8 @@ namespace gfx {
         explicit Fence(const Device& device);
         void cpu_wait(size_t value);
         void cpu_signal(size_t value) const;
-        void gpu_wait(const CommandQueue& queue, size_t value) const;
-        void gpu_signal(const CommandQueue& queue, size_t value) const;
+        void gpu_wait(std::shared_ptr<CommandQueue> queue, size_t value) const;
+        void gpu_signal(std::shared_ptr<CommandQueue> queue, size_t value) const;
 
     private:
         ComPtr<ID3D12Fence> m_fence;

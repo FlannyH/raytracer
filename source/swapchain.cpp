@@ -1,7 +1,10 @@
 #include "swapchain.h"
+
+#include "command_buffer.h"
 #include "device.h"
 #include "descriptor_heap.h"
 #include "command_queue.h"
+#include "fence.h"
 
 namespace gfx {
     Swapchain::Swapchain(const Device& device, const CommandQueue& queue, DescriptorHeap& rtv_heap) {
@@ -51,6 +54,47 @@ namespace gfx {
             device.device->CreateRenderTargetView(m_render_targets[i].Get(), nullptr, rtv_handle);
         }
 
+        m_fence = std::make_shared<Fence>(device);
+
         m_frame_index = 0;
+    }
+
+    ComPtr<ID3D12Resource> Swapchain::next_framebuffer() {
+        m_frame_index++;
+        m_fence->cpu_wait(m_frame_wait_values[framebuffer_index()]);
+        return m_render_targets[framebuffer_index()];
+    }
+
+    void Swapchain::prepare_render(std::shared_ptr<CommandBuffer> command_buffer) {
+        D3D12_RESOURCE_BARRIER render_target_barrier;
+        render_target_barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+        render_target_barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
+        render_target_barrier.Transition.pResource = m_render_targets[framebuffer_index()].Get();
+        render_target_barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_PRESENT;
+        render_target_barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_RENDER_TARGET;
+        render_target_barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+        auto cmd = command_buffer->expect_graphics_command_list();
+        cmd->ResourceBarrier(1, &render_target_barrier);
+    }
+
+    void Swapchain::present() {
+        m_swapchain->Present(0, 0);
+    }
+
+    void Swapchain::prepare_present(std::shared_ptr<CommandBuffer> command_buffer) {
+        D3D12_RESOURCE_BARRIER present_barrier;
+        present_barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+        present_barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
+        present_barrier.Transition.pResource = m_render_targets[framebuffer_index()].Get();
+        present_barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET;
+        present_barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_PRESENT;
+        present_barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+        auto cmd = command_buffer->expect_graphics_command_list();
+        cmd->ResourceBarrier(1, &present_barrier);
+    }
+
+    void Swapchain::synchronize(std::shared_ptr<CommandQueue> queue) {
+        m_fence->gpu_signal(queue, m_frame_index);
+        m_frame_wait_values[framebuffer_index()] = m_frame_index;
     }
 }

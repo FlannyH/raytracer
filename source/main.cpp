@@ -37,6 +37,7 @@ int main(int n_args, char** args) {
 
     while (1) {
         device->begin_frame();
+        device->test(pipeline, render_pass);
         device->end_frame();
     }
 }
