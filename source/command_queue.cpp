@@ -27,7 +27,6 @@ namespace gfx {
             m_in_flight_command_buffers.push_back(index_to_reuse);
             auto& cmd = m_command_buffer_pool[index_to_reuse];
             cmd->reset(pipeline->pipeline_state.Get(), frame_index);
-            printf("reused command buffer %i, free after finishing frame %i\n", index_to_reuse, frame_index);
             return cmd;
         }
 
@@ -35,7 +34,6 @@ namespace gfx {
         auto cmd = std::make_shared<CommandBuffer>(device, pipeline->pipeline_state.Get(), type, frame_index);
 
         m_in_flight_command_buffers.push_back(m_command_buffer_pool.size());
-        printf("allocated command buffer %i, free after finishing frame %i\n", m_command_buffer_pool.size(), frame_index);
         m_command_buffer_pool.push_back(cmd);
         return cmd;
     }
@@ -47,17 +45,11 @@ namespace gfx {
             if (m_command_buffer_pool[id]->is_finished(curr_finished_index)) {
                 // Add it to the reusable list
                 m_command_buffers_to_reuse.push_back(id);
-                printf("pushed %i to m_command_buffers_to_reuse\n", id);
                 m_in_flight_command_buffers.pop_front();
-                printf("pop 0 from m_command_buffers_to_reuse\n");
                 ++n_cleaned_up;
                 continue;
             }
             return n_cleaned_up;
-        }
-
-        for (int i = 0; i < m_command_buffer_pool.size(); ++i) {
-            printf("cmd: id: %i, finish_value: %i\n", i, m_command_buffer_pool[i]->is_finished(curr_finished_index));
         }
     }
 }

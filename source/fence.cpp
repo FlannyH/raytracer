@@ -8,11 +8,8 @@ namespace gfx {
     }
 
     void Fence::cpu_wait(const size_t value) {
-        printf("%i -> %i\twaiting on fence", fence->GetCompletedValue(), value);
-        while (fence->GetCompletedValue() < value) {
-            printf(".");
-        };
-        printf("\n");
+        // todo: maybe we can use an event for this?
+        while (fence->GetCompletedValue() < value) {};
     }
 
     void Fence::cpu_signal(const size_t value) const {

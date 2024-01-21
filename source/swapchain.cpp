@@ -61,8 +61,6 @@ namespace gfx {
 
     ComPtr<ID3D12Resource> Swapchain::next_framebuffer() {
         m_frame_index++;
-        printf("(frame %i)\n", m_frame_index);
-        printf("wait for signal %i on framebuffer %i\n", m_frame_wait_values[framebuffer_index()], framebuffer_index());
         m_fence->cpu_wait(m_frame_wait_values[framebuffer_index()]);
         return m_render_targets[framebuffer_index()];
     }
@@ -80,7 +78,6 @@ namespace gfx {
     }
 
     void Swapchain::present() {
-        printf("present\n");
         m_swapchain->Present(0, 0);
     }
 
@@ -97,9 +94,7 @@ namespace gfx {
     }
 
     void Swapchain::synchronize(std::shared_ptr<CommandQueue> queue) {
-        printf("encode gpu signal %i on framebuffer %i\n", m_frame_index, framebuffer_index());
         m_fence->gpu_signal(queue, m_frame_index);
         m_frame_wait_values[framebuffer_index()] = m_frame_index;
-        printf("m_frame_wait_values[%i, %i, %i]\n", m_frame_wait_values[0], m_frame_wait_values[1], m_frame_wait_values[2]);
     }
 }

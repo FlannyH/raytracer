@@ -31,7 +31,6 @@ namespace gfx {
         }
 
         bool is_finished(uint64_t curr_fence_value) {
-            //printf("is_finished() -> %i >= %i?\n", curr_fence_value, m_fence_value_when_finished);
             return curr_fence_value >= m_fence_value_when_finished;
         }
 

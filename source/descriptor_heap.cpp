@@ -34,7 +34,6 @@ namespace gfx {
         assert(index % 2 == 0);
         assert(m_alloc_index % 2 == 0);
 
-        printf("allocated index %i for a %s descriptor\n", index, _resource_type_names[static_cast<size_t>(type)]);
 
         return ResourceID {
             .type = static_cast<uint64_t>(type),
@@ -43,7 +42,6 @@ namespace gfx {
     }
 
     void DescriptorHeap::free_descriptor(ResourceID id) {
-        printf("freed index %i for a %s descriptor\n", id.id, _resource_type_names[id.type]);
         m_available_recycled_descriptor_indices.push_back(id.id);
         id.is_loaded = 0;
         id.id = ~0;

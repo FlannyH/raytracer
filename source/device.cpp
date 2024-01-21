@@ -107,8 +107,6 @@ namespace gfx {
     }
 
     void Device::test(std::shared_ptr<Pipeline> pipeline, std::shared_ptr<RenderPass> render_pass) {
-        printf("--------------------------------\n");
-
         // Wait for next framebuffer to be available
         auto framebuffer = m_swapchain->next_framebuffer();
         auto cmd = m_queue->create_command_buffer(*this, pipeline, CommandBufferType::graphics, m_swapchain->current_frame_index());
