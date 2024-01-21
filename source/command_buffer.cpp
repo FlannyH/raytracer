@@ -15,6 +15,6 @@ namespace gfx {
             device.device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_COMPUTE, m_command_allocator.Get(), pipeline_state, IID_PPV_ARGS(&m_command_list));
             break;
         }
-        fence_value_when_finished = fence_value_when_done;
+        m_fence_value_when_finished = fence_value_when_done;
     }
 }

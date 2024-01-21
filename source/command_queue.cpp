@@ -39,12 +39,11 @@ namespace gfx {
         return cmd;
     }
 
-    int CommandQueue::clean_up_old_command_buffers(const int curr_index) {
+    int CommandQueue::clean_up_old_command_buffers(const int curr_finished_index) {
         int n_cleaned_up = 0;
         while (m_in_flight_command_buffers.empty() == false) {
             auto id = m_in_flight_command_buffers.front();
-            // If it's too old
-            if (curr_index > m_command_buffer_pool[id]->fence_value_when_finished) {
+            if (m_command_buffer_pool[id]->is_finished(curr_finished_index)) {
                 // Add it to the reusable list
                 m_command_buffers_to_reuse.push_back(id);
                 m_in_flight_command_buffers.pop_front();

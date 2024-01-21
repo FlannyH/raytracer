@@ -4,30 +4,30 @@
 
 namespace gfx {
     Fence::Fence(const Device& device) {
-        device.device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&m_fence));
+        device.device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&fence));
     }
 
     void Fence::cpu_wait(const size_t value) {
-        printf("%i -> %i\twaiting on fence", m_fence->GetCompletedValue(), value);
-        while (m_fence->GetCompletedValue() < value) {
+        printf("%i -> %i\twaiting on fence", fence->GetCompletedValue(), value);
+        while (fence->GetCompletedValue() < value) {
             printf(".");
         };
         printf("\n");
     }
 
     void Fence::cpu_signal(const size_t value) const {
-        m_fence->Signal(value);
+        fence->Signal(value);
     }
 
     void Fence::gpu_wait(std::shared_ptr<CommandQueue> queue, const size_t value) const {
-        queue->command_queue->Wait(m_fence.Get(), value);
+        queue->command_queue->Wait(fence.Get(), value);
     }
 
     void Fence::gpu_signal(std::shared_ptr<CommandQueue> queue, const size_t value) const {
-        queue->command_queue->Signal(m_fence.Get(), value);
+        queue->command_queue->Signal(fence.Get(), value);
     }
 
     bool Fence::reached_value(size_t value) {
-        return m_fence->GetCompletedValue() >= value;
+        return fence->GetCompletedValue() >= value;
     }
 }

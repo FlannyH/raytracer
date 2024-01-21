@@ -27,15 +27,17 @@ namespace gfx {
         void reset(ID3D12PipelineState* pipeline_state, uint64_t frame_index) {
             m_command_allocator->Reset();
             m_command_list->Reset(m_command_allocator.Get(), pipeline_state);
-            fence_value_when_finished = frame_index;
+            m_fence_value_when_finished = frame_index;
         }
 
-    public:
-        uint64_t fence_value_when_finished = ~0;
+        bool is_finished(uint64_t curr_fence_value) {
+            return curr_fence_value >= m_fence_value_when_finished;
+        }
 
     private:
         CommandBufferType m_type = CommandBufferType::none;
         ComPtr<ID3D12GraphicsCommandList> m_command_list;
         ComPtr<ID3D12CommandAllocator> m_command_allocator;
+        uint64_t m_fence_value_when_finished = ~0;
     };
 }

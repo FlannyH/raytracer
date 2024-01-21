@@ -113,7 +113,7 @@ namespace gfx {
         auto framebuffer = m_swapchain->next_framebuffer();
         auto cmd = m_queue->create_command_buffer(*this, pipeline, CommandBufferType::graphics, m_swapchain->current_frame_index());
         auto gfx_cmd = cmd->expect_graphics_command_list();
-        m_queue->clean_up_old_command_buffers(m_swapchain->current_frame_index());
+        m_queue->clean_up_old_command_buffers(m_swapchain->current_fence_completed_value());
 
         // Render triangle to that framebuffer
         m_swapchain->prepare_render(cmd);

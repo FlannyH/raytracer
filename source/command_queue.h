@@ -19,8 +19,7 @@ namespace gfx {
     struct CommandQueue {
         explicit CommandQueue(const Device& device);
         std::shared_ptr<CommandBuffer> create_command_buffer(const Device& device, std::shared_ptr<Pipeline> pipeline, CommandBufferType type, uint64_t frame_index);
-        int clean_up_old_command_buffers(int curr_index);
-        void end_frame();
+        int clean_up_old_command_buffers(int curr_finished_index);
 
     public:
         ComPtr<ID3D12CommandQueue> command_queue = nullptr;

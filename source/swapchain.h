@@ -4,6 +4,7 @@
 #include <memory>
 
 #include "common.h"
+#include "fence.h"
 
 namespace gfx {
     struct CommandBuffer;
@@ -21,6 +22,9 @@ namespace gfx {
         void synchronize(std::shared_ptr<CommandQueue> queue);
         int current_frame_index() const {
             return m_frame_index;
+        }
+        uint64_t current_fence_completed_value() {
+            return m_fence->fence->GetCompletedValue();
         }
 
     private:

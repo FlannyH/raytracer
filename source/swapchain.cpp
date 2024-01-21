@@ -61,7 +61,7 @@ namespace gfx {
 
     ComPtr<ID3D12Resource> Swapchain::next_framebuffer() {
         m_frame_index++;
-        printf("frame index went to %i\n", m_frame_index);
+        printf("(frame %i)\n", m_frame_index);
         printf("wait for signal %i on framebuffer %i\n", m_frame_wait_values[framebuffer_index()], framebuffer_index());
         m_fence->cpu_wait(m_frame_wait_values[framebuffer_index()]);
         return m_render_targets[framebuffer_index()];

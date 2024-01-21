@@ -15,7 +15,6 @@ namespace gfx {
         void gpu_signal(std::shared_ptr<CommandQueue> queue, size_t value) const;
         bool reached_value(size_t value);
 
-    private:
-        ComPtr<ID3D12Fence> m_fence;
+        ComPtr<ID3D12Fence> fence;
     };
 }
