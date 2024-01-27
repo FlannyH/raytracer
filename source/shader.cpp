@@ -28,6 +28,15 @@ namespace gfx {
         return temp;
     }
 
+    std::string to_string(const std::wstring& s)
+    {
+        std::string temp(s.size(), L' ');
+        for (size_t i = 0; i < s.size(); ++i) {
+            temp[i] = s[i];
+        }
+        return temp;
+    }
+
 
     Shader::Shader(const std::string& path, const std::string& entry_point, const ShaderType type) {
         // Init dxc
@@ -53,6 +62,10 @@ namespace gfx {
         args.emplace_back(wtype.c_str());
         args.emplace_back(L"-E");
         args.emplace_back(wentry_point.c_str());
+        args.emplace_back(L"-Qstrip_debug");
+        args.emplace_back(L"-Qstrip_reflect");
+        args.emplace_back(DXC_ARG_WARNINGS_ARE_ERRORS); //-WX
+        args.emplace_back(DXC_ARG_DEBUG); //-Zi
 
         // Compile it
         const DxcBuffer buffer{
@@ -77,6 +90,15 @@ namespace gfx {
         if (errors != nullptr && errors->GetStringLength() > 0) {
             printf("[ERROR] Error compiling shader '%s':\n\t%s\n", path.c_str(), errors->GetStringPointer());
         }
+
+        // Get PDB file
+        ComPtr<IDxcBlob> pdb_data;
+        ComPtr<IDxcBlobUtf16> pdb_path;
+        validate(result->GetOutput(DXC_OUT_PDB, IID_PPV_ARGS(&pdb_data), &pdb_path));
+        auto pdb_path_string = to_string((wchar_t*)pdb_path->GetStringPointer());
+        FILE* pdb = fopen(pdb_path_string.c_str(), "wb");
+        fwrite(pdb_data->GetBufferPointer(), 1, pdb_data->GetBufferSize(), pdb);
+        fclose(pdb);
 
         // Get shader blob
         ComPtr<IDxcBlob> dxc_shader_blob = nullptr;

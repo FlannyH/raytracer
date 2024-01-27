@@ -8,12 +8,11 @@
 
 namespace gfx {
     Swapchain::Swapchain(const Device& device, const CommandQueue& queue, DescriptorHeap& rtv_heap) {
-        int width, height;
-        device.get_window_size(width, height);
+        device.get_window_size(m_width, m_height);
 
         const DXGI_SWAP_CHAIN_DESC1 swapchain_desc = {
-            .Width = static_cast<UINT>(width),
-            .Height = static_cast<UINT>(height),
+            .Width = static_cast<UINT>(m_width),
+            .Height = static_cast<UINT>(m_height),
             .Format = DXGI_FORMAT_R8G8B8A8_UNORM,
             .SampleDesc = {
                 .Count = 1,
@@ -48,10 +47,10 @@ namespace gfx {
         for (UINT i = 0; i < backbuffer_count; i++) {
             // Allocate descriptor
             const auto rtv_id = rtv_heap.alloc_descriptor(ResourceType::texture);
-            const auto rtv_handle = rtv_heap.fetch_cpu_handle(rtv_id);
+            m_render_target_views[i] = rtv_heap.fetch_cpu_handle(rtv_id);
 
             validate(m_swapchain->GetBuffer(i, IID_PPV_ARGS(&m_render_targets[i])));
-            device.device->CreateRenderTargetView(m_render_targets[i].Get(), nullptr, rtv_handle);
+            device.device->CreateRenderTargetView(m_render_targets[i].Get(), nullptr, m_render_target_views[i]);
         }
 
         m_fence = std::make_shared<Fence>(device);
@@ -73,8 +72,28 @@ namespace gfx {
         render_target_barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_PRESENT;
         render_target_barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_RENDER_TARGET;
         render_target_barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+
+        const auto viewport = D3D12_VIEWPORT {
+            .TopLeftX = 0.0f,
+            .TopLeftY = 0.0f,
+            .Width = static_cast<float>(m_width),
+            .Height = static_cast<float>(m_height),
+            .MinDepth = 0.0f,
+            .MaxDepth = 1.0f,
+        };
+
+        const auto scissor_rect = D3D12_RECT {
+            .left = 0,
+            .top = 0,
+            .right = m_width,
+            .bottom = m_height,
+        };
+
         auto cmd = command_buffer->expect_graphics_command_list();
         cmd->ResourceBarrier(1, &render_target_barrier);
+        cmd->OMSetRenderTargets(1, &m_render_target_views[framebuffer_index()], FALSE, nullptr);
+        cmd->RSSetViewports(1, &viewport);
+        cmd->RSSetScissorRects(1, &scissor_rect);
     }
 
     void Swapchain::present() {
