@@ -89,11 +89,14 @@ namespace gfx {
             .bottom = m_height,
         };
 
+        const float clear_color[4] = {0.0f, 0.0f, 0.0f, 1.0f};
+
         auto cmd = command_buffer->expect_graphics_command_list();
         cmd->ResourceBarrier(1, &render_target_barrier);
         cmd->OMSetRenderTargets(1, &m_render_target_views[framebuffer_index()], FALSE, nullptr);
         cmd->RSSetViewports(1, &viewport);
         cmd->RSSetScissorRects(1, &scissor_rect);
+        cmd->ClearRenderTargetView(m_render_target_views[framebuffer_index()], clear_color, 1, &scissor_rect);
     }
 
     void Swapchain::present() {
