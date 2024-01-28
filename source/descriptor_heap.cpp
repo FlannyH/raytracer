@@ -17,13 +17,13 @@ namespace gfx {
         validate(device.device->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&heap)));
 
         m_descriptor_size = device.device->GetDescriptorHandleIncrementSize(type);
-        m_start_cpu = heap->GetCPUDescriptorHandleForHeapStart();
+        m_start_cpu = heap->GetCPUDescriptorHandleForHeapStart(); 
     }
     
     // Returns the CPU descriptor handle as a size_t
     ResourceID DescriptorHeap::alloc_descriptor(ResourceType type) {
         // Find index - if there's a descriptor we can recycle, get the first one, otherwise just get the next new one
-        size_t index;
+        uint32_t index;
         if (m_available_recycled_descriptor_indices.empty() == false) {
             index = m_available_recycled_descriptor_indices.front();
             m_available_recycled_descriptor_indices.pop_front();
@@ -36,7 +36,7 @@ namespace gfx {
 
 
         return ResourceID {
-            .type = static_cast<uint64_t>(type),
+            .type = static_cast<uint32_t>(type),
             .id = index
         };
     }

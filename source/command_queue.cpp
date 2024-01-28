@@ -32,13 +32,13 @@ namespace gfx {
 
         // Otherwise allocate a new one
         auto cmd = std::make_shared<CommandBuffer>(device, pipeline->pipeline_state.Get(), type, frame_index);
-
+         
         m_in_flight_command_buffers.push_back(m_command_buffer_pool.size());
         m_command_buffer_pool.push_back(cmd);
         return cmd;
     }
 
-    int CommandQueue::clean_up_old_command_buffers(const int curr_finished_index) {
+    int CommandQueue::clean_up_old_command_buffers(const uint64_t curr_finished_index) {
         int n_cleaned_up = 0;
         while (m_in_flight_command_buffers.empty() == false) {
             auto id = m_in_flight_command_buffers.front();
@@ -48,9 +48,10 @@ namespace gfx {
                 m_in_flight_command_buffers.pop_front();
                 ++n_cleaned_up;
                 continue;
-            }
-            return n_cleaned_up;
+            } 
+            break;
         }
+        return n_cleaned_up;
     }
 }
 

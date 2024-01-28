@@ -86,7 +86,7 @@ namespace gfx {
         // Check for errors
         ComPtr<IDxcBlobUtf8> errors;
         validate(result->GetOutput(DXC_OUT_ERRORS, IID_PPV_ARGS(&errors), nullptr));
-
+         
         if (errors != nullptr && errors->GetStringLength() > 0) {
             printf("[ERROR] Error compiling shader '%s':\n\t%s\n", path.c_str(), errors->GetStringPointer());
         }
@@ -96,13 +96,13 @@ namespace gfx {
         ComPtr<IDxcBlobUtf16> pdb_path;
         validate(result->GetOutput(DXC_OUT_PDB, IID_PPV_ARGS(&pdb_data), &pdb_path));
         auto pdb_path_string = to_string((wchar_t*)pdb_path->GetStringPointer());
-        FILE* pdb = fopen(pdb_path_string.c_str(), "wb");
+        FILE* pdb = fopen(pdb_path_string.c_str(), "wb"); 
         fwrite(pdb_data->GetBufferPointer(), 1, pdb_data->GetBufferSize(), pdb);
         fclose(pdb);
 
         // Get shader blob
         ComPtr<IDxcBlob> dxc_shader_blob = nullptr;
-        validate(result->GetOutput(DXC_OUT_OBJECT, IID_PPV_ARGS(&dxc_shader_blob), nullptr));
+        validate(result->GetOutput(DXC_OUT_OBJECT, IID_PPV_ARGS(&dxc_shader_blob), nullptr)); 
 
         shader_blob = reinterpret_cast<ID3DBlob*>(dxc_shader_blob.Detach());
     }

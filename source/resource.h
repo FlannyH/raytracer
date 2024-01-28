@@ -14,9 +14,9 @@ namespace gfx {
     inline const char* _resource_type_names[] = { "None", "Texture", "Buffer"};
 
     struct ResourceID {
-        uint64_t type : 4;
-        uint64_t is_loaded : 1;
-        uint64_t id : 59;
+        uint32_t type : 4;
+        uint32_t is_loaded : 1;
+        uint32_t id : 27;
         bool operator==(const ResourceID& rhs) {
             // We only really need to check if the IDs are identical, but we should sanity check the rest too
             assert(type == rhs.type);

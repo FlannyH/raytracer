@@ -1,7 +1,9 @@
+#include "buffer.h"
 #include "hl_renderer.h"
+#include "render_pass.h"
 
 int main(int n_args, char** args) {
-    const std::unique_ptr<gfx::Device> device = gfx::init_renderer(1280, 720, true);
+    const std::unique_ptr<gfx::Device> device = gfx::init_renderer(1280, 720, false);
     device->init_context();
     const auto render_pass = device->create_render_pass();
     const auto pipeline = device->create_raster_pipeline(*render_pass);
@@ -35,9 +37,14 @@ int main(int n_args, char** args) {
     };
     auto triangle_vb = device->load_mesh("triangle" ,1, &triangle);
 
+    uint32_t bindings[] = { triangle_vb.id };
+    auto bindings_buffer = device->create_buffer("bindings", sizeof(bindings), bindings);
+    printf("triangle_vb = %i\n", triangle_vb.id);
+    printf("bindings_buffer = %i\n", bindings_buffer.id);
+
     while (1) {
         device->begin_frame();
-        device->test(pipeline, render_pass);
+        device->test(pipeline, render_pass, bindings_buffer);
         device->end_frame();
     }
 }

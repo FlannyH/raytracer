@@ -8,6 +8,7 @@
 
 #include <utility>
 
+#include "buffer.h"
 #include "command_buffer.h"
 #include "swapchain.h"
 #include "render_pass.h"
@@ -106,7 +107,7 @@ namespace gfx {
         glfwSwapBuffers(m_window_glfw);
     }
 
-    void Device::test(std::shared_ptr<Pipeline> pipeline, std::shared_ptr<RenderPass> render_pass) {
+    void Device::test(std::shared_ptr<Pipeline> pipeline, std::shared_ptr<RenderPass> render_pass, ResourceID bindings) {
         // Wait for next framebuffer to be available
         auto framebuffer = m_swapchain->next_framebuffer();
         auto cmd = m_queue->create_command_buffer(*this, pipeline, CommandBufferType::graphics, m_swapchain->current_frame_index());
@@ -122,10 +123,11 @@ namespace gfx {
         gfx_cmd->SetGraphicsRootSignature(render_pass->root_signature.Get());
         gfx_cmd->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
         gfx_cmd->SetPipelineState(pipeline->pipeline_state.Get());
+        gfx_cmd->SetGraphicsRoot32BitConstant(0, bindings.id, 0);
         gfx_cmd->DrawInstanced(3, 1, 0, 0);
 
         // Present backbuffer
-        ID3D12CommandList* command_lists[] = { gfx_cmd }; // todo: store the command lists that we're allocating somewhere, maybe in the command queue struct, move this code to end_frame, and go from there
+        ID3D12CommandList* command_lists[] = { gfx_cmd };
         m_swapchain->prepare_present(cmd);
         gfx_cmd->Close();
         m_queue->command_queue->ExecuteCommandLists(1, command_lists);
@@ -189,13 +191,17 @@ namespace gfx {
         return id;
     }
 
-    ResourceID Device::load_mesh(const std::string& name, uint64_t n_triangles, Triangle* tris) {
-        auto resource = std::make_shared<Resource>();
+    ResourceID Device::load_mesh(const std::string& name, const uint64_t n_triangles, Triangle* tris) {
+        return create_buffer(name, n_triangles * sizeof(Triangle), tris);
+    }
+
+    ResourceID Device::create_buffer(const std::string& name, const size_t size, void* data) {
+        const auto resource = std::make_shared<Resource>();
         *resource = {
             .type = ResourceType::buffer,
             .buffer_resource = {
-                .data = tris,
-                .size = n_triangles * sizeof(Triangle),
+                .data = data,
+                .size = size,
             }
         };
 
@@ -209,20 +215,41 @@ namespace gfx {
         resource_desc.SampleDesc.Count = 1;
         resource_desc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
         resource_desc.Flags = D3D12_RESOURCE_FLAG_NONE;
-
-        D3D12_HEAP_PROPERTIES heap_properties = {};
-        heap_properties.Type = D3D12_HEAP_TYPE_DEFAULT;
+        
+        D3D12_HEAP_PROPERTIES heap_properties = {
+            D3D12_HEAP_TYPE_UPLOAD,
+            D3D12_CPU_PAGE_PROPERTY_UNKNOWN,
+            D3D12_MEMORY_POOL_UNKNOWN, 1, 1
+        };
 
         auto id = m_heap_bindless->alloc_descriptor(ResourceType::texture);
-        auto descriptor = m_heap_bindless->fetch_cpu_handle(id);
-        device->CreateCommittedResource(
+        validate(device->CreateCommittedResource(
             &heap_properties,
             D3D12_HEAP_FLAG_NONE,
             &resource_desc,
             D3D12_RESOURCE_STATE_COMMON,
             nullptr,
             IID_PPV_ARGS(&resource->handle)
-        );
+        ));
+
+        const D3D12_SHADER_RESOURCE_VIEW_DESC srv_desc {
+            .Format = DXGI_FORMAT_R32_TYPELESS,
+            .ViewDimension = D3D12_SRV_DIMENSION_BUFFER,
+            .Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING,
+            .Buffer = {
+                .FirstElement = 0,
+                .NumElements = static_cast<UINT>(size / 4),
+                .StructureByteStride = 0,
+                .Flags = D3D12_BUFFER_SRV_FLAG_RAW
+            }
+        };
+        const auto handle = m_heap_bindless->fetch_cpu_handle(id);
+        device->CreateShaderResourceView(resource->handle.Get(), &srv_desc, handle);
+
+        void* mapped_buffer = nullptr;
+        validate(resource->handle->Map(0, nullptr, &mapped_buffer));
+        memcpy(mapped_buffer, data, size);
+        resource->handle->Unmap(0, nullptr);
 
         id.is_loaded = true;
 

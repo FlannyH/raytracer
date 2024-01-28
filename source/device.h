@@ -26,10 +26,11 @@ namespace gfx {
         std::shared_ptr<Pipeline> create_raster_pipeline(const RenderPass& render_pass); // todo: give the user the option to specify custom shaders
         void begin_frame();
         void end_frame();
-        void test(std::shared_ptr<Pipeline> pipeline, std::shared_ptr<RenderPass>);
+        void test(std::shared_ptr<Pipeline> pipeline, std::shared_ptr<RenderPass>, ResourceID bindings);
         ResourceID load_bindless_texture(const std::string& path);
         ResourceID load_bindless_texture(const std::string& name, uint32_t width, uint32_t height, void* data, PixelFormat pixel_format);
         ResourceID load_mesh(const std::string& name, uint64_t n_triangles, Triangle* tris);
+        ResourceID create_buffer(const std::string& name, size_t size, void* data);
         void unload_bindless_resource(ResourceID id);
 
     public:
