@@ -34,6 +34,7 @@ namespace gfx {
         ResourceID load_mesh(const std::string& name, uint64_t n_triangles, Triangle* tris);
         ResourceID create_buffer(const std::string& name, size_t size, void* data);
         void unload_bindless_resource(ResourceID id);
+        bool should_stay_open();
 
     public:
         ComPtr<ID3D12Device> device = nullptr;

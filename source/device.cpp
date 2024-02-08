@@ -137,8 +137,8 @@ namespace gfx {
     }
 
     ResourceID Device::load_bindless_texture(const std::string& path) {
-        int width, height, channels;
         stbi__vertically_flip_on_load = 1;
+        int width, height, channels;
         uint8_t* data = stbi_load(path.c_str(), &width, &height, &channels, 4);
 
         return load_bindless_texture(path, width, height, data, PixelFormat::rgba_8);
@@ -331,5 +331,9 @@ namespace gfx {
 
     void Device::unload_bindless_resource(ResourceID id) {
         m_heap_bindless->free_descriptor(id);
+    }
+
+    bool Device::should_stay_open() {
+        return glfwWindowShouldClose(m_window_glfw) == false;
     }
 }
