@@ -3,10 +3,10 @@
 #include "render_pass.h"
 
 int main(int n_args, char** args) {
-    const std::unique_ptr<gfx::Device> device = gfx::init_renderer(1280, 720, false);
+    const std::unique_ptr<gfx::Device> device = gfx::init_renderer(1280, 720, true);
     device->init_context();
     const auto render_pass = device->create_render_pass();
-    const auto pipeline = device->create_raster_pipeline(*render_pass);
+    const auto pipeline = device->create_raster_pipeline(*render_pass, "assets/shaders/test.vs.hlsl", "assets/shaders/test.ps.hlsl");
 
     printf("Renderer initialized!\n");
 
@@ -24,20 +24,23 @@ int main(int n_args, char** args) {
             gfx::Vertex {
                 .position = {0.0, 0.5, 0.0},
                 .color = {1.0, 0.0, 0.0},
+                .texcoord0 = {0.5, 1.0}
             },
             gfx::Vertex {
                 .position = {-0.5, -0.5, 0.0},
                 .color = {0.0, 1.0, 0.0},
+                .texcoord0 = {0.0, 0.0}
             },
             gfx::Vertex {
                 .position = {0.5, -0.5, 0.0},
                 .color = {0.0, 0.0, 1.0},
+                .texcoord0 = {1.0, 0.0}
             },
         }
     };
     auto triangle_vb = device->load_mesh("triangle" ,1, &triangle);
 
-    uint32_t bindings[] = { triangle_vb.id };
+    uint32_t bindings[] = { triangle_vb.id, texture1.id };
     auto bindings_buffer = device->create_buffer("bindings", sizeof(bindings), bindings);
     printf("triangle_vb = %i\n", triangle_vb.id);
     printf("bindings_buffer = %i\n", bindings_buffer.id);

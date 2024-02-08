@@ -5,10 +5,10 @@
 #include "device.h"
 
 namespace gfx {
-    Pipeline::Pipeline(const Device& device, const RenderPass& render_pass) {
+    Pipeline::Pipeline(const Device& device, const RenderPass& render_pass, const std::string& vertex_shader, const std::string& pixel_shader) {
         // Compile shaders
-        auto vs = Shader("assets/shaders/test.vs.hlsl", "main", ShaderType::vertex);
-        auto ps = Shader("assets/shaders/test.ps.hlsl", "main", ShaderType::pixel);
+        const auto vs = Shader(vertex_shader, "main", ShaderType::vertex);
+        const auto ps = Shader(pixel_shader, "main", ShaderType::pixel);
 
         // Make sure it worked
         if (vs.shader_blob.Get() == nullptr) {
@@ -70,8 +70,6 @@ namespace gfx {
         };
 
         validate(device.device->CreateGraphicsPipelineState(&pipeline_state_desc, IID_PPV_ARGS(&pipeline_state)));
-
         validate(pipeline_state->SetName(L"Render Pipeline State"));
-
     }
 }

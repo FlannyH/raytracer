@@ -88,6 +88,7 @@ namespace gfx {
 
     void Device::init_context() {
         m_queue = std::make_shared<CommandQueue>(*this);
+        m_upload_queue = std::make_shared<CommandQueue>(*this);
         m_swapchain = std::make_shared<Swapchain>(*this, *m_queue, *m_heap_rtv);
     }
 
@@ -95,8 +96,8 @@ namespace gfx {
         return std::make_shared<RenderPass>(*this);
     }
 
-    std::shared_ptr<Pipeline> Device::create_raster_pipeline(const RenderPass& render_pass) {
-        return std::make_shared<Pipeline>(*this, render_pass);
+    std::shared_ptr<Pipeline> Device::create_raster_pipeline(const RenderPass& render_pass, const std::string& vertex_shader, const std::string& pixel_shader) {
+        return std::make_shared<Pipeline>(*this, render_pass, vertex_shader, pixel_shader);
     }
 
     void Device::begin_frame() {
@@ -110,7 +111,7 @@ namespace gfx {
     void Device::test(std::shared_ptr<Pipeline> pipeline, std::shared_ptr<RenderPass> render_pass, ResourceID bindings) {
         // Wait for next framebuffer to be available
         auto framebuffer = m_swapchain->next_framebuffer();
-        auto cmd = m_queue->create_command_buffer(*this, pipeline, CommandBufferType::graphics, m_swapchain->current_frame_index());
+        auto cmd = m_queue->create_command_buffer(*this, pipeline.get(), CommandBufferType::graphics, m_swapchain->current_frame_index());
         auto gfx_cmd = cmd->expect_graphics_command_list();
         m_queue->clean_up_old_command_buffers(m_swapchain->current_fence_completed_value());
 
@@ -137,13 +138,15 @@ namespace gfx {
 
     ResourceID Device::load_bindless_texture(const std::string& path) {
         int width, height, channels;
+        stbi__vertically_flip_on_load = 1;
         uint8_t* data = stbi_load(path.c_str(), &width, &height, &channels, 4);
 
         return load_bindless_texture(path, width, height, data, PixelFormat::rgba_8);
     }
 
     ResourceID Device::load_bindless_texture(const std::string& name, uint32_t width, uint32_t height, void* data, PixelFormat pixel_format) {
-        auto resource = std::make_shared<Resource>();
+        // Make texture resource
+        const auto resource = std::make_shared<Resource>();
         *resource = {
             .type = ResourceType::texture,
             .texture_resource = {
@@ -154,36 +157,102 @@ namespace gfx {
             }
         };
 
+        // Get the pixel format
         switch (pixel_format) {
         case PixelFormat::rgba_8:
             resource->expect_texture().pixel_format = DXGI_FORMAT_R8G8B8A8_UNORM;
             break;
         }
 
+        // Create a d3d12 resource for the texture
         D3D12_RESOURCE_DESC resource_desc = {};
         resource_desc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
         resource_desc.Width = resource->expect_texture().width;
         resource_desc.Height = resource->expect_texture().height;
         resource_desc.DepthOrArraySize = 1;
         resource_desc.MipLevels = 1;
-        resource_desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+        resource_desc.Format = static_cast<DXGI_FORMAT>(resource->expect_texture().pixel_format);
         resource_desc.SampleDesc.Count = 1;
         resource_desc.Flags = D3D12_RESOURCE_FLAG_NONE;
+        resource_desc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
 
         D3D12_HEAP_PROPERTIES heap_properties = {};
         heap_properties.Type = D3D12_HEAP_TYPE_DEFAULT;
 
+        const auto upload_size = width * height * size_per_pixel(pixel_format);
         auto id = m_heap_bindless->alloc_descriptor(ResourceType::buffer);
         auto descriptor = m_heap_bindless->fetch_cpu_handle(id);
-        device->CreateCommittedResource(
+        validate(device->CreateCommittedResource(
             &heap_properties,
             D3D12_HEAP_FLAG_NONE,
             &resource_desc,
             D3D12_RESOURCE_STATE_COMMON,
             nullptr,
             IID_PPV_ARGS(&resource->handle)
-        );
-        id.is_loaded = true;
+        ));
+        D3D12_SHADER_RESOURCE_VIEW_DESC srv_desc = {
+            .Format = resource_desc.Format,
+            .ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D,
+            .Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING,
+            .Texture2D = {
+                .MostDetailedMip = 0,
+                .MipLevels = 1,
+                .PlaneSlice = 0,
+                .ResourceMinLODClamp = 0.0f
+            }
+        };
+        device->CreateShaderResourceView(resource->handle.Get(), &srv_desc, descriptor);
+
+        // We need to copy the texture from an upload buffer
+        const auto upload_buffer_id = create_buffer("Upload buffer", upload_size, data);
+
+        const auto& upload_buffer = m_resources[static_cast<uint64_t>(upload_buffer_id.id)];
+
+        void* mapped_buffer;
+        const D3D12_RANGE upload_range = { 0, upload_size };
+        validate(upload_buffer->handle->Map(0, &upload_range, &mapped_buffer));
+        memcpy(mapped_buffer, data, upload_size);
+        upload_buffer->handle->Unmap(0, &upload_range);
+
+        const auto texture_size_box = D3D12_BOX{
+            .left = 0,
+            .top = 0,
+            .front = 0,
+            .right = width,
+            .bottom = height,
+            .back = 1,
+        };
+
+        const auto texture_copy_source = D3D12_TEXTURE_COPY_LOCATION {
+            .pResource = upload_buffer->handle.Get(),
+            .Type = D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT,
+            .PlacedFootprint = {
+                .Offset = 0,
+                .Footprint = {
+                    .Format = static_cast<DXGI_FORMAT>(resource->expect_texture().pixel_format),
+                    .Width = resource->expect_texture().width,
+                    .Height = resource->expect_texture().height,
+                    .Depth = 1,
+                    .RowPitch = resource->expect_texture().width * static_cast<uint32_t>(size_per_pixel(pixel_format)),
+                }
+            }
+        };
+
+        const auto texture_copy_dest = D3D12_TEXTURE_COPY_LOCATION {
+            .pResource = resource->handle.Get(),
+            .Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX,
+            .SubresourceIndex = 0,
+        };
+
+        const auto upload_command_buffer = m_upload_queue->create_command_buffer(*this, nullptr, CommandBufferType::graphics, ++m_upload_fence_value_when_done);
+        const auto cmd = upload_command_buffer->expect_graphics_command_list();
+        cmd->CopyTextureRegion(&texture_copy_dest, 0, 0, 0, &texture_copy_source, &texture_size_box);
+        validate(cmd->Close());
+        ID3D12CommandList* command_lists[] = { cmd };
+        m_upload_queue->command_queue->ExecuteCommandLists(1, command_lists);
+        m_upload_cmd.push_back(upload_command_buffer);
+
+        id.is_loaded = true; // todo, only set this to true when the upload command buffer finished (when the fence value was reached)
 
         m_resource_name_map[name] = id;
         m_resources[id.id] = resource;
@@ -247,9 +316,10 @@ namespace gfx {
         device->CreateShaderResourceView(resource->handle.Get(), &srv_desc, handle);
 
         void* mapped_buffer = nullptr;
-        validate(resource->handle->Map(0, nullptr, &mapped_buffer));
+        D3D12_RANGE range = { 0, size };
+        validate(resource->handle->Map(0, &range, &mapped_buffer));
         memcpy(mapped_buffer, data, size);
-        resource->handle->Unmap(0, nullptr);
+        resource->handle->Unmap(0, &range);
 
         id.is_loaded = true;
 

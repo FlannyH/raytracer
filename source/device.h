@@ -1,5 +1,6 @@
 #pragma once
 #include <d3d12.h>
+#include <deque>
 #include <dxgi1_6.h>
 #include <map>
 #include <memory>
@@ -11,6 +12,7 @@
 #include "resource.h"
 
 namespace gfx {
+    struct CommandBuffer;
     struct Swapchain;
     struct CommandQueue;
     struct DescriptorHeap;
@@ -23,7 +25,7 @@ namespace gfx {
         void get_window_size(int& width, int& height) const;
         void init_context();
         std::shared_ptr<RenderPass> create_render_pass();
-        std::shared_ptr<Pipeline> create_raster_pipeline(const RenderPass& render_pass); // todo: give the user the option to specify custom shaders
+        std::shared_ptr<Pipeline> create_raster_pipeline(const RenderPass& render_pass, const std::string& vertex_shader, const std::string& pixel_shader);
         void begin_frame();
         void end_frame();
         void test(std::shared_ptr<Pipeline> pipeline, std::shared_ptr<RenderPass>, ResourceID bindings);
@@ -48,5 +50,8 @@ namespace gfx {
         std::shared_ptr<Swapchain> m_swapchain = nullptr;
         std::unordered_map<std::string, ResourceID> m_resource_name_map; // so we don't load in duplicates
         std::unordered_map<uint64_t, std::shared_ptr<Resource>> m_resources;
+        std::shared_ptr<CommandQueue> m_upload_queue = nullptr;
+        std::deque<std::shared_ptr<CommandBuffer>> m_upload_cmd;
+        size_t m_upload_fence_value_when_done = 0;
     };
 };

@@ -17,10 +17,7 @@ add_executable (raytracer "source/main.cpp" "source/device.h" "source/device.cpp
 target_include_directories(raytracer PUBLIC "external/include")
 target_link_directories(raytracer PUBLIC "external/libraries")
 target_link_libraries(raytracer PUBLIC "glfw3.lib" "dxgi.lib" "D3d12.lib" "D3DCompiler.lib" "dxcompiler.lib")
-
-if (CMAKE_VERSION VERSION_GREATER 3.12)
-  set_property(TARGET raytracer PROPERTY CXX_STANDARD 20)
-endif()
+set_property(TARGET raytracer PROPERTY CXX_STANDARD 20)
 
 add_custom_command(
     TARGET raytracer POST_BUILD

@@ -3,6 +3,7 @@
 #include <d3d12.h>
 
 #include <glm/vec3.hpp>
+#include <glm/vec2.hpp>
 
 namespace gfx {
     // General
@@ -38,8 +39,23 @@ namespace gfx {
 
     enum class PixelFormat {
         none = 0,
-        rgba_8
+        rgba_8,
     };
+
+    inline size_t size_per_pixel(const PixelFormat format) {
+        switch (format)
+        {
+        case PixelFormat::none:
+            return 0;
+        case PixelFormat::rgba_8:
+            return 4;
+        }
+        return 0;
+    }
+
+    inline size_t size_per_pixel(const uint32_t format) {
+        return size_per_pixel(static_cast<PixelFormat>(format));
+    }
 
     struct Resource {
         TextureResource& expect_texture() {
@@ -63,6 +79,7 @@ namespace gfx {
     struct Vertex {
         glm::vec3 position;
         glm::vec3 color;
+        glm::vec2 texcoord0;
     };
 
     struct Triangle {
