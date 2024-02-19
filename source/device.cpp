@@ -375,4 +375,46 @@ namespace gfx {
         }
         m_is_fullscreen = full_screen;
     }
+    int Device::find_dominant_monitor()
+    {
+        int monitor = 0;
+        int best_score = 0;
+
+        // Get window rectangle
+        int wx0, wy0, wx1, wy1, w, h;
+        glfwGetWindowPos(m_window_glfw, &wx0, &wy0);
+        glfwGetWindowSize(m_window_glfw, &w, &h);
+        wx1 = wx0 + w;
+        wy1 = wy0 + h;
+
+        // Loop over all monitors
+        int n_monitors;
+        auto monitors = glfwGetMonitors(&n_monitors);
+
+        for (int i = 0; i < n_monitors; ++i) {
+            // Get monitor rectangle
+            int mx0, my0, mx1, my1;
+            glfwGetMonitorPos(monitors[i], &mx0, &my0);
+            auto mode = glfwGetVideoMode(monitors[i]);
+            mx1 = mx0 + mode->width;
+            my1 = my0 + mode->height;
+
+            // Clip window to screen
+            int cx0 = std::clamp(wx0, mx0, mx1);
+            int cx1 = std::clamp(wx1, mx0, mx1);
+            int cy0 = std::clamp(wy0, my0, my1);
+            int cy1 = std::clamp(wy1, my0, my1);
+            int cw = cx1 - cx0;
+            int ch = cy1 - cy0;
+            int area_on_monitor = cw * ch;
+
+            // Remember the one that has the highest area
+            if (area_on_monitor > best_score) {
+                monitor = i;
+                best_score = area_on_monitor;
+            }
+        }
+
+        return monitor;
+    }
 }

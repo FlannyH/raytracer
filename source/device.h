@@ -43,6 +43,7 @@ namespace gfx {
         HWND window_hwnd = nullptr;
 
     private:
+        int find_dominant_monitor();
         GLFWwindow* m_window_glfw = nullptr;
         ComPtr<ID3D12Debug1> m_debug_layer = nullptr;
         ComPtr<ID3D12DebugDevice> m_device_debug = nullptr;
