@@ -7,13 +7,13 @@
 #include "fence.h"
 
 namespace gfx {
-    Swapchain::Swapchain(const Device& device, const CommandQueue& queue, DescriptorHeap& rtv_heap) {
+    Swapchain::Swapchain(const Device& device, const CommandQueue& queue, DescriptorHeap& rtv_heap, PixelFormat format) {
         device.get_window_size(m_width, m_height);
 
         const DXGI_SWAP_CHAIN_DESC1 swapchain_desc = {
             .Width = static_cast<UINT>(m_width),
             .Height = static_cast<UINT>(m_height),
-            .Format = DXGI_FORMAT_R8G8B8A8_UNORM,
+            .Format = pixel_format_to_dx12(format),
             .SampleDesc = {
                 .Count = 1,
             },
@@ -43,15 +43,7 @@ namespace gfx {
             throw std::exception();
         }
 
-        // Create render targets
-        for (UINT i = 0; i < backbuffer_count; i++) {
-            // Allocate descriptor
-            const auto rtv_id = rtv_heap.alloc_descriptor(ResourceType::texture);
-            m_render_target_views[i] = rtv_heap.fetch_cpu_handle(rtv_id);
-
-            validate(m_swapchain->GetBuffer(i, IID_PPV_ARGS(&m_render_targets[i])));
-            device.device->CreateRenderTargetView(m_render_targets[i].Get(), nullptr, m_render_target_views[i]);
-        }
+        get_back_buffers(device, rtv_heap);
 
         m_fence = std::make_shared<Fence>(device);
 
@@ -118,5 +110,37 @@ namespace gfx {
     void Swapchain::synchronize(std::shared_ptr<CommandQueue> queue) {
         m_fence->gpu_signal(queue, m_frame_index);
         m_frame_wait_values[framebuffer_index()] = m_frame_index;
+    }
+
+    void Swapchain::flush(std::shared_ptr<CommandQueue> queue)
+    {
+        m_fence->gpu_signal(queue, m_frame_index + 1);
+        m_fence->cpu_wait(m_frame_index + 1);
+    }
+
+    void Swapchain::resize(Device& device, std::shared_ptr<CommandQueue> queue, DescriptorHeap& rtv_heap, uint32_t width, uint32_t height, PixelFormat format)
+    {
+        printf("Resizing swapchain: %ix%i -> %ix%i\n", m_width, m_height, width, height);
+        m_width = width;
+        m_height = height;
+        flush(queue);
+        for (int i = 0; i < backbuffer_count; ++i) m_render_targets[i].Reset();
+        m_swapchain->ResizeBuffers(0, width, height, pixel_format_to_dx12(format), 0);
+        get_back_buffers(device, rtv_heap);
+    }
+
+    void Swapchain::get_back_buffers(const Device& device, DescriptorHeap& rtv_heap)
+    {
+        // Create render targets
+        for (UINT i = 0; i < backbuffer_count; i++) {
+            // Allocate descriptor
+            if (m_render_target_views[i].ptr == 0) {
+                const auto rtv_id = rtv_heap.alloc_descriptor(ResourceType::texture);
+                m_render_target_views[i] = rtv_heap.fetch_cpu_handle(rtv_id);
+            }
+
+            validate(m_swapchain->GetBuffer(i, IID_PPV_ARGS(&m_render_targets[i])));
+            device.device->CreateRenderTargetView(m_render_targets[i].Get(), nullptr, m_render_target_views[i]);
+        }
     }
 }

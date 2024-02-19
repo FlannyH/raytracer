@@ -35,6 +35,7 @@ namespace gfx {
         ResourceID create_buffer(const std::string& name, size_t size, void* data);
         void unload_bindless_resource(ResourceID id);
         bool should_stay_open();
+        void set_full_screen(bool full_screen);
 
     public:
         ComPtr<ID3D12Device> device = nullptr;
@@ -54,5 +55,13 @@ namespace gfx {
         std::shared_ptr<CommandQueue> m_upload_queue = nullptr;
         std::deque<std::shared_ptr<CommandBuffer>> m_upload_cmd;
         size_t m_upload_fence_value_when_done = 0;
+        int m_width = 0;
+        int m_height = 0;
+        int m_width_pre_fullscreen = 0;
+        int m_height_pre_fullscreen = 0;
+        int m_pos_x_pre_fullscreen = 0;
+        int m_pos_y_pre_fullscreen = 0;
+        bool m_is_fullscreen = false;
+        PixelFormat fb_format = PixelFormat::rgba_8;
     };
 };

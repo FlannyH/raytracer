@@ -89,7 +89,8 @@ namespace gfx {
     void Device::init_context() {
         m_queue = std::make_shared<CommandQueue>(*this);
         m_upload_queue = std::make_shared<CommandQueue>(*this);
-        m_swapchain = std::make_shared<Swapchain>(*this, *m_queue, *m_heap_rtv);
+        m_swapchain = std::make_shared<Swapchain>(*this, *m_queue, *m_heap_rtv, fb_format);
+        get_window_size(m_width, m_height);
     }
 
     std::shared_ptr<RenderPass> Device::create_render_pass() {
@@ -101,6 +102,20 @@ namespace gfx {
     }
 
     void Device::begin_frame() {
+        static int prev_key = 0;
+        int curr_key = glfwGetKey(m_window_glfw, GLFW_KEY_F11);
+        if (curr_key == GLFW_PRESS && prev_key == GLFW_RELEASE) {
+            set_full_screen(!m_is_fullscreen);
+        }
+        prev_key = curr_key;
+
+        int width, height;
+        get_window_size(width, height);
+        if (m_width != width || m_height != height) {
+            m_swapchain->resize(*this, m_queue, *m_heap_rtv, width, height, fb_format);
+            m_width = width;
+            m_height = height;
+        }
     }
 
     void Device::end_frame() {
@@ -158,11 +173,7 @@ namespace gfx {
         };
 
         // Get the pixel format
-        switch (pixel_format) {
-        case PixelFormat::rgba_8:
-            resource->expect_texture().pixel_format = DXGI_FORMAT_R8G8B8A8_UNORM;
-            break;
-        }
+        resource->expect_texture().pixel_format = pixel_format_to_dx12(pixel_format);
 
         // Create a d3d12 resource for the texture
         D3D12_RESOURCE_DESC resource_desc = {};
@@ -335,5 +346,33 @@ namespace gfx {
 
     bool Device::should_stay_open() {
         return glfwWindowShouldClose(m_window_glfw) == false;
+    }
+    void Device::set_full_screen(bool full_screen)
+    {
+        if (full_screen == true && m_is_fullscreen == false) {
+            // Store window coords
+            glfwGetWindowPos(m_window_glfw, &m_pos_x_pre_fullscreen, &m_pos_y_pre_fullscreen);
+            glfwGetWindowSize(m_window_glfw, &m_width_pre_fullscreen, &m_height_pre_fullscreen);
+
+            // Set to full screen
+            int monitor_count;
+            auto monitors = glfwGetMonitors(&monitor_count);
+            auto monitor = monitors[0];
+            auto mode = glfwGetVideoMode(monitor);
+            int x, y, w, h;
+            glfwGetMonitorWorkarea(monitor, &x, &y, &w, &h);
+            w = mode->width;
+            h = mode->height;
+            printf("Display %i: %ix%i @ %ix%i\n", 0, w, h, x, y);
+            glfwSetWindowPos(m_window_glfw, x, y);
+            glfwSetWindowSize(m_window_glfw, w, h);
+            glfwWindowHint(GLFW_DECORATED, GLFW_FALSE);
+        }
+        else if (full_screen == false && m_is_fullscreen == true) {
+            glfwSetWindowPos(m_window_glfw, m_pos_x_pre_fullscreen, m_pos_y_pre_fullscreen);
+            glfwSetWindowSize(m_window_glfw, m_width_pre_fullscreen, m_height_pre_fullscreen);
+            glfwWindowHint(GLFW_DECORATED, GLFW_TRUE);
+        }
+        m_is_fullscreen = full_screen;
     }
 }

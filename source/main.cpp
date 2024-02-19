@@ -3,7 +3,7 @@
 #include "render_pass.h"
 
 int main(int n_args, char** args) {
-    const std::unique_ptr<gfx::Device> device = gfx::init_renderer(1280, 720, true);
+    const std::unique_ptr<gfx::Device> device = gfx::init_renderer(1280, 720, false);
     device->init_context();
     const auto render_pass = device->create_render_pass();
     const auto pipeline = device->create_raster_pipeline(*render_pass, "assets/shaders/test.vs.hlsl", "assets/shaders/test.ps.hlsl");
@@ -44,6 +44,8 @@ int main(int n_args, char** args) {
     auto bindings_buffer = device->create_buffer("bindings", sizeof(bindings), bindings);
     printf("triangle_vb = %i\n", triangle_vb.id);
     printf("bindings_buffer = %i\n", bindings_buffer.id);
+
+    device->set_full_screen(true);
 
     while (device->should_stay_open()) {
         device->begin_frame();

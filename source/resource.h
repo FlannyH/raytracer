@@ -85,4 +85,12 @@ namespace gfx {
     struct Triangle {
         Vertex verts[3];
     };
+
+    inline DXGI_FORMAT pixel_format_to_dx12(PixelFormat format) {
+        switch (format) {
+        case PixelFormat::rgba_8:
+            return DXGI_FORMAT_R8G8B8A8_UNORM;
+            break;
+        }
+    }
 }
