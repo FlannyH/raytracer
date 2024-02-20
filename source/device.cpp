@@ -357,16 +357,17 @@ namespace gfx {
             // Set to full screen
             int monitor_count;
             auto monitors = glfwGetMonitors(&monitor_count);
-            auto monitor = monitors[0];
+            auto monitor = monitors[find_dominant_monitor()];
             auto mode = glfwGetVideoMode(monitor);
             int x, y, w, h;
-            glfwGetMonitorWorkarea(monitor, &x, &y, &w, &h);
+            glfwGetMonitorPos(monitor, &x, &y);
             w = mode->width;
             h = mode->height;
             printf("Display %i: %ix%i @ %ix%i\n", 0, w, h, x, y);
+            glfwWindowHint(GLFW_DECORATED, GLFW_FALSE);
+            glfwSetWindowSizeLimits(m_window_glfw, 256, 256, w, h);
             glfwSetWindowPos(m_window_glfw, x, y);
             glfwSetWindowSize(m_window_glfw, w, h);
-            glfwWindowHint(GLFW_DECORATED, GLFW_FALSE);
         }
         else if (full_screen == false && m_is_fullscreen == true) {
             glfwSetWindowPos(m_window_glfw, m_pos_x_pre_fullscreen, m_pos_y_pre_fullscreen);

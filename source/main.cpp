@@ -45,8 +45,6 @@ int main(int n_args, char** args) {
     printf("triangle_vb = %i\n", triangle_vb.id);
     printf("bindings_buffer = %i\n", bindings_buffer.id);
 
-    device->set_full_screen(true);
-
     while (device->should_stay_open()) {
         device->begin_frame();
         device->test(pipeline, render_pass, bindings_buffer);
