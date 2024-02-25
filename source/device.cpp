@@ -1,10 +1,8 @@
 #define GLFW_EXPOSE_NATIVE_WIN32
 #define STB_IMAGE_IMPLEMENTATION
-
 #include "device.h"
 #include <glfw/glfw3native.h>
 #include <d3d12sdklayers.h>
-#include <stb/stb_image.h>
 
 #include <utility>
 
@@ -152,9 +150,8 @@ namespace gfx {
     }
 
     ResourceID Device::load_bindless_texture(const std::string& path) {
-        stbi__vertically_flip_on_load = 1;
         int width, height, channels;
-        uint8_t* data = stbi_load(path.c_str(), &width, &height, &channels, 4);
+        uint8_t* data = load_image(path.c_str(), &width, &height, &channels, 4);
 
         return load_bindless_texture(path, width, height, data, PixelFormat::rgba_8);
     }

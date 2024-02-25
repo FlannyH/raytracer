@@ -1,6 +1,7 @@
 #include "buffer.h"
 #include "hl_renderer.h"
 #include "render_pass.h"
+#include "model.h"
 
 int main(int n_args, char** args) {
     const std::unique_ptr<gfx::Device> device = gfx::init_renderer(1280, 720, false);
@@ -19,6 +20,7 @@ int main(int n_args, char** args) {
     }
     auto texture2 = device->load_bindless_texture("test-gradient", 64, 64, test_gradient.data(), gfx::PixelFormat::rgba_8);
 
+    gfx::load_gltf("assets/models/fox.gltf");
     gfx::Triangle triangle {
         .verts = {
             gfx::Vertex {
