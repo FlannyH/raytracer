@@ -20,22 +20,22 @@ int main(int n_args, char** args) {
     }
     auto texture2 = device->load_bindless_texture("test-gradient", 64, 64, test_gradient.data(), gfx::PixelFormat::rgba_8);
 
-    gfx::load_gltf("assets/models/fox.gltf");
+    gfx::load_gltf("assets/models/monke.gltf");
     gfx::Triangle triangle {
         .verts = {
             gfx::Vertex {
                 .position = {0.0, 0.5, 0.0},
-                .color = {1.0, 0.0, 0.0},
+                .color = {1.0, 0.0, 0.0, 1.0},
                 .texcoord0 = {0.5, 1.0}
             },
             gfx::Vertex {
                 .position = {-0.5, -0.5, 0.0},
-                .color = {0.0, 1.0, 0.0},
+                .color = {0.0, 1.0, 0.0, 1.0},
                 .texcoord0 = {0.0, 0.0}
             },
             gfx::Vertex {
                 .position = {0.5, -0.5, 0.0},
-                .color = {0.0, 0.0, 1.0},
+                .color = {0.0, 0.0, 1.0, 1.0},
                 .texcoord0 = {1.0, 0.0}
             },
         }
