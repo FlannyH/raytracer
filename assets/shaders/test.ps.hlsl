@@ -10,7 +10,7 @@ struct RootConstants
 ConstantBuffer<RootConstants> root_constants : register(b0, space0);
 
 struct VertexOut {
-    float3 color : COLOR0;
+    float4 color : COLOR0;
     float2 texcoord0 : TEXCOORD0;
 };
 
@@ -23,5 +23,5 @@ float4 main(in float4 position : SV_Position, in VertexOut input) : SV_Target0
 
     Texture2D<float4> tex = ResourceDescriptorHeap[NonUniformResourceIndex(bindings.tex)];
     float4 tex_color = tex.Sample(tex_sampler, input.texcoord0);
-    return float4(input.color * tex_color.xyz, 1.0);
+    return input.color * tex_color;
 }

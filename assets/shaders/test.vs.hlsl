@@ -1,6 +1,8 @@
 struct Vertex {
     float3 position;
-    float3 color;
+    float3 normal;
+    float4 tangent;
+    float4 color;
     float2 texcoord0;
 };
 
@@ -16,7 +18,7 @@ struct RootConstants
 ConstantBuffer<RootConstants> root_constants : register(b0, space0);
 
 struct VertexOut {
-    float3 color : COLOR0;
+    float4 color : COLOR0;
     float2 texcoord0 : TEXCOORD0;
 };
 

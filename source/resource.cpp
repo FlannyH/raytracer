@@ -20,9 +20,9 @@ namespace gfx {
     
     /// Takes the input array, casts all the entries in the array to the output type, and then returns a pointer to the converted array. 
     template<typename In, typename Out>
-    Out* convert_array(In* input, const size_t input_size_bytes, size_t& n_values, const float multiplier) {
-        const int64_t min = std::numeric_limits<In>::min();
-        const int64_t max = std::numeric_limits<In>::max();
+    Out* convert_array(In* input, const size_t input_size_bytes, size_t& n_values) {
+        const Out min = (Out)std::numeric_limits<In>::min();
+        const Out max = (Out)std::numeric_limits<In>::max();
         const size_t n_values_ = input_size_bytes / sizeof(In);
         Out* output = new Out[n_values_];
         for (size_t i = 0; i < n_values_; ++i) {

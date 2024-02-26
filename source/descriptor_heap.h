@@ -5,7 +5,7 @@
 #include "common.h"
 #include "resource.h"
 
-namespace gfx {
+namespace gfx { 
     struct Device;
 
     struct DescriptorHeap {
