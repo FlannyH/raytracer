@@ -2,6 +2,7 @@
 #include "common.h"
 #include <d3d12.h>
 
+#include <glm/vec4.hpp>
 #include <glm/vec3.hpp>
 #include <glm/vec2.hpp>
 
@@ -78,7 +79,9 @@ namespace gfx {
 
     struct Vertex {
         glm::vec3 position;
-        glm::vec3 color;
+        glm::vec3 normal;
+        glm::vec4 tangent;
+        glm::vec4 color;
         glm::vec2 texcoord0;
     };
 
