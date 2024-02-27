@@ -71,7 +71,7 @@ namespace gfx {
         ResourceType type = ResourceType::none;
         ComPtr<ID3D12Resource> handle;
         union {
-            // Please use expect_x() wherever you can instead of this
+            // Please use expect_x() wherever you can instead of accessing this directly
             TextureResource texture_resource;
             BufferResource buffer_resource;
         };
