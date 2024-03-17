@@ -35,7 +35,7 @@ namespace gfx {
         for (auto& node_index : node_indices) {
             auto& node = model.nodes[node_index];
             for (int i = 0; i < depth; ++i) printf("\t");
-            printf("%s\n", node.name.c_str());
+            printf("node: %s\n", node.name.c_str());
 
             auto scene_node = std::make_shared<SceneNode>();
 
@@ -48,13 +48,21 @@ namespace gfx {
             // If it has a mesh, process it
             if (node.mesh != -1)
             {
-                //Get mesh
                 auto& mesh = model.meshes[node.mesh];
                 auto& primitives = mesh.primitives;
                 for (auto& primitive : primitives)
                 {
                     // todo
+                    for (int i = -1; i < depth; ++i) printf("\t");
+                    printf("mesh: %s\n", mesh.name.c_str());
                 }
+            }
+
+            // If it has a light, process it
+            if (node.light != -1) {
+                auto& light = model.lights[node.light];
+                for (int i = -1; i < depth; ++i) printf("\t");
+                printf("light: %s\n", light.name.c_str());
             }
 
             // If it has children, process those
