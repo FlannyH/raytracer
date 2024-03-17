@@ -27,6 +27,7 @@ namespace gfx {
         glm::mat4 cached_global_transform;
         std::shared_ptr<SceneNode> parent;
         std::vector<std::shared_ptr<SceneNode>> children;
+        std::string name;
 
         SceneNodeType type;
         union {

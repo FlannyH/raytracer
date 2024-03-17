@@ -37,7 +37,9 @@ namespace gfx {
             for (int i = 0; i < depth; ++i) printf("\t");
             printf("node: %s\n", node.name.c_str());
 
+            // Make a child node which will contain 
             auto scene_node = std::make_shared<SceneNode>();
+            scene_node->name = node.name;
 
             // Convert matrix in gltf model to glm::mat4. If the matrix doesn't exist, just set it to identity matrix
             glm::mat4 local_matrix(1.0f);
@@ -57,7 +59,8 @@ namespace gfx {
                     printf("mesh: %s\n", mesh.name.c_str());
                     auto mesh_node = std::make_shared<SceneNode>();
                     mesh_node->type = SceneNodeType::Mesh;
-                    parent->add_child_node(mesh_node);
+                    mesh_node->name = mesh.name;
+                    scene_node->add_child_node(mesh_node);
                 }
             }
 
@@ -68,7 +71,8 @@ namespace gfx {
                 printf("%s light: %s\n", light.type.c_str(), light.name.c_str());
                 auto light_node = std::make_shared<SceneNode>();
                 light_node->type = SceneNodeType::Light;
-                parent->add_child_node(light_node);
+                light_node->name = light.name;
+                scene_node->add_child_node(light_node);
             }
 
             // If it has children, process those

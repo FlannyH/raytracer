@@ -39,7 +39,7 @@ int main(int n_args, char** args) {
         }
     };
     auto triangle_vb = device->load_mesh("triangle" ,1, &triangle);
-    auto monke = device->create_scene_graph_from_gltf("assets/models/hierarchy.gltf");
+    auto monke = device->create_scene_graph_from_gltf("assets/models/hierarchy2.gltf");
 
     uint32_t bindings[] = { triangle_vb.id, texture1.id };
     auto bindings_buffer = device->create_buffer("bindings", sizeof(bindings), bindings);

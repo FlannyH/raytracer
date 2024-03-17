@@ -276,9 +276,29 @@ namespace gfx {
         return create_buffer(name, n_triangles * sizeof(Triangle), tris);
     }
 
+    void debug_scene_graph_nodes(std::shared_ptr<SceneNode> node, int depth = 0) {
+        for (int i = 0; i < depth; ++i) printf("    ");
+        switch (node->type) {
+            case gfx::SceneNodeType::Empty:
+                printf("Node: %s\n", node->name.c_str());
+                break;
+            case gfx::SceneNodeType::Mesh:
+                printf("Mesh: %s\n", node->name.c_str());
+                break;
+            case gfx::SceneNodeType::Light:
+                printf("Light: %s\n", node->name.c_str());
+                break;
+        }
+        for (auto& child : node->children) {
+            debug_scene_graph_nodes(child, depth + 1);
+        }
+    }
+
     ResourceID Device::create_scene_graph_from_gltf(const std::string& name)
     {
         auto test = gfx::create_scene_graph_from_gltf(name);
+        debug_scene_graph_nodes(test);
+
         return ResourceID();
     }
 
