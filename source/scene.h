@@ -23,6 +23,7 @@ namespace gfx {
 
     struct SceneNode {
         Transform local_transform;
+        glm::mat4 cached_global_transform;
         std::shared_ptr<SceneNode> parent;
         std::vector<std::shared_ptr<SceneNode>> children;
 
@@ -34,5 +35,9 @@ namespace gfx {
                 D3D12_RAYTRACING_GEOMETRY_TRIANGLES_DESC geometry;
             } mesh;
         };
+
+        void add_child_node(std::shared_ptr<SceneNode> new_child);
     };
+
+    std::shared_ptr<SceneNode> create_scene_graph_from_gltf(const std::string& path);
 }

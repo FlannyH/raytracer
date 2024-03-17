@@ -15,6 +15,7 @@
 #include "pipeline.h"
 #include "descriptor_heap.h"
 #include "command_queue.h"
+#include "scene.h"
 
 namespace gfx {
     Device::Device(const int width, const int height, const bool debug_layer_enabled) {
@@ -273,6 +274,12 @@ namespace gfx {
 
     ResourceID Device::load_mesh(const std::string& name, const uint64_t n_triangles, Triangle* tris) {
         return create_buffer(name, n_triangles * sizeof(Triangle), tris);
+    }
+
+    ResourceID Device::create_scene_graph_from_gltf(const std::string& name)
+    {
+        auto test = gfx::create_scene_graph_from_gltf(name);
+        return ResourceID();
     }
 
     ResourceID Device::create_buffer(const std::string& name, const size_t size, void* data) {

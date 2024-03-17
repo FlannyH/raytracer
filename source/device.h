@@ -32,6 +32,7 @@ namespace gfx {
         ResourceID load_bindless_texture(const std::string& path);
         ResourceID load_bindless_texture(const std::string& name, uint32_t width, uint32_t height, void* data, PixelFormat pixel_format);
         ResourceID load_mesh(const std::string& name, uint64_t n_triangles, Triangle* tris);
+        ResourceID create_scene_graph_from_gltf(const std::string& name);
         ResourceID create_buffer(const std::string& name, size_t size, void* data);
         void unload_bindless_resource(ResourceID id);
         bool should_stay_open();
