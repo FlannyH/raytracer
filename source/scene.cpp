@@ -55,6 +55,9 @@ namespace gfx {
                     // todo
                     for (int i = -1; i < depth; ++i) printf("\t");
                     printf("mesh: %s\n", mesh.name.c_str());
+                    auto mesh_node = std::make_shared<SceneNode>();
+                    mesh_node->type = SceneNodeType::Mesh;
+                    parent->add_child_node(mesh_node);
                 }
             }
 
@@ -62,7 +65,10 @@ namespace gfx {
             if (node.light != -1) {
                 auto& light = model.lights[node.light];
                 for (int i = -1; i < depth; ++i) printf("\t");
-                printf("light: %s\n", light.name.c_str());
+                printf("%s light: %s\n", light.type.c_str(), light.name.c_str());
+                auto light_node = std::make_shared<SceneNode>();
+                light_node->type = SceneNodeType::Light;
+                parent->add_child_node(light_node);
             }
 
             // If it has children, process those
