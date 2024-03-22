@@ -156,8 +156,12 @@ namespace gfx {
                     for (int i = -1; i < depth; ++i) printf("\t");
                     printf("mesh: %s\n", mesh.name.c_str());
 
-
-                    auto verts = parse_primitive(primitive, model, path); 
+                    std::vector<Vertex> vertices = parse_primitive(primitive, model, path);
+                    std::vector<glm::vec3> positions;
+                    positions.reserve(vertices.size());
+                    for (Vertex& vertex : vertices) {
+                        positions.push_back(vertex.position);
+                    }
 
                     auto mesh_node = std::make_shared<SceneNode>();
                     mesh_node->type = SceneNodeType::Mesh;
