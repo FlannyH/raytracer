@@ -5,6 +5,7 @@
 #include <map>
 #include <memory>
 #include <unordered_map>
+#include <array>
 
 #include "common.h"
 #include "glfw/glfw3.h"
@@ -19,6 +20,13 @@ namespace gfx {
     struct RenderPass;
     struct Pipeline;
 
+    struct DrawPacket {
+        glm::mat3x4 model_transform;
+        ResourceHandle vertex_buffer;
+        ResourceHandle texture;
+        uint64_t reserved;
+    };
+
     struct Device {
         Device(int width, int height, bool debug_layer_enabled);
         void resize_window(int width, int height) const;
@@ -28,7 +36,8 @@ namespace gfx {
         std::shared_ptr<Pipeline> create_raster_pipeline(const RenderPass& render_pass, const std::string& vertex_shader, const std::string& pixel_shader);
         void begin_frame();
         void end_frame();
-        void test(std::shared_ptr<Pipeline> pipeline, std::shared_ptr<RenderPass>, ResourceHandle bindings);
+        void test(std::shared_ptr<Pipeline> pipeline, std::shared_ptr<RenderPass> render_pass, ResourceHandle vertex_buffer, ResourceHandle texture);
+        void draw_scene(ResourceHandle scene_handle);
         ResourceHandlePair load_bindless_texture(const std::string& path);
         ResourceHandlePair load_bindless_texture(const std::string& name, uint32_t width, uint32_t height, void* data, PixelFormat pixel_format);
         ResourceHandlePair load_mesh(const std::string& name, uint64_t n_triangles, Triangle* tris);
@@ -45,6 +54,8 @@ namespace gfx {
 
     private:
         int find_dominant_monitor();
+        void traverse_scene(SceneNode* node);
+        size_t create_draw_packet(DrawPacket packet); // returns the byte offset into the `m_draw_packets` buffer where this new draw packet was allocated
         GLFWwindow* m_window_glfw = nullptr;
         ComPtr<ID3D12Debug1> m_debug_layer = nullptr;
         ComPtr<ID3D12DebugDevice> m_device_debug = nullptr;
@@ -57,6 +68,8 @@ namespace gfx {
         std::shared_ptr<CommandQueue> m_upload_queue = nullptr;
         std::deque<std::shared_ptr<CommandBuffer>> m_upload_cmd;
         size_t m_upload_fence_value_when_done = 0;
+        ResourceHandlePair m_draw_packets; // scratch buffer that is used to send draw info to the shader
+        size_t m_draw_packet_cursor = 0;
         int m_width = 0;
         int m_height = 0;
         int m_width_pre_fullscreen = 0;

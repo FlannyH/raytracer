@@ -41,14 +41,9 @@ int main(int n_args, char** args) {
     auto triangle_vb = device->load_mesh("triangle" ,1, &triangle);
     auto monke = device->create_scene_graph_from_gltf("assets/models/hierarchy2.gltf");
 
-    uint32_t bindings[] = { triangle_vb.handle.id, texture1.handle.id };
-    auto bindings_buffer = device->create_buffer("bindings", sizeof(bindings), bindings);
-    printf("triangle_vb = %i\n", triangle_vb.handle.id);
-    printf("bindings_buffer = %i\n", bindings_buffer.handle.id);
-
     while (device->should_stay_open()) {
         device->begin_frame();
-        device->test(pipeline, render_pass, bindings_buffer.handle);
+        device->test(pipeline, render_pass, triangle_vb.handle, texture1.handle);
         device->end_frame();
     }
 }

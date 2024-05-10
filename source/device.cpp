@@ -18,6 +18,8 @@
 #include "scene.h"
 
 namespace gfx {
+    #define N_DRAW_PACKETS 16384
+
     Device::Device(const int width, const int height, const bool debug_layer_enabled) {
         // Create window
         glfwInit();
@@ -76,6 +78,11 @@ namespace gfx {
         // Create descriptor heaps
         m_heap_rtv = std::make_shared<DescriptorHeap>(*this, D3D12_DESCRIPTOR_HEAP_TYPE_RTV, D3D12_DESCRIPTOR_HEAP_FLAG_NONE, backbuffer_count);
         m_heap_bindless = std::make_shared<DescriptorHeap>(*this, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE, D3D12_MAX_SHADER_VISIBLE_DESCRIPTOR_HEAP_SIZE_TIER_1 / 2);
+
+        // Create draw packet buffer
+        DrawPacket* empty_draw_packets = new DrawPacket[N_DRAW_PACKETS];
+        m_draw_packets = create_buffer("Draw Packets", sizeof(DrawPacket) * N_DRAW_PACKETS, empty_draw_packets);
+        delete empty_draw_packets;
     }
 
 
@@ -103,6 +110,7 @@ namespace gfx {
     }
 
     void Device::begin_frame() {
+        printf("m_draw_packet_cursor: %i\n", m_draw_packet_cursor);
         static int prev_key = 0;
         int curr_key = glfwGetKey(m_window_glfw, GLFW_KEY_F11);
         if (curr_key == GLFW_PRESS && prev_key == GLFW_RELEASE) {
@@ -124,12 +132,21 @@ namespace gfx {
         glfwSwapBuffers(m_window_glfw);
     }
 
-    void Device::test(std::shared_ptr<Pipeline> pipeline, std::shared_ptr<RenderPass> render_pass, ResourceHandle bindings) {
+    void Device::test(std::shared_ptr<Pipeline> pipeline, std::shared_ptr<RenderPass> render_pass, ResourceHandle vertex_buffer, ResourceHandle texture) {
+        printf("vertex buffer: %i,\ttexture: %i\n", vertex_buffer.id, texture.id);
+
         // Wait for next framebuffer to be available
         auto framebuffer = m_swapchain->next_framebuffer();
         auto cmd = m_queue->create_command_buffer(*this, pipeline.get(), CommandBufferType::graphics, m_swapchain->current_frame_index());
         auto gfx_cmd = cmd->expect_graphics_command_list();
         m_queue->clean_up_old_command_buffers(m_swapchain->current_fence_completed_value());
+
+        // Store draw packet
+        size_t packet_offset = create_draw_packet(DrawPacket{
+            .model_transform = glm::mat3x4(),
+            .vertex_buffer = vertex_buffer,
+            .texture = texture,
+        });
 
         // Render triangle to that framebuffer
         m_swapchain->prepare_render(cmd);
@@ -140,7 +157,8 @@ namespace gfx {
         gfx_cmd->SetGraphicsRootSignature(render_pass->root_signature.Get());
         gfx_cmd->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
         gfx_cmd->SetPipelineState(pipeline->pipeline_state.Get());
-        gfx_cmd->SetGraphicsRoot32BitConstant(0, bindings.id, 0);
+        gfx_cmd->SetGraphicsRoot32BitConstant(0, m_draw_packets.handle.id, 0);
+        gfx_cmd->SetGraphicsRoot32BitConstant(0, (uint32_t)packet_offset, 1);
         gfx_cmd->DrawInstanced(3, 1, 0, 0);
 
         // Present backbuffer
@@ -150,6 +168,32 @@ namespace gfx {
         m_queue->command_queue->ExecuteCommandLists(1, command_lists);
         m_swapchain->synchronize(m_queue);
         m_swapchain->present();
+    }
+
+    void Device::traverse_scene(SceneNode* node) {
+        //node->
+    }
+
+    size_t Device::create_draw_packet(DrawPacket packet) {
+        // Update the draw packet at the cursor position
+        DrawPacket* mapped_buffer;
+        const D3D12_RANGE write_range = { 
+            m_draw_packet_cursor * sizeof(DrawPacket),
+            (m_draw_packet_cursor + 1) * sizeof(DrawPacket)
+        };
+        validate(m_draw_packets.resource->handle->Map(0, &write_range, (void**)&mapped_buffer));
+        memcpy(&mapped_buffer[m_draw_packet_cursor], &packet, sizeof(DrawPacket));
+        m_draw_packets.resource->handle->Unmap(0, &write_range);
+
+        // Return the byte offset of that draw packet, and update the cursor to the next entry, wrapping at the end
+        const size_t byte_offset_into_buffer = m_draw_packet_cursor * sizeof(DrawPacket);
+        m_draw_packet_cursor = (m_draw_packet_cursor + 1) % N_DRAW_PACKETS;
+        return byte_offset_into_buffer;
+    }
+
+    void Device::draw_scene(ResourceHandle scene_handle) {
+        SceneNode* scene = m_resources[scene_handle.id]->expect_scene().root;
+        traverse_scene(scene);
     }
 
     ResourceHandlePair Device::load_bindless_texture(const std::string& path) {

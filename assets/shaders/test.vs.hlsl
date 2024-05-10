@@ -6,14 +6,16 @@ struct Vertex {
     float2 texcoord0;
 };
 
-struct Bindings {
+struct DrawPacket {
+    float3x4 model_transform;
     uint vertex_buffer;
     uint tex;
 };
 
 struct RootConstants
 {
-    uint bindings_id;
+    uint packet_buffer;
+    uint offset;
 };
 ConstantBuffer<RootConstants> root_constants : register(b0, space0);
 
@@ -22,11 +24,13 @@ struct VertexOut {
     float2 texcoord0 : TEXCOORD0;
 };
 
-float4 main(in uint vertex_index : SV_VertexID, out VertexOut output) : SV_POSITION{
-    ByteAddressBuffer bindings_buffer = ResourceDescriptorHeap[NonUniformResourceIndex(root_constants.bindings_id)];
-    Bindings bindings = bindings_buffer.Load<Bindings>(0);
+#define MASK_ID ((1 << 27) - 1)
 
-    ByteAddressBuffer vertex_buffer = ResourceDescriptorHeap[NonUniformResourceIndex(bindings.vertex_buffer)];
+float4 main(in uint vertex_index : SV_VertexID, out VertexOut output) : SV_POSITION {
+    ByteAddressBuffer packet_buffer = ResourceDescriptorHeap[NonUniformResourceIndex(root_constants.packet_buffer & MASK_ID)];
+    DrawPacket packet = packet_buffer.Load<DrawPacket>(root_constants.offset);
+
+    ByteAddressBuffer vertex_buffer = ResourceDescriptorHeap[NonUniformResourceIndex(packet.vertex_buffer & MASK_ID)];
     Vertex vert = vertex_buffer.Load<Vertex>(vertex_index * sizeof(Vertex));
 
     output.color = vert.color;

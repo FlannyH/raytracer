@@ -19,9 +19,9 @@ namespace gfx {
     inline const char* _resource_type_names[] = { "None", "Texture", "Buffer"};
 
     struct ResourceHandle {
-        uint32_t type : 4;
-        uint32_t is_loaded : 1;
         uint32_t id : 27;
+        uint32_t is_loaded : 1;
+        uint32_t type : 4;
         bool operator==(const ResourceHandle& rhs) {
             // We only really need to check if the IDs are identical, but we should sanity check the rest too
             assert(type == rhs.type);
@@ -43,6 +43,11 @@ namespace gfx {
 
     struct SceneResource {
         SceneNode* root;
+    };
+
+    struct BufferWithOffset {
+        ResourceHandle buffer;
+        uint32_t offset;
     };
 
     enum class PixelFormat {

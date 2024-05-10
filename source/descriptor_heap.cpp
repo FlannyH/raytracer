@@ -36,8 +36,8 @@ namespace gfx {
 
 
         return ResourceHandle {
+            .id = index,
             .type = static_cast<uint32_t>(type),
-            .id = index
         };
     }
 
