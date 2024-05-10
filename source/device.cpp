@@ -82,7 +82,7 @@ namespace gfx {
         // Create draw packet buffer
         DrawPacket* empty_draw_packets = new DrawPacket[N_DRAW_PACKETS];
         m_draw_packets = create_buffer("Draw Packets", sizeof(DrawPacket) * N_DRAW_PACKETS, empty_draw_packets);
-        delete empty_draw_packets;
+        delete[] empty_draw_packets;
     }
 
 
