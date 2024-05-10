@@ -129,7 +129,7 @@ namespace gfx {
 
     std::vector<Vertex> parse_primitive(tinygltf::Primitive& primitive, tinygltf::Model& model, const std::string& path);
 
-    void traverse_nodes(Device& device, std::vector<int>& node_indices, tinygltf::Model& model, glm::mat4 local_transform, std::shared_ptr<SceneNode> parent, const std::string& path, int depth = 0) {
+    void traverse_nodes(Device& device, std::vector<int>& node_indices, tinygltf::Model& model, glm::mat4 local_transform, SceneNode* parent, const std::string& path, int depth = 0) {
         // Get all child nodes
         for (auto& node_index : node_indices) {
             auto& node = model.nodes[node_index];
@@ -200,13 +200,13 @@ namespace gfx {
             // If it has children, process those
             if (!node.children.empty())
             {
-                traverse_nodes(device, node.children, model, local_matrix, scene_node, path, depth + 1);
+                traverse_nodes(device, node.children, model, local_matrix, scene_node.get(), path, depth + 1);
             }
             parent->add_child_node(scene_node);
         }
     }
 
-    std::shared_ptr<SceneNode> create_scene_graph_from_gltf(Device& device, const std::string& path)
+    SceneNode* create_scene_graph_from_gltf(Device& device, const std::string& path)
     {
         tinygltf::TinyGLTF loader;
         tinygltf::Model model;
@@ -224,7 +224,7 @@ namespace gfx {
         auto& scene = model.scenes[model.defaultScene];
         printf("Loading scene \"%s\"\n", scene.name.c_str());
 
-        auto scene_node = std::make_shared<SceneNode>();
+        auto scene_node = new SceneNode();
         traverse_nodes(device, scene.nodes, model, glm::mat4(1.0f), scene_node, path);
         return scene_node;
     }

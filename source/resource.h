@@ -7,11 +7,14 @@
 #include <glm/vec2.hpp>
 
 namespace gfx {
+    struct SceneNode;
+
     // General
     enum class ResourceType {
         none = 0,
         texture,
         buffer,
+        scene,
     };
     inline const char* _resource_type_names[] = { "None", "Texture", "Buffer"};
 
@@ -36,6 +39,10 @@ namespace gfx {
     struct BufferResource {
         void* data;
         uint64_t size;
+    };
+
+    struct SceneResource {
+        SceneNode* root;
     };
 
     enum class PixelFormat {
@@ -67,6 +74,10 @@ namespace gfx {
             assert(type == ResourceType::buffer);
             return buffer_resource;
         }
+        SceneResource& expect_scene() {
+            assert(type == ResourceType::scene);
+            return scene_resource;
+        }
 
         ResourceType type = ResourceType::none;
         ComPtr<ID3D12Resource> handle;
@@ -74,6 +85,7 @@ namespace gfx {
             // Please use expect_x() wherever you can instead of accessing this directly
             TextureResource texture_resource;
             BufferResource buffer_resource;
+            SceneResource scene_resource;
         };
     };
 

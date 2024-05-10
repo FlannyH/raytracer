@@ -42,5 +42,5 @@ namespace gfx {
         void add_child_node(std::shared_ptr<SceneNode> new_child);
     };
 
-    std::shared_ptr<SceneNode> create_scene_graph_from_gltf(Device& device, const std::string& path);
+    SceneNode* create_scene_graph_from_gltf(Device& device, const std::string& path);
 }

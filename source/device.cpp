@@ -276,7 +276,7 @@ namespace gfx {
         return create_buffer(name, n_triangles * sizeof(Triangle), tris);
     }
 
-    void debug_scene_graph_nodes(std::shared_ptr<SceneNode> node, int depth = 0) {
+    void debug_scene_graph_nodes(SceneNode* node, int depth = 0) {
         for (int i = 0; i < depth; ++i) printf("    ");
         switch (node->type) {
             case gfx::SceneNodeType::Empty:
@@ -290,16 +290,20 @@ namespace gfx {
                 break;
         }
         for (auto& child : node->children) {
-            debug_scene_graph_nodes(child, depth + 1);
+            debug_scene_graph_nodes(child.get(), depth + 1);
         }
     }
 
     ResourceHandlePair Device::create_scene_graph_from_gltf(const std::string& name)
     {
-        auto test = gfx::create_scene_graph_from_gltf(*this, name);
-        debug_scene_graph_nodes(test);
+        const auto resource = std::make_shared<Resource>();
+        resource->type = ResourceType::scene;
+        resource->scene_resource.root = gfx::create_scene_graph_from_gltf(*this, name);
+        debug_scene_graph_nodes(resource->scene_resource.root);
 
-        return ResourceHandlePair{};
+        ResourceHandle handle = m_heap_bindless->alloc_descriptor(ResourceType::scene);
+
+        return ResourceHandlePair{ handle, resource };
     }
 
     ResourceHandlePair Device::create_buffer(const std::string& name, const size_t size, void* data) {
