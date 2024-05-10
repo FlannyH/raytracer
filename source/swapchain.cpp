@@ -53,6 +53,11 @@ namespace gfx {
     ComPtr<ID3D12Resource> Swapchain::next_framebuffer() {
         m_frame_index++;
         m_fence->cpu_wait(m_frame_wait_values[framebuffer_index()]);
+        return curr_framebuffer();
+    }
+
+    ComPtr<ID3D12Resource> Swapchain::curr_framebuffer()
+    {
         return m_render_targets[framebuffer_index()];
     }
 
@@ -60,7 +65,7 @@ namespace gfx {
         D3D12_RESOURCE_BARRIER render_target_barrier;
         render_target_barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
         render_target_barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
-        render_target_barrier.Transition.pResource = m_render_targets[framebuffer_index()].Get();
+        render_target_barrier.Transition.pResource = curr_framebuffer().Get();
         render_target_barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_PRESENT;
         render_target_barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_RENDER_TARGET;
         render_target_barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
@@ -99,7 +104,7 @@ namespace gfx {
         D3D12_RESOURCE_BARRIER present_barrier;
         present_barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
         present_barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
-        present_barrier.Transition.pResource = m_render_targets[framebuffer_index()].Get();
+        present_barrier.Transition.pResource = curr_framebuffer().Get();
         present_barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET;
         present_barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_PRESENT;
         present_barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;

@@ -124,6 +124,7 @@ namespace gfx {
             m_width = width;
             m_height = height;
         }
+        m_swapchain->next_framebuffer();
     }
 
     void Device::end_frame() {
@@ -133,7 +134,7 @@ namespace gfx {
 
     void Device::test(std::shared_ptr<Pipeline> pipeline, std::shared_ptr<RenderPass> render_pass, ResourceHandle vertex_buffer, ResourceHandle texture) {
         // Wait for next framebuffer to be available
-        auto framebuffer = m_swapchain->next_framebuffer();
+        auto framebuffer = m_swapchain->curr_framebuffer();
         auto cmd = m_queue->create_command_buffer(*this, pipeline.get(), CommandBufferType::graphics, m_swapchain->current_frame_index());
         auto gfx_cmd = cmd->expect_graphics_command_list();
         m_queue->clean_up_old_command_buffers(m_swapchain->current_fence_completed_value());
