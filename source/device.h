@@ -61,7 +61,7 @@ namespace gfx {
         ComPtr<ID3D12DebugDevice> m_device_debug = nullptr;
         std::shared_ptr<DescriptorHeap> m_heap_rtv = nullptr;
         std::shared_ptr<DescriptorHeap> m_heap_bindless = nullptr;
-        std::shared_ptr<CommandQueue> m_queue = nullptr;
+        std::shared_ptr<CommandQueue> m_queue_gfx = nullptr;
         std::shared_ptr<Swapchain> m_swapchain = nullptr;
         std::unordered_map<std::string, ResourceHandle> m_resource_name_map; // so we don't load in duplicates
         std::unordered_map<uint64_t, std::shared_ptr<Resource>> m_resources;

@@ -95,9 +95,9 @@ namespace gfx {
     }
 
     void Device::init_context() {
-        m_queue = std::make_shared<CommandQueue>(*this, CommandBufferType::graphics);
+        m_queue_gfx = std::make_shared<CommandQueue>(*this, CommandBufferType::graphics);
         m_upload_queue = std::make_shared<CommandQueue>(*this, CommandBufferType::graphics);
-        m_swapchain = std::make_shared<Swapchain>(*this, *m_queue, *m_heap_rtv, fb_format);
+        m_swapchain = std::make_shared<Swapchain>(*this, *m_queue_gfx, *m_heap_rtv, fb_format);
         get_window_size(m_width, m_height);
     }
 
@@ -120,12 +120,12 @@ namespace gfx {
         int width, height;
         get_window_size(width, height);
         if (m_width != width || m_height != height) {
-            m_swapchain->resize(*this, m_queue, *m_heap_rtv, width, height, fb_format);
+            m_swapchain->resize(*this, m_queue_gfx, *m_heap_rtv, width, height, fb_format);
             m_width = width;
             m_height = height;
         }
         m_swapchain->next_framebuffer();
-        m_queue->clean_up_old_command_buffers(m_swapchain->current_fence_completed_value());
+        m_queue_gfx->clean_up_old_command_buffers(m_swapchain->current_fence_completed_value());
     }
 
     void Device::end_frame() {
@@ -136,7 +136,7 @@ namespace gfx {
     void Device::test(std::shared_ptr<Pipeline> pipeline, std::shared_ptr<RenderPass> render_pass, ResourceHandle vertex_buffer, ResourceHandle texture) {
         // Wait for next framebuffer to be available
         auto framebuffer = m_swapchain->curr_framebuffer();
-        auto cmd = m_queue->create_command_buffer(*this, pipeline.get(), m_swapchain->current_frame_index());
+        auto cmd = m_queue_gfx->create_command_buffer(*this, pipeline.get(), m_swapchain->current_frame_index());
         auto gfx_cmd = cmd->get();
 
         // Store draw packet
@@ -163,8 +163,8 @@ namespace gfx {
         ID3D12CommandList* command_lists[] = { gfx_cmd };
         m_swapchain->prepare_present(cmd);
         gfx_cmd->Close();
-        m_queue->command_queue->ExecuteCommandLists(1, command_lists);
-        m_swapchain->synchronize(m_queue);
+        m_queue_gfx->command_queue->ExecuteCommandLists(1, command_lists);
+        m_swapchain->synchronize(m_queue_gfx);
         m_swapchain->present();
     }
 
