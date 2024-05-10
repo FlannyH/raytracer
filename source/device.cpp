@@ -283,7 +283,7 @@ namespace gfx {
                 printf("Node: %s\n", node->name.c_str());
                 break;
             case gfx::SceneNodeType::Mesh:
-                printf("Mesh: %s\n", node->name.c_str());
+                printf("Mesh: (Vertex buffer: %i) %s\n", node->mesh.vertex_buffer.id, node->name.c_str());
                 break;
             case gfx::SceneNodeType::Light:
                 printf("Light: %s\n", node->name.c_str());

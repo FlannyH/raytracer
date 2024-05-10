@@ -53,8 +53,9 @@ namespace gfx {
         return output;
     }
 
-    /// Takes the input array, casts all entries to float, and returns a vector with those floats
+    /// Takes the input array, casts all entries to ComponentType, converts it to ComponentType, and returns a vector of the Out type
     /// `Out` is expected to be a floating point type such as `float`, `glm::mat4`, `glm::vec3`, etc
+    /// `ComponentType` is the component type of `Out`, so if `Out` is a `glm::vec3`, the `ComponentType` should be `float`
     /// `default_value` is used in case we want more components than we have, so then the last values will take the default value's component
     template<typename ComponentType, typename Out>
     std::vector<Out> convert_gltf_buffer(void* input, int component_type, size_t component_stride, Out default_value, size_t size_bytes, const bool normalized) {
