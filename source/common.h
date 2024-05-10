@@ -15,10 +15,10 @@ inline void validate(const HRESULT hr) {
 
 inline void read_file(const std::string& path, size_t& size_bytes, char*& data, const bool silent)
 {
-    //Open file
+    // Open file
     std::ifstream file_stream(path, std::ios::binary);
 
-    //Is it actually open?
+    // Is it actually open?
     if (file_stream.is_open() == false)
     {
         if (!silent)
@@ -28,21 +28,21 @@ inline void read_file(const std::string& path, size_t& size_bytes, char*& data, 
         return;
     }
 
-    //See how big the file is so we can allocate the right amount of memory
+    // See how big the file is so we can allocate the right amount of memory
     const auto begin = file_stream.tellg();
     file_stream.seekg(0, std::ifstream::end);
     const auto end = file_stream.tellg();
     const auto size = end - begin;
     size_bytes = static_cast<size_t>(size);
 
-    //Allocate memory
+    // Allocate memory
     data = static_cast<char*>(malloc(static_cast<uint32_t>(size)));
 
-    //Load file data into that memory
+    // Load file data into that memory
     file_stream.seekg(0, std::ifstream::beg);
     const std::vector<unsigned char> buffer(std::istreambuf_iterator<char>(file_stream), {});
 
-    //Is it actually open?
+    // Is it actually open?
     if (buffer.empty())
     {
         if (!silent)
