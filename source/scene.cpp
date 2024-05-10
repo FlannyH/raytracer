@@ -9,15 +9,6 @@
 #include <tinygltf/tiny_gltf.h>
 
 namespace gfx {
-    Transform Transform::identity()
-    {
-        return Transform{
-            .position = glm::vec3(0.0f, 0.0f, 0.0f),
-            .rotation = glm::quat(1.0f, 0.0f, 0.0f, 0.0f),
-            .scale = glm::vec3(1.0f, 1.0f, 1.0f),
-        };
-    }
-
     glm::mat4 Transform::as_matrix()
     {
         glm::mat4 mat_translate = glm::translate(glm::mat4(1.0f), position);
@@ -136,15 +127,26 @@ namespace gfx {
             for (int i = 0; i < depth; ++i) printf("\t");
             printf("node: %s\n", node.name.c_str());
 
-            // Make a child node which will contain 
-            auto scene_node = std::make_shared<SceneNode>();
-            scene_node->name = node.name;
-
             // Convert matrix in gltf model to glm::mat4. If the matrix doesn't exist, just set it to identity matrix
             glm::mat4 local_matrix(1.0f);
             int i = 0;
             for (const auto& value : node.matrix) { local_matrix[i / 4][i % 4] = static_cast<float>(value); i++; }
-            local_matrix = local_transform * local_matrix;
+            glm::mat4 global_matrix = local_transform * local_matrix;
+
+            // Make a child node 
+            auto scene_node = std::make_shared<SceneNode>();
+            scene_node->name = node.name;
+            scene_node->cached_global_transform = global_matrix;
+            scene_node->local_transform = Transform::identity();
+            if (node.translation.size() > 0) {
+                scene_node->local_transform.position = glm::vec3(node.translation[0], node.translation[1], node.translation[2]);
+            }
+            if (node.scale.size() > 0) {
+                scene_node->local_transform.scale = glm::vec3(node.scale[0], node.scale[1], node.scale[2]);
+            }
+            if (node.rotation.size() > 0) {
+                scene_node->local_transform.rotation = glm::quat(node.rotation[3], node.rotation[0], node.rotation[1], node.rotation[2]);
+            }
 
             // If it has a mesh, process it
             if (node.mesh != -1)

@@ -13,7 +13,14 @@ namespace gfx {
         glm::quat rotation;
         glm::vec3 scale;
 
-        Transform identity();
+        static Transform identity()
+        {
+            return Transform{
+                .position = glm::vec3(0.0f, 0.0f, 0.0f),
+                .rotation = glm::quat(1.0f, 0.0f, 0.0f, 0.0f),
+                .scale = glm::vec3(1.0f, 1.0f, 1.0f),
+            };
+        }
         glm::mat4 as_matrix();
     };
 
