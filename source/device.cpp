@@ -110,7 +110,6 @@ namespace gfx {
     }
 
     void Device::begin_frame() {
-        printf("m_draw_packet_cursor: %i\n", m_draw_packet_cursor);
         static int prev_key = 0;
         int curr_key = glfwGetKey(m_window_glfw, GLFW_KEY_F11);
         if (curr_key == GLFW_PRESS && prev_key == GLFW_RELEASE) {
@@ -133,8 +132,6 @@ namespace gfx {
     }
 
     void Device::test(std::shared_ptr<Pipeline> pipeline, std::shared_ptr<RenderPass> render_pass, ResourceHandle vertex_buffer, ResourceHandle texture) {
-        printf("vertex buffer: %i,\ttexture: %i\n", vertex_buffer.id, texture.id);
-
         // Wait for next framebuffer to be available
         auto framebuffer = m_swapchain->next_framebuffer();
         auto cmd = m_queue->create_command_buffer(*this, pipeline.get(), CommandBufferType::graphics, m_swapchain->current_frame_index());
