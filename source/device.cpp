@@ -137,7 +137,7 @@ namespace gfx {
         // Wait for next framebuffer to be available
         auto framebuffer = m_swapchain->curr_framebuffer();
         auto cmd = m_queue->create_command_buffer(*this, pipeline.get(), CommandBufferType::graphics, m_swapchain->current_frame_index());
-        auto gfx_cmd = cmd->expect_graphics_command_list();
+        auto gfx_cmd = cmd->get();
 
         // Store draw packet
         size_t packet_offset = create_draw_packet(DrawPacket{
@@ -299,7 +299,7 @@ namespace gfx {
         };
 
         const auto upload_command_buffer = m_upload_queue->create_command_buffer(*this, nullptr, CommandBufferType::graphics, ++m_upload_fence_value_when_done);
-        const auto cmd = upload_command_buffer->expect_graphics_command_list();
+        const auto cmd = upload_command_buffer->get();
         cmd->CopyTextureRegion(&texture_copy_dest, 0, 0, 0, &texture_copy_source, &texture_size_box);
         validate(cmd->Close());
         ID3D12CommandList* command_lists[] = { cmd };

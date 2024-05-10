@@ -15,12 +15,7 @@ namespace gfx {
     struct CommandBuffer {
         CommandBuffer(const Device& device, ID3D12PipelineState* pipeline_state, CommandBufferType type, uint64_t fence_value_when_done);
 
-        ID3D12GraphicsCommandList* expect_graphics_command_list() {
-            assert(m_type == CommandBufferType::graphics);
-            return m_command_list.Get();
-        }
-        ID3D12CommandList* expect_compute_command_list() {
-            assert(m_type == CommandBufferType::compute);
+        ID3D12GraphicsCommandList* get() {
             return m_command_list.Get();
         }
 

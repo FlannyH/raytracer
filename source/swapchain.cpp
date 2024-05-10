@@ -88,7 +88,7 @@ namespace gfx {
 
         const float clear_color[4] = {0.0f, 0.0f, 0.0f, 1.0f};
 
-        auto cmd = command_buffer->expect_graphics_command_list();
+        auto cmd = command_buffer->get();
         cmd->ResourceBarrier(1, &render_target_barrier);
         cmd->OMSetRenderTargets(1, &m_render_target_views[framebuffer_index()], FALSE, nullptr);
         cmd->RSSetViewports(1, &viewport);
@@ -108,7 +108,7 @@ namespace gfx {
         present_barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET;
         present_barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_PRESENT;
         present_barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
-        auto cmd = command_buffer->expect_graphics_command_list();
+        auto cmd = command_buffer->get();
         cmd->ResourceBarrier(1, &present_barrier);
     }
 
