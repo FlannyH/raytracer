@@ -10,17 +10,27 @@
 #include "command_buffer.h"
 
 namespace gfx {
-    CommandQueue::CommandQueue(const Device& device) {
+    CommandQueue::CommandQueue(const Device& device, CommandBufferType type) {
         // Create command queue
-        constexpr D3D12_COMMAND_QUEUE_DESC desc = {
+        m_type = type;
+        D3D12_COMMAND_QUEUE_DESC desc = {
             .Type = D3D12_COMMAND_LIST_TYPE_DIRECT,
             .Flags = D3D12_COMMAND_QUEUE_FLAG_NONE,
         };
 
+        switch (type) {
+        case CommandBufferType::graphics:
+            desc.Type = D3D12_COMMAND_LIST_TYPE_DIRECT;
+            break;
+        case CommandBufferType::compute:
+            desc.Type = D3D12_COMMAND_LIST_TYPE_COMPUTE;
+            break;
+        }
+
         validate(device.device->CreateCommandQueue(&desc, IID_PPV_ARGS(&command_queue)));
     }
 
-    std::shared_ptr<CommandBuffer> CommandQueue::create_command_buffer(const Device& device, const Pipeline* pipeline, CommandBufferType type, uint64_t frame_index) {
+    std::shared_ptr<CommandBuffer> CommandQueue::create_command_buffer(const Device& device, const Pipeline* pipeline, uint64_t frame_index) {
         // Reuse if there's one available
         if (m_command_buffers_to_reuse.empty() == false) {
             size_t index_to_reuse = m_command_buffers_to_reuse.front();
@@ -34,7 +44,7 @@ namespace gfx {
         // Otherwise allocate a new one
         ID3D12PipelineState* pipeline_state = nullptr;
         if (pipeline != nullptr) pipeline_state = pipeline->pipeline_state.Get();
-        auto cmd = std::make_shared<CommandBuffer>(device, pipeline_state, type, frame_index);
+        auto cmd = std::make_shared<CommandBuffer>(device, pipeline_state, m_type, frame_index);
          
         m_in_flight_command_buffers.push_back(m_command_buffer_pool.size());
         m_command_buffer_pool.push_back(cmd);

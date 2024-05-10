@@ -95,8 +95,8 @@ namespace gfx {
     }
 
     void Device::init_context() {
-        m_queue = std::make_shared<CommandQueue>(*this);
-        m_upload_queue = std::make_shared<CommandQueue>(*this);
+        m_queue = std::make_shared<CommandQueue>(*this, CommandBufferType::graphics);
+        m_upload_queue = std::make_shared<CommandQueue>(*this, CommandBufferType::graphics);
         m_swapchain = std::make_shared<Swapchain>(*this, *m_queue, *m_heap_rtv, fb_format);
         get_window_size(m_width, m_height);
     }
@@ -136,7 +136,7 @@ namespace gfx {
     void Device::test(std::shared_ptr<Pipeline> pipeline, std::shared_ptr<RenderPass> render_pass, ResourceHandle vertex_buffer, ResourceHandle texture) {
         // Wait for next framebuffer to be available
         auto framebuffer = m_swapchain->curr_framebuffer();
-        auto cmd = m_queue->create_command_buffer(*this, pipeline.get(), CommandBufferType::graphics, m_swapchain->current_frame_index());
+        auto cmd = m_queue->create_command_buffer(*this, pipeline.get(), m_swapchain->current_frame_index());
         auto gfx_cmd = cmd->get();
 
         // Store draw packet
@@ -298,7 +298,7 @@ namespace gfx {
             .SubresourceIndex = 0,
         };
 
-        const auto upload_command_buffer = m_upload_queue->create_command_buffer(*this, nullptr, CommandBufferType::graphics, ++m_upload_fence_value_when_done);
+        const auto upload_command_buffer = m_upload_queue->create_command_buffer(*this, nullptr, ++m_upload_fence_value_when_done);
         const auto cmd = upload_command_buffer->get();
         cmd->CopyTextureRegion(&texture_copy_dest, 0, 0, 0, &texture_copy_source, &texture_size_box);
         validate(cmd->Close());
