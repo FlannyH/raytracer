@@ -125,6 +125,7 @@ namespace gfx {
             m_height = height;
         }
         m_swapchain->next_framebuffer();
+        m_queue->clean_up_old_command_buffers(m_swapchain->current_fence_completed_value());
     }
 
     void Device::end_frame() {
@@ -137,7 +138,6 @@ namespace gfx {
         auto framebuffer = m_swapchain->curr_framebuffer();
         auto cmd = m_queue->create_command_buffer(*this, pipeline.get(), CommandBufferType::graphics, m_swapchain->current_frame_index());
         auto gfx_cmd = cmd->expect_graphics_command_list();
-        m_queue->clean_up_old_command_buffers(m_swapchain->current_fence_completed_value());
 
         // Store draw packet
         size_t packet_offset = create_draw_packet(DrawPacket{
