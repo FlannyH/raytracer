@@ -5,6 +5,7 @@
 #include <memory>
 #include <vector>
 #include "resource.h"
+#include "device.h"
 
 namespace gfx {
     struct Transform {
@@ -32,8 +33,8 @@ namespace gfx {
         SceneNodeType type;
         union {
             struct {
-                ResourceID position_buffer;
-                ResourceID attribute_buffer;
+                ResourceHandle position_buffer;
+                ResourceHandle vertex_buffer;
                 D3D12_RAYTRACING_GEOMETRY_TRIANGLES_DESC geometry;
             } mesh;
         };
@@ -41,5 +42,5 @@ namespace gfx {
         void add_child_node(std::shared_ptr<SceneNode> new_child);
     };
 
-    std::shared_ptr<SceneNode> create_scene_graph_from_gltf(const std::string& path);
+    std::shared_ptr<SceneNode> create_scene_graph_from_gltf(Device& device, const std::string& path);
 }

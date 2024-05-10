@@ -124,7 +124,7 @@ namespace gfx {
         glfwSwapBuffers(m_window_glfw);
     }
 
-    void Device::test(std::shared_ptr<Pipeline> pipeline, std::shared_ptr<RenderPass> render_pass, ResourceID bindings) {
+    void Device::test(std::shared_ptr<Pipeline> pipeline, std::shared_ptr<RenderPass> render_pass, ResourceHandle bindings) {
         // Wait for next framebuffer to be available
         auto framebuffer = m_swapchain->next_framebuffer();
         auto cmd = m_queue->create_command_buffer(*this, pipeline.get(), CommandBufferType::graphics, m_swapchain->current_frame_index());
@@ -152,7 +152,7 @@ namespace gfx {
         m_swapchain->present();
     }
 
-    ResourceID Device::load_bindless_texture(const std::string& path) {
+    ResourceHandlePair Device::load_bindless_texture(const std::string& path) {
         stbi__vertically_flip_on_load = 1;
         int width, height, channels;
         uint8_t* data = stbi_load(path.c_str(), &width, &height, &channels, 4);
@@ -160,7 +160,7 @@ namespace gfx {
         return load_bindless_texture(path, width, height, data, PixelFormat::rgba_8);
     }
 
-    ResourceID Device::load_bindless_texture(const std::string& name, uint32_t width, uint32_t height, void* data, PixelFormat pixel_format) {
+    ResourceHandlePair Device::load_bindless_texture(const std::string& name, uint32_t width, uint32_t height, void* data, PixelFormat pixel_format) {
         // Make texture resource
         const auto resource = std::make_shared<Resource>();
         *resource = {
@@ -218,7 +218,7 @@ namespace gfx {
         // We need to copy the texture from an upload buffer
         const auto upload_buffer_id = create_buffer("Upload buffer", upload_size, data);
 
-        const auto& upload_buffer = m_resources[static_cast<uint64_t>(upload_buffer_id.id)];
+        const auto& upload_buffer = m_resources[static_cast<uint64_t>(upload_buffer_id.handle.id)];
 
         void* mapped_buffer;
         const D3D12_RANGE upload_range = { 0, upload_size };
@@ -269,10 +269,10 @@ namespace gfx {
         m_resource_name_map[name] = id;
         m_resources[id.id] = resource;
 
-        return id;
+        return ResourceHandlePair{ id, resource };
     }
 
-    ResourceID Device::load_mesh(const std::string& name, const uint64_t n_triangles, Triangle* tris) {
+    ResourceHandlePair Device::load_mesh(const std::string& name, const uint64_t n_triangles, Triangle* tris) {
         return create_buffer(name, n_triangles * sizeof(Triangle), tris);
     }
 
@@ -294,15 +294,16 @@ namespace gfx {
         }
     }
 
-    ResourceID Device::create_scene_graph_from_gltf(const std::string& name)
+    ResourceHandlePair Device::create_scene_graph_from_gltf(const std::string& name)
     {
-        auto test = gfx::create_scene_graph_from_gltf(name);
+        auto test = gfx::create_scene_graph_from_gltf(*this, name);
         debug_scene_graph_nodes(test);
 
-        return ResourceID();
+        return ResourceHandlePair{};
     }
 
-    ResourceID Device::create_buffer(const std::string& name, const size_t size, void* data) {
+    ResourceHandlePair Device::create_buffer(const std::string& name, const size_t size, void* data) {
+        // Create engine resource
         const auto resource = std::make_shared<Resource>();
         *resource = {
             .type = ResourceType::buffer,
@@ -312,6 +313,7 @@ namespace gfx {
             }
         };
 
+        // Create Dx12 resource
         D3D12_RESOURCE_DESC resource_desc = {};
         resource_desc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
         resource_desc.Width = resource->expect_buffer().size;
@@ -329,7 +331,6 @@ namespace gfx {
             D3D12_MEMORY_POOL_UNKNOWN, 1, 1
         };
 
-        auto id = m_heap_bindless->alloc_descriptor(ResourceType::texture);
         validate(device->CreateCommittedResource(
             &heap_properties,
             D3D12_HEAP_FLAG_NONE,
@@ -339,6 +340,7 @@ namespace gfx {
             IID_PPV_ARGS(&resource->handle)
         ));
 
+        // Allocate and create a shader resource view in the bindless descriptor heap
         const D3D12_SHADER_RESOURCE_VIEW_DESC srv_desc {
             .Format = DXGI_FORMAT_R32_TYPELESS,
             .ViewDimension = D3D12_SRV_DIMENSION_BUFFER,
@@ -350,24 +352,27 @@ namespace gfx {
                 .Flags = D3D12_BUFFER_SRV_FLAG_RAW
             }
         };
+
+        auto id = m_heap_bindless->alloc_descriptor(ResourceType::texture);
         const auto handle = m_heap_bindless->fetch_cpu_handle(id);
         device->CreateShaderResourceView(resource->handle.Get(), &srv_desc, handle);
 
+        // Copy the buffer data to the GPU
         void* mapped_buffer = nullptr;
         D3D12_RANGE range = { 0, size };
         validate(resource->handle->Map(0, &range, &mapped_buffer));
         memcpy(mapped_buffer, data, size);
         resource->handle->Unmap(0, &range);
 
+        // Store the resource data in the device struct
         id.is_loaded = true;
-
         m_resource_name_map[name] = id;
         m_resources[id.id] = resource;
 
-        return id;
+        return ResourceHandlePair{ id, resource };
     }
 
-    void Device::unload_bindless_resource(ResourceID id) {
+    void Device::unload_bindless_resource(ResourceHandle id) {
         m_heap_bindless->free_descriptor(id);
     }
 

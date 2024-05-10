@@ -21,7 +21,7 @@ namespace gfx {
     }
     
     // Returns the CPU descriptor handle as a size_t
-    ResourceID DescriptorHeap::alloc_descriptor(ResourceType type) {
+    ResourceHandle DescriptorHeap::alloc_descriptor(ResourceType type) {
         // Find index - if there's a descriptor we can recycle, get the first one, otherwise just get the next new one
         uint32_t index;
         if (m_available_recycled_descriptor_indices.empty() == false) {
@@ -35,20 +35,20 @@ namespace gfx {
         assert(m_alloc_index % 2 == 0);
 
 
-        return ResourceID {
+        return ResourceHandle {
             .type = static_cast<uint32_t>(type),
             .id = index
         };
     }
 
-    void DescriptorHeap::free_descriptor(ResourceID id) {
+    void DescriptorHeap::free_descriptor(ResourceHandle id) {
         m_available_recycled_descriptor_indices.push_back(id.id);
         id.is_loaded = 0;
         id.id = ~0;
         id.type = static_cast<uint64_t>(ResourceType::none);
     }
 
-    D3D12_CPU_DESCRIPTOR_HANDLE DescriptorHeap::fetch_cpu_handle(const ResourceID& id) {
+    D3D12_CPU_DESCRIPTOR_HANDLE DescriptorHeap::fetch_cpu_handle(const ResourceHandle& id) {
         D3D12_CPU_DESCRIPTOR_HANDLE new_handle = m_start_cpu;
         new_handle.ptr += id.id * m_descriptor_size;
         return new_handle;

@@ -10,9 +10,9 @@ namespace gfx {
 
     struct DescriptorHeap {
         DescriptorHeap(const Device& device, D3D12_DESCRIPTOR_HEAP_TYPE type, D3D12_DESCRIPTOR_HEAP_FLAGS flags, size_t n_descriptors);
-        ResourceID alloc_descriptor(ResourceType type);
-        void free_descriptor(ResourceID id);
-        D3D12_CPU_DESCRIPTOR_HANDLE fetch_cpu_handle(const ResourceID& id);
+        ResourceHandle alloc_descriptor(ResourceType type);
+        void free_descriptor(ResourceHandle id);
+        D3D12_CPU_DESCRIPTOR_HANDLE fetch_cpu_handle(const ResourceHandle& id);
 
     public:
         ComPtr<ID3D12DescriptorHeap> heap = nullptr;

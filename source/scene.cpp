@@ -128,7 +128,7 @@ namespace gfx {
 
     std::vector<Vertex> parse_primitive(tinygltf::Primitive& primitive, tinygltf::Model& model, const std::string& path);
 
-    void traverse_nodes(std::vector<int>& node_indices, tinygltf::Model& model, glm::mat4 local_transform, std::shared_ptr<SceneNode> parent, const std::string& path, int depth = 0) {
+    void traverse_nodes(Device& device, std::vector<int>& node_indices, tinygltf::Model& model, glm::mat4 local_transform, std::shared_ptr<SceneNode> parent, const std::string& path, int depth = 0) {
         // Get all child nodes
         for (auto& node_index : node_indices) {
             auto& node = model.nodes[node_index];
@@ -156,6 +156,7 @@ namespace gfx {
                     for (int i = -1; i < depth; ++i) printf("\t");
                     printf("mesh: %s\n", mesh.name.c_str());
 
+                    // Get the vertices, as well as a separate positions buffer, which we'll use to build ray tracing acceleration structures
                     std::vector<Vertex> vertices = parse_primitive(primitive, model, path);
                     std::vector<glm::vec3> positions;
                     positions.reserve(vertices.size());
@@ -163,9 +164,23 @@ namespace gfx {
                         positions.push_back(vertex.position);
                     }
 
+                    // Generate index buffer
+                    std::vector<uint32_t> indices(vertices.size());
+                    for (uint32_t i = 0; i < indices.size(); ++i) {
+                        indices[i] = i;
+                    }
+
+                    // Create buffers for them
+                    ResourceHandlePair vertex_buffer = device.create_buffer("Vertex buffer", vertices.size() * sizeof(vertices[0]), vertices.data());
+                    ResourceHandlePair position_buffer = device.create_buffer("Position buffer", positions.size() * sizeof(positions[0]), positions.data());
+                    ResourceHandlePair index_buffer = device.create_buffer("Index buffer", vertices.size() * sizeof(vertices[0]), vertices.data());
+
                     auto mesh_node = std::make_shared<SceneNode>();
                     mesh_node->type = SceneNodeType::Mesh;
                     mesh_node->name = mesh.name;
+                    mesh_node->mesh.vertex_buffer = vertex_buffer.handle;
+                    mesh_node->mesh.position_buffer = position_buffer.handle;
+                    // todo: D3D12_RAYTRACING_GEOMETRY_TRIANGLES_DESC
                     scene_node->add_child_node(mesh_node);
                 }
             }
@@ -184,13 +199,13 @@ namespace gfx {
             // If it has children, process those
             if (!node.children.empty())
             {
-                traverse_nodes(node.children, model, local_matrix, scene_node, path, depth + 1);
+                traverse_nodes(device, node.children, model, local_matrix, scene_node, path, depth + 1);
             }
             parent->add_child_node(scene_node);
         }
     }
 
-    std::shared_ptr<SceneNode> create_scene_graph_from_gltf(const std::string& path)
+    std::shared_ptr<SceneNode> create_scene_graph_from_gltf(Device& device, const std::string& path)
     {
         tinygltf::TinyGLTF loader;
         tinygltf::Model model;
@@ -209,7 +224,7 @@ namespace gfx {
         printf("Loading scene \"%s\"\n", scene.name.c_str());
 
         auto scene_node = std::make_shared<SceneNode>();
-        traverse_nodes(scene.nodes, model, glm::mat4(1.0f), scene_node, path);
+        traverse_nodes(device, scene.nodes, model, glm::mat4(1.0f), scene_node, path);
         return scene_node;
     }
 

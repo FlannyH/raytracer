@@ -15,11 +15,11 @@ namespace gfx {
     };
     inline const char* _resource_type_names[] = { "None", "Texture", "Buffer"};
 
-    struct ResourceID {
+    struct ResourceHandle {
         uint32_t type : 4;
         uint32_t is_loaded : 1;
         uint32_t id : 27;
-        bool operator==(const ResourceID& rhs) {
+        bool operator==(const ResourceHandle& rhs) {
             // We only really need to check if the IDs are identical, but we should sanity check the rest too
             assert(type == rhs.type);
             assert(is_loaded == rhs.is_loaded);
@@ -75,6 +75,11 @@ namespace gfx {
             TextureResource texture_resource;
             BufferResource buffer_resource;
         };
+    };
+
+    struct ResourceHandlePair {
+        ResourceHandle handle;
+        std::shared_ptr<Resource> resource;
     };
 
     struct Vertex {
