@@ -7,7 +7,7 @@ struct Vertex {
 };
 
 struct DrawPacket {
-    float3x4 model_transform;
+    float4x4 model_transform;
     uint vertex_buffer;
     uint tex;
 };
@@ -32,8 +32,9 @@ float4 main(in uint vertex_index : SV_VertexID, out VertexOut output) : SV_POSIT
 
     ByteAddressBuffer vertex_buffer = ResourceDescriptorHeap[NonUniformResourceIndex(packet.vertex_buffer & MASK_ID)];
     Vertex vert = vertex_buffer.Load<Vertex>(vertex_index * sizeof(Vertex));
+    float4 vert_pos = mul(packet.model_transform, float4(vert.position, 1));
 
     output.color = vert.color;
     output.texcoord0 = vert.texcoord0;
-    return float4(vert.position, 1);
+    return vert_pos;
 }

@@ -30,13 +30,16 @@ int main(int n_args, char** args) {
     auto triangle_vb = device->load_mesh("triangle" ,1, &triangle);
     auto texture1 = device->load_texture("assets/textures/test.png");
 
+    float scale = 0.1f;
+
     while (device->should_stay_open()) {
+        scale += 0.001f;
         device->begin_frame();
         device->begin_raster_pass(pipeline, gfx::RasterPassInfo{
             .color_target = gfx::ResourceHandle::none()
         });
         device->draw_mesh(gfx::DrawPacket{
-            .model_transform = glm::mat3x4(1.0f),
+            .model_transform = glm::mat3x4(scale),
             .vertex_buffer = triangle_vb.handle,
             .texture = texture1.handle,
         });

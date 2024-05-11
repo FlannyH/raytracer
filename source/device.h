@@ -21,10 +21,9 @@ namespace gfx {
     struct Pipeline;
 
     struct DrawPacket {
-        glm::mat3x4 model_transform;
+        glm::mat4 model_transform;
         ResourceHandle vertex_buffer;
         ResourceHandle texture;
-        uint64_t reserved;
     };
 
     struct RasterPassInfo {
@@ -38,11 +37,12 @@ namespace gfx {
         void get_window_size(int& width, int& height) const;
         void init_context();
 
-        // Frame rendering
+        // Common rendering
         bool should_stay_open();
         void set_full_screen(bool full_screen);
         void begin_frame();
         void end_frame();
+        void set_camera(Transform& transform);
 
         // Rasterization
         std::shared_ptr<Pipeline> create_raster_pipeline(const std::string& vertex_shader_path, const std::string& pixel_shader_path);
