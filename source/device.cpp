@@ -96,7 +96,7 @@ namespace gfx {
     void Device::init_context() {
         m_queue_gfx = std::make_shared<CommandQueue>(*this, CommandBufferType::graphics);
         m_upload_queue = std::make_shared<CommandQueue>(*this, CommandBufferType::graphics);
-        m_swapchain = std::make_shared<Swapchain>(*this, *m_queue_gfx, *m_heap_rtv, fb_format);
+        m_swapchain = std::make_shared<Swapchain>(*this, *m_queue_gfx, *m_heap_rtv, framebuffer_format);
         get_window_size(m_width, m_height);
     }
 
@@ -115,10 +115,11 @@ namespace gfx {
         int width, height;
         get_window_size(width, height);
         if (m_width != width || m_height != height) {
-            m_swapchain->resize(*this, m_queue_gfx, *m_heap_rtv, width, height, fb_format);
+            m_swapchain->resize(*this, m_queue_gfx, *m_heap_rtv, width, height, framebuffer_format);
             m_width = width;
             m_height = height;
         }
+        m_upload_queue->execute();
         m_swapchain->next_framebuffer();
         m_queue_gfx->clean_up_old_command_buffers(m_swapchain->current_fence_completed_value());
     }
@@ -199,15 +200,15 @@ namespace gfx {
         traverse_scene(scene);
     }
 
-    ResourceHandlePair Device::load_bindless_texture(const std::string& path) {
+    ResourceHandlePair Device::load_texture(const std::string& path) {
         stbi__vertically_flip_on_load = 1;
         int width, height, channels;
         uint8_t* data = stbi_load(path.c_str(), &width, &height, &channels, 4);
 
-        return load_bindless_texture(path, width, height, data, PixelFormat::rgba_8);
+        return load_texture(path, width, height, data, PixelFormat::rgba_8);
     }
 
-    ResourceHandlePair Device::load_bindless_texture(const std::string& name, uint32_t width, uint32_t height, void* data, PixelFormat pixel_format) {
+    ResourceHandlePair Device::load_texture(const std::string& name, uint32_t width, uint32_t height, void* data, PixelFormat pixel_format) {
         // Make texture resource
         const auto resource = std::make_shared<Resource>();
         *resource = {
@@ -307,9 +308,6 @@ namespace gfx {
         const auto cmd = upload_command_buffer->get();
         cmd->CopyTextureRegion(&texture_copy_dest, 0, 0, 0, &texture_copy_source, &texture_size_box);
         validate(cmd->Close());
-        ID3D12CommandList* command_lists[] = { cmd };
-        m_upload_queue->command_queue->ExecuteCommandLists(1, command_lists);
-        m_upload_cmd.push_back(upload_command_buffer);
 
         id.is_loaded = true; // todo, only set this to true when the upload command buffer finished (when the fence value was reached)
 
@@ -341,11 +339,11 @@ namespace gfx {
         }
     }
 
-    ResourceHandlePair Device::create_scene_graph_from_gltf(const std::string& name)
+    ResourceHandlePair Device::create_scene_graph_from_gltf(const std::string& path)
     {
         const auto resource = std::make_shared<Resource>();
         resource->type = ResourceType::scene;
-        resource->scene_resource.root = gfx::create_scene_graph_from_gltf(*this, name);
+        resource->scene_resource.root = gfx::create_scene_graph_from_gltf(*this, path);
         debug_scene_graph_nodes(resource->scene_resource.root);
 
         ResourceHandle handle = m_heap_bindless->alloc_descriptor(ResourceType::scene);
