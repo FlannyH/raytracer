@@ -41,7 +41,6 @@ namespace gfx {
         void end_frame();
         void begin_raster_pass(std::shared_ptr<Pipeline> pipeline, RasterPassInfo&& render_pass_info);
         void end_raster_pass();
-        void test(std::shared_ptr<Pipeline> pipeline, ResourceHandle vertex_buffer, ResourceHandle texture);
         void draw_mesh(DrawPacket&& draw_info); // Requires a raster pipeline to be bound
         void draw_scene(ResourceHandle scene_handle);
         ResourceHandlePair load_bindless_texture(const std::string& path);

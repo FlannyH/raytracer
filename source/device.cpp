@@ -147,37 +147,6 @@ namespace gfx {
         curr_bound_pipeline = nullptr;
     }
 
-    void Device::test(std::shared_ptr<Pipeline> pipeline, ResourceHandle vertex_buffer, ResourceHandle texture) {
-
-        //// Store draw packet
-        //size_t packet_offset = create_draw_packet(DrawPacket{
-        //    .model_transform = glm::mat3x4(),
-        //    .vertex_buffer = vertex_buffer,
-        //    .texture = texture,
-        //});
-
-        //// Render triangle to that framebuffer
-        //m_swapchain->prepare_render(cmd);
-        //ID3D12DescriptorHeap* heaps[] = {
-        //    m_heap_bindless->heap.Get(),
-        //};
-        //gfx_cmd->SetDescriptorHeaps(1, heaps);
-        //gfx_cmd->SetGraphicsRootSignature(pipeline->root_signature.Get());
-        //gfx_cmd->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-        //gfx_cmd->SetPipelineState(pipeline->pipeline_state.Get());
-        //gfx_cmd->SetGraphicsRoot32BitConstant(0, m_draw_packets.handle.id, 0);
-        //gfx_cmd->SetGraphicsRoot32BitConstant(0, (uint32_t)packet_offset, 1);
-        //gfx_cmd->DrawInstanced(3, 1, 0, 0);
-
-        //// Present backbuffer
-        //ID3D12CommandList* command_lists[] = { gfx_cmd };
-        //m_swapchain->prepare_present(cmd);
-        //gfx_cmd->Close();
-        //m_queue_gfx->command_queue->ExecuteCommandLists(1, command_lists);
-        //m_swapchain->synchronize(m_queue_gfx);
-        //m_swapchain->present();
-    }
-
     void Device::draw_mesh(DrawPacket&& draw_info) {
         if (!curr_bound_pipeline) {
             printf("[ERROR] Attempt to record draw call without a pipeline set! Did you forget to call `begin_render_pass()`?");
