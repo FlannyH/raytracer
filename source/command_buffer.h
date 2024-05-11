@@ -30,7 +30,7 @@ namespace gfx {
         }
 
     private:
-        CommandBufferType m_type;
+        CommandBufferType m_type = CommandBufferType::none;
         ComPtr<ID3D12GraphicsCommandList> m_command_list;
         ComPtr<ID3D12CommandAllocator> m_command_allocator;
         uint64_t m_fence_value_when_finished = ~0;

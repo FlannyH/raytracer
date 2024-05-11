@@ -97,7 +97,7 @@ namespace gfx {
         // Rendering context
         std::shared_ptr<Pipeline> curr_bound_pipeline = nullptr; // Will point to a valid pipeline after calling begin_render_pass(), and will be null after calling end_render_pass()
         std::shared_ptr<CommandBuffer> m_curr_pass_cmd; // The command buffer used for this pass
-        ResourceHandlePair m_draw_packets; // Scratch buffer that is used to send draw info to the shader
+        ResourceHandlePair m_draw_packets{}; // Scratch buffer that is used to send draw info to the shader
         size_t m_draw_packet_cursor = 0;
     };
 };

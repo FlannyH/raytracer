@@ -31,9 +31,9 @@ namespace gfx {
     };
 
     struct SceneNode {
-        Transform local_transform;
+        Transform local_transform = Transform::identity();
         glm::mat4 cached_global_transform;
-        std::shared_ptr<SceneNode> parent;
+        std::shared_ptr<SceneNode> parent = nullptr;
         std::vector<std::shared_ptr<SceneNode>> children;
         std::string name;
 

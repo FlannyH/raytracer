@@ -27,7 +27,7 @@ namespace gfx {
         ComPtr<ID3D12CommandQueue> command_queue = nullptr;
 
     private:
-        CommandBufferType m_type;
+        CommandBufferType m_type = CommandBufferType::none;
         std::vector<std::shared_ptr<CommandBuffer>> m_command_buffer_pool;
         std::vector<std::shared_ptr<CommandBuffer>> m_command_lists_to_execute;
         std::deque<size_t> m_command_buffers_to_reuse;

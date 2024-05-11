@@ -103,7 +103,7 @@ namespace gfx {
 
     struct ResourceHandlePair {
         ResourceHandle handle;
-        std::shared_ptr<Resource> resource;
+        std::shared_ptr<Resource> resource = nullptr;
     };
 
     struct Vertex {

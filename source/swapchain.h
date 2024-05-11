@@ -41,7 +41,7 @@ namespace gfx {
         D3D12_CPU_DESCRIPTOR_HANDLE m_render_target_views[backbuffer_count] = {};
         std::shared_ptr<Fence> m_fence;
         int m_frame_wait_values[backbuffer_count]{};
-        int m_frame_index;
+        int m_frame_index = 0;
         int m_width = 0;
         int m_height = 0;
     };
