@@ -11,7 +11,6 @@
 #include "buffer.h"
 #include "command_buffer.h"
 #include "swapchain.h"
-#include "render_pass.h"
 #include "pipeline.h"
 #include "descriptor_heap.h"
 #include "command_queue.h"
@@ -101,12 +100,8 @@ namespace gfx {
         get_window_size(m_width, m_height);
     }
 
-    std::shared_ptr<RenderPass> Device::create_render_pass() {
-        return std::make_shared<RenderPass>(*this);
-    }
-
-    std::shared_ptr<Pipeline> Device::create_raster_pipeline(const RenderPass& render_pass, const std::string& vertex_shader, const std::string& pixel_shader) {
-        return std::make_shared<Pipeline>(*this, render_pass, vertex_shader, pixel_shader);
+    std::shared_ptr<Pipeline> Device::create_raster_pipeline(const std::string& vertex_shader, const std::string& pixel_shader) {
+        return std::make_shared<Pipeline>(*this, vertex_shader, pixel_shader);
     }
 
     void Device::begin_frame() {
@@ -129,43 +124,84 @@ namespace gfx {
     }
 
     void Device::end_frame() {
+        m_swapchain->prepare_present(m_curr_pass_cmd);
+        m_queue_gfx->execute();
+        m_swapchain->synchronize(m_queue_gfx);
+        m_swapchain->present();
         glfwPollEvents();
         glfwSwapBuffers(m_window_glfw);
     }
 
-    void Device::test(std::shared_ptr<Pipeline> pipeline, std::shared_ptr<RenderPass> render_pass, ResourceHandle vertex_buffer, ResourceHandle texture) {
-        // Wait for next framebuffer to be available
-        auto framebuffer = m_swapchain->curr_framebuffer();
-        auto cmd = m_queue_gfx->create_command_buffer(*this, pipeline.get(), m_swapchain->current_frame_index());
-        auto gfx_cmd = cmd->get();
+    void Device::begin_raster_pass(std::shared_ptr<Pipeline> pipeline, RasterPassInfo&& render_pass_info) {
+        // Create command buffer for this pass
+        curr_bound_pipeline = pipeline;
+        m_curr_pass_cmd = m_queue_gfx->create_command_buffer(*this, pipeline.get(), m_swapchain->current_frame_index());
+
+        // If the color target is the swapchain, prepare the swapchain for that
+        if ((ResourceType)render_pass_info.color_target.type == ResourceType::none) {
+            m_swapchain->prepare_render(m_curr_pass_cmd);
+        }
+    }
+
+    void Device::end_raster_pass() {
+        curr_bound_pipeline = nullptr;
+    }
+
+    void Device::test(std::shared_ptr<Pipeline> pipeline, ResourceHandle vertex_buffer, ResourceHandle texture) {
+
+        //// Store draw packet
+        //size_t packet_offset = create_draw_packet(DrawPacket{
+        //    .model_transform = glm::mat3x4(),
+        //    .vertex_buffer = vertex_buffer,
+        //    .texture = texture,
+        //});
+
+        //// Render triangle to that framebuffer
+        //m_swapchain->prepare_render(cmd);
+        //ID3D12DescriptorHeap* heaps[] = {
+        //    m_heap_bindless->heap.Get(),
+        //};
+        //gfx_cmd->SetDescriptorHeaps(1, heaps);
+        //gfx_cmd->SetGraphicsRootSignature(pipeline->root_signature.Get());
+        //gfx_cmd->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+        //gfx_cmd->SetPipelineState(pipeline->pipeline_state.Get());
+        //gfx_cmd->SetGraphicsRoot32BitConstant(0, m_draw_packets.handle.id, 0);
+        //gfx_cmd->SetGraphicsRoot32BitConstant(0, (uint32_t)packet_offset, 1);
+        //gfx_cmd->DrawInstanced(3, 1, 0, 0);
+
+        //// Present backbuffer
+        //ID3D12CommandList* command_lists[] = { gfx_cmd };
+        //m_swapchain->prepare_present(cmd);
+        //gfx_cmd->Close();
+        //m_queue_gfx->command_queue->ExecuteCommandLists(1, command_lists);
+        //m_swapchain->synchronize(m_queue_gfx);
+        //m_swapchain->present();
+    }
+
+    void Device::draw_mesh(DrawPacket&& draw_info) {
+        if (!curr_bound_pipeline) {
+            printf("[ERROR] Attempt to record draw call without a pipeline set! Did you forget to call `begin_render_pass()`?");
+            return;
+        }
 
         // Store draw packet
-        size_t packet_offset = create_draw_packet(DrawPacket{
-            .model_transform = glm::mat3x4(),
-            .vertex_buffer = vertex_buffer,
-            .texture = texture,
-        });
+        size_t packet_offset = create_draw_packet(draw_info);
 
-        // Render triangle to that framebuffer
-        m_swapchain->prepare_render(cmd);
+        // Get framebuffer and command buffer
+        auto framebuffer = m_swapchain->curr_framebuffer();
+        auto gfx_cmd = m_curr_pass_cmd->get();
+
+        // Record draw call, binding all the resources in the process
         ID3D12DescriptorHeap* heaps[] = {
             m_heap_bindless->heap.Get(),
         };
         gfx_cmd->SetDescriptorHeaps(1, heaps);
-        gfx_cmd->SetGraphicsRootSignature(render_pass->root_signature.Get());
+        gfx_cmd->SetGraphicsRootSignature(curr_bound_pipeline->root_signature.Get());
         gfx_cmd->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-        gfx_cmd->SetPipelineState(pipeline->pipeline_state.Get());
+        gfx_cmd->SetPipelineState(curr_bound_pipeline->pipeline_state.Get());
         gfx_cmd->SetGraphicsRoot32BitConstant(0, m_draw_packets.handle.id, 0);
         gfx_cmd->SetGraphicsRoot32BitConstant(0, (uint32_t)packet_offset, 1);
-        gfx_cmd->DrawInstanced(3, 1, 0, 0);
-
-        // Present backbuffer
-        ID3D12CommandList* command_lists[] = { gfx_cmd };
-        m_swapchain->prepare_present(cmd);
-        gfx_cmd->Close();
-        m_queue_gfx->command_queue->ExecuteCommandLists(1, command_lists);
-        m_swapchain->synchronize(m_queue_gfx);
-        m_swapchain->present();
+        gfx_cmd->DrawInstanced(3, 1, 0, 0); // todo: put the right number of vertices in here
     }
 
     void Device::traverse_scene(SceneNode* node) {

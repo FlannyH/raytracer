@@ -28,6 +28,13 @@ namespace gfx {
             assert(is_loaded == rhs.is_loaded);
             return id == rhs.id;
         }
+        static ResourceHandle none() {
+            return ResourceHandle{
+                .id = 0,
+                .is_loaded = 0,
+                .type = (uint32_t)ResourceType::none,
+            };
+        }
     };
 
     struct TextureResource {

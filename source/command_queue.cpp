@@ -37,7 +37,11 @@ namespace gfx {
             m_command_buffers_to_reuse.pop_front();
             m_in_flight_command_buffers.push_back(index_to_reuse);
             auto& cmd = m_command_buffer_pool[index_to_reuse];
-            cmd->reset(pipeline->pipeline_state.Get(), frame_index);
+            m_command_lists_to_execute.push_back(cmd);
+            if (pipeline) 
+                cmd->reset(pipeline->pipeline_state.Get(), frame_index);
+            else
+                cmd->reset(nullptr, frame_index);
             return cmd;
         }
 
@@ -48,7 +52,24 @@ namespace gfx {
          
         m_in_flight_command_buffers.push_back(m_command_buffer_pool.size());
         m_command_buffer_pool.push_back(cmd);
+        m_command_lists_to_execute.push_back(cmd);
         return cmd;
+    }
+
+    std::shared_ptr<CommandBuffer> CommandQueue::get_last_command_buffer() {
+        return m_command_lists_to_execute.back();
+    }
+
+    void CommandQueue::execute() {
+        std::vector<ID3D12CommandList*> cmds(m_command_lists_to_execute.size());
+        for (size_t i = 0; i < cmds.size(); ++i) {
+            auto cmd = m_command_lists_to_execute[i]->get();
+            cmd->Close();
+            cmds[i] = cmd;
+        }
+        
+        command_queue->ExecuteCommandLists(cmds.size(), cmds.data());
+        m_command_lists_to_execute.clear();
     }
 
     int CommandQueue::clean_up_old_command_buffers(const uint64_t curr_finished_index) {

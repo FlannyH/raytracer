@@ -1,12 +1,10 @@
 #include "buffer.h"
 #include "hl_renderer.h"
-#include "render_pass.h"
 
 int main(int n_args, char** args) {
     const std::unique_ptr<gfx::Device> device = gfx::init_renderer(1280, 720, false);
     device->init_context();
-    const auto render_pass = device->create_render_pass();
-    const auto pipeline = device->create_raster_pipeline(*render_pass, "assets/shaders/test.vs.hlsl", "assets/shaders/test.ps.hlsl");
+    const auto pipeline = device->create_raster_pipeline("assets/shaders/test.vs.hlsl", "assets/shaders/test.ps.hlsl");
 
     printf("Renderer initialized!\n");
 
@@ -43,7 +41,15 @@ int main(int n_args, char** args) {
 
     while (device->should_stay_open()) {
         device->begin_frame();
-        device->test(pipeline, render_pass, triangle_vb.handle, texture1.handle);
+        device->begin_raster_pass(pipeline, gfx::RasterPassInfo{
+            .color_target = gfx::ResourceHandle::none()
+        });
+        device->draw_mesh(gfx::DrawPacket{
+            .model_transform = glm::mat3x4(1.0f),
+            .vertex_buffer = triangle_vb.handle,
+            .texture = texture1.handle,
+        });
+        device->end_raster_pass();
         device->end_frame();
     }
 }
