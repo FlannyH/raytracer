@@ -15,6 +15,7 @@
 #include "descriptor_heap.h"
 #include "command_queue.h"
 #include "scene.h"
+#include "input.h"
 
 namespace gfx {
     #define N_DRAW_PACKETS 16384
@@ -97,6 +98,7 @@ namespace gfx {
         m_queue_gfx = std::make_shared<CommandQueue>(*this, CommandBufferType::graphics);
         m_upload_queue = std::make_shared<CommandQueue>(*this, CommandBufferType::graphics);
         m_swapchain = std::make_shared<Swapchain>(*this, *m_queue_gfx, *m_heap_rtv, m_framebuffer_format);
+        input::init(m_window_glfw);
         get_window_size(m_width, m_height);
     }
 

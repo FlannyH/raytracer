@@ -12,7 +12,7 @@ endif()
 project ("raytracer")
 
 # Add source to this project's executable.
-add_executable (raytracer "source/main.cpp" "source/device.h" "source/device.cpp" "source/common.h" "source/command_queue.h" "source/command_queue.cpp" "source/swapchain.cpp" "source/swapchain.h" "source/descriptor_heap.h" "source/descriptor_heap.cpp"    "source/fence.h" "source/fence.cpp" "source/buffer.h" "source/buffer.cpp"    "source/shader.h" "source/shader.cpp"  "source/pipeline.h" "source/pipeline.cpp" "source/command_buffer.h" "source/command_buffer.cpp" "source/resource.h" "source/scene.h" "source/scene.cpp")
+add_executable (raytracer "source/main.cpp" "source/device.h" "source/device.cpp" "source/common.h" "source/command_queue.h" "source/command_queue.cpp" "source/swapchain.cpp" "source/swapchain.h" "source/descriptor_heap.h" "source/descriptor_heap.cpp"    "source/fence.h" "source/fence.cpp" "source/buffer.h" "source/buffer.cpp"    "source/shader.h" "source/shader.cpp"  "source/pipeline.h" "source/pipeline.cpp" "source/command_buffer.h" "source/command_buffer.cpp" "source/resource.h" "source/scene.h" "source/scene.cpp" "source/input.cpp")
 
 target_include_directories(raytracer PUBLIC "external/include")
 target_link_directories(raytracer PUBLIC "external/libraries")
