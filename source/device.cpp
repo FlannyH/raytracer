@@ -96,7 +96,7 @@ namespace gfx {
     void Device::init_context() {
         m_queue_gfx = std::make_shared<CommandQueue>(*this, CommandBufferType::graphics);
         m_upload_queue = std::make_shared<CommandQueue>(*this, CommandBufferType::graphics);
-        m_swapchain = std::make_shared<Swapchain>(*this, *m_queue_gfx, *m_heap_rtv, framebuffer_format);
+        m_swapchain = std::make_shared<Swapchain>(*this, *m_queue_gfx, *m_heap_rtv, m_framebuffer_format);
         get_window_size(m_width, m_height);
     }
 
@@ -115,7 +115,7 @@ namespace gfx {
         int width, height;
         get_window_size(width, height);
         if (m_width != width || m_height != height) {
-            m_swapchain->resize(*this, m_queue_gfx, *m_heap_rtv, width, height, framebuffer_format);
+            m_swapchain->resize(*this, m_queue_gfx, *m_heap_rtv, width, height, m_framebuffer_format);
             m_width = width;
             m_height = height;
         }
@@ -135,7 +135,7 @@ namespace gfx {
 
     void Device::begin_raster_pass(std::shared_ptr<Pipeline> pipeline, RasterPassInfo&& render_pass_info) {
         // Create command buffer for this pass
-        curr_bound_pipeline = pipeline;
+        m_curr_bound_pipeline = pipeline;
         m_curr_pass_cmd = m_queue_gfx->create_command_buffer(*this, pipeline.get(), m_swapchain->current_frame_index());
 
         // If the color target is the swapchain, prepare the swapchain for that
@@ -145,12 +145,12 @@ namespace gfx {
     }
 
     void Device::end_raster_pass() {
-        curr_bound_pipeline = nullptr;
+        m_curr_bound_pipeline = nullptr;
     }
 
     void Device::draw_mesh(DrawPacket&& draw_info) {
-        if (!curr_bound_pipeline) {
-            printf("[ERROR] Attempt to record draw call without a pipeline set! Did you forget to call `begin_render_pass()`?");
+        if (!m_curr_bound_pipeline) {
+            printf("[ERROR] Attempt to record draw call without a pipeline set! Did you forget to call `begin_raster_pass()`?");
             return;
         }
 
@@ -166,9 +166,9 @@ namespace gfx {
             m_heap_bindless->heap.Get(),
         };
         gfx_cmd->SetDescriptorHeaps(1, heaps);
-        gfx_cmd->SetGraphicsRootSignature(curr_bound_pipeline->root_signature.Get());
+        gfx_cmd->SetGraphicsRootSignature(m_curr_bound_pipeline->root_signature.Get());
         gfx_cmd->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-        gfx_cmd->SetPipelineState(curr_bound_pipeline->pipeline_state.Get());
+        gfx_cmd->SetPipelineState(m_curr_bound_pipeline->pipeline_state.Get());
         gfx_cmd->SetGraphicsRoot32BitConstant(0, m_draw_packets.handle.id, 0);
         gfx_cmd->SetGraphicsRoot32BitConstant(0, (uint32_t)packet_offset, 1);
         gfx_cmd->DrawInstanced(3, 1, 0, 0); // todo: put the right number of vertices in here

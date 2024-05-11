@@ -39,7 +39,7 @@ int main(int n_args, char** args) {
             .color_target = gfx::ResourceHandle::none()
         });
         device->draw_mesh(gfx::DrawPacket{
-            .model_transform = glm::mat3x4(scale),
+            .model_transform = glm::mat4(scale),
             .vertex_buffer = triangle_vb.handle,
             .texture = texture1.handle,
         });

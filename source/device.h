@@ -19,6 +19,7 @@ namespace gfx {
     struct DescriptorHeap;
     struct RenderPass;
     struct Pipeline;
+    struct Transform;
 
     struct DrawPacket {
         glm::mat4 model_transform;
@@ -86,7 +87,7 @@ namespace gfx {
         int m_pos_x_pre_fullscreen = 0;
         int m_pos_y_pre_fullscreen = 0;
         bool m_is_fullscreen = false;
-        PixelFormat framebuffer_format = PixelFormat::rgba_8;
+        PixelFormat m_framebuffer_format = PixelFormat::rgba_8;
 
         // Resource management
         std::unordered_map<uint64_t, std::shared_ptr<Resource>> m_resources; // Maps linking resource IDs and actual resource data
@@ -95,7 +96,7 @@ namespace gfx {
         size_t m_upload_fence_value_when_done = 0; // The value the upload queue fence will signal when it's done uploading
 
         // Rendering context
-        std::shared_ptr<Pipeline> curr_bound_pipeline = nullptr; // Will point to a valid pipeline after calling begin_render_pass(), and will be null after calling end_render_pass()
+        std::shared_ptr<Pipeline> m_curr_bound_pipeline = nullptr; // Will point to a valid pipeline after calling begin_render_pass(), and will be null after calling end_render_pass()
         std::shared_ptr<CommandBuffer> m_curr_pass_cmd; // The command buffer used for this pass
         ResourceHandlePair m_draw_packets{}; // Scratch buffer that is used to send draw info to the shader
         size_t m_draw_packet_cursor = 0;
