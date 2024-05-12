@@ -7,6 +7,7 @@
 #define TINYGLTF_NOEXCEPTION
 #define JSON_NOEXCEPTION
 #include <tinygltf/tiny_gltf.h>
+#include "tangent.h"
 
 namespace gfx {
     glm::mat4 Transform::as_matrix() {
@@ -258,7 +259,7 @@ namespace gfx {
         int acc_color = -1;
         int acc_indices = -1;
 
-        auto attributes_to_check = { "POSITION", "NORMAL", "TANGENT", "TEXCOORD_0", "COLOR_0" };
+        auto attributes_to_check = { "POSITION" };
         for (auto& attr : attributes_to_check) {
             if (!primitive.attributes.contains(attr)) {
                 printf("[ERR/GLTF] Failed to parse file \"%s\": missing attribute \"%s\"\n", path.c_str(), attr);
@@ -324,6 +325,28 @@ namespace gfx {
         auto tex_coords = convert_gltf_buffer<float, glm::vec2>((void*)start_tex_coord, type_tex_coord, stride_tex_coord, default_tex_coord, size_tex_coord, norm_tex_coord);
         auto indices = convert_gltf_buffer<uint32_t, uint32_t>((void*)start_indices, type_indices, stride_indices, default_index, size_indices, false);
 
+        // Generate potentially missing data
+        if (colors.empty()) colors.resize(positions.size(), default_color);
+        if (tex_coords.empty()) tex_coords.resize(positions.size(), default_tex_coord);
+
+        // If we don't have normals, generate flat normals (and if you want better normals, make sure your modeling software exports them)
+        if (normals.empty()) {
+            normals.reserve(positions.size());
+            for (size_t i = 0; i < positions.size(); i += 3) {
+                const glm::vec3 a = positions[i + 0];
+                const glm::vec3 b = positions[i + 1];
+                const glm::vec3 c = positions[i + 2];
+                const glm::vec3 ab = b - a;
+                const glm::vec3 ac = c - a;
+                // todo: verify winding order
+                normals[i] = glm::normalize(glm::cross(ab, ac));
+            }
+        }
+
+        // Use MikkTSpace to generate tangents if we don't have them yet
+        bool should_generate_tangents = tangents.empty();
+        tangents.resize(positions.size());
+
         // Convert to custom vertex format
         std::vector<Vertex> vertices;
         vertices.reserve(indices.size());
@@ -337,6 +360,11 @@ namespace gfx {
                 .texcoord0 = tex_coords[i],
                 }
             );
+        }
+
+        if (should_generate_tangents) {
+            auto tangent_calculator = TangentCalculator();
+            tangent_calculator.calculate_tangents(vertices.data(), vertices.size() / 3);
         }
 
         return vertices;
