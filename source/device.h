@@ -21,10 +21,22 @@ namespace gfx {
     struct Pipeline;
     struct Transform;
 
-    struct DrawPacket {
+    struct DrawMeshPacket {
         glm::mat4 model_transform;
         ResourceHandle vertex_buffer;
         ResourceHandle texture;
+    };
+
+    struct GlobalRaster3DPacket {
+        glm::mat4 view_matrix;
+        glm::mat4 projection_matrix;
+    };
+
+    struct DrawPacket {
+        union {
+            DrawMeshPacket draw_mesh;
+            GlobalRaster3DPacket camera_matrices;
+        };
     };
 
     struct RasterPassInfo {
@@ -100,5 +112,6 @@ namespace gfx {
         std::shared_ptr<CommandBuffer> m_curr_pass_cmd; // The command buffer used for this pass
         ResourceHandlePair m_draw_packets{}; // Scratch buffer that is used to send draw info to the shader
         size_t m_draw_packet_cursor = 0;
+        size_t m_camera_matrices_offset = 0;
     };
 };

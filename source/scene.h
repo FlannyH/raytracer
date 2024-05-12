@@ -14,6 +14,7 @@ namespace gfx {
         glm::vec3 scale{ 1, 1, 1 };
 
         glm::mat4 as_matrix();
+        glm::mat4 as_view_matrix();
         glm::vec3 forward_vector();
         glm::vec3 right_vector();
         glm::vec3 up_vector();

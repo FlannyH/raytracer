@@ -2,6 +2,7 @@
 #include "buffer.h"
 #include <glm/gtx/transform.hpp>
 #include "input.h"
+#include "scene.h"
 
 int main(int n_args, char** args) {
     const auto device = std::make_unique<gfx::Device>(1280, 720, false);
@@ -13,17 +14,17 @@ int main(int n_args, char** args) {
     gfx::Triangle triangle {
         .verts = {
             gfx::Vertex {
-                .position = {0.0, 0.5, 0.0},
+                .position = {0.0, 0.5, -1.0},
                 .color = {1.0, 0.0, 0.0, 1.0},
                 .texcoord0 = {0.5, 1.0}
             },
             gfx::Vertex {
-                .position = {-0.5, -0.5, 0.0},
+                .position = {-0.5, -0.5, -1.0},
                 .color = {0.0, 1.0, 0.0, 1.0},
                 .texcoord0 = {0.0, 0.0}
             },
             gfx::Vertex {
-                .position = {0.5, -0.5, 0.0},
+                .position = {0.5, -0.5, -1.0},
                 .color = {0.0, 0.0, 1.0, 1.0},
                 .texcoord0 = {1.0, 0.0}
             },
@@ -32,26 +33,37 @@ int main(int n_args, char** args) {
     auto triangle_vb = device->load_mesh("triangle" ,1, &triangle);
     auto texture1 = device->load_texture("assets/textures/test.png");
 
-    float scale = 1.00f;
+    gfx::Transform camera;
+    glm::vec3 camera_euler_angles(0.0f);
+    float move_speed = 0.001f;
+    float mouse_sensitivity = 0.01f;
 
     while (device->should_stay_open()) {
         input::update();
 
-        if (input::key_held(input::Key::up))
-            scale *= 1.005f;
-        if (input::key_held(input::Key::down))
-            scale /= 1.005f;
-
-        scale += 0.05f * input::mouse_scroll().y;
+        if (input::key_held(input::Key::w)) camera.position += camera.forward_vector() * move_speed;
+        if (input::key_held(input::Key::s)) camera.position -= camera.forward_vector() * move_speed;
+        if (input::key_held(input::Key::d)) camera.position += camera.right_vector() * move_speed;
+        if (input::key_held(input::Key::a)) camera.position -= camera.right_vector() * move_speed;
+        if (input::mouse_button(input::MouseButton::right)) {
+            camera_euler_angles.y -= input::mouse_movement().x * mouse_sensitivity;
+            camera_euler_angles.x -= input::mouse_movement().y * mouse_sensitivity;
+            glm::clamp(camera_euler_angles.x, glm::radians(-90.f), glm::radians(90.f));
+            glm::mod(camera_euler_angles.y, glm::radians(360.f));
+            camera.rotation = glm::quat(camera_euler_angles);
+        }
 
         device->begin_frame();
         device->begin_raster_pass(pipeline, gfx::RasterPassInfo{
             .color_target = gfx::ResourceHandle::none()
         });
+        device->set_camera(camera);
         device->draw_mesh(gfx::DrawPacket{
-            .model_transform = glm::scale(glm::vec3(scale)),
-            .vertex_buffer = triangle_vb.handle,
-            .texture = texture1.handle,
+            .draw_mesh = {
+                .model_transform = glm::mat4(1.0f),
+                .vertex_buffer = triangle_vb.handle,
+                .texture = texture1.handle
+            },
         });
         device->end_raster_pass();
         device->end_frame();

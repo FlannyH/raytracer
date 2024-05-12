@@ -135,6 +135,16 @@ namespace gfx {
         glfwSwapBuffers(m_window_glfw);
     }
 
+    // todo: maybe make separate camera struct that holds the transform, fov, near and far plane, and also caches its matrices?
+    void Device::set_camera(Transform& transform) {
+        DrawPacket packet;
+        packet.camera_matrices = {
+            .view_matrix = transform.as_view_matrix(),
+            .projection_matrix = glm::perspectiveFov(glm::radians(70.f), (float)m_swapchain->width(), (float)m_swapchain->height(), 0.1f, 1000.0f),
+        };
+        m_camera_matrices_offset = create_draw_packet(packet);
+    }
+
     void Device::begin_raster_pass(std::shared_ptr<Pipeline> pipeline, RasterPassInfo&& render_pass_info) {
         // Create command buffer for this pass
         m_curr_bound_pipeline = pipeline;
@@ -172,7 +182,8 @@ namespace gfx {
         gfx_cmd->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
         gfx_cmd->SetPipelineState(m_curr_bound_pipeline->pipeline_state.Get());
         gfx_cmd->SetGraphicsRoot32BitConstant(0, m_draw_packets.handle.id, 0);
-        gfx_cmd->SetGraphicsRoot32BitConstant(0, (uint32_t)packet_offset, 1);
+        gfx_cmd->SetGraphicsRoot32BitConstant(0, (uint32_t)m_camera_matrices_offset, 1);
+        gfx_cmd->SetGraphicsRoot32BitConstant(0, (uint32_t)packet_offset, 2);
         gfx_cmd->DrawInstanced(3, 1, 0, 0); // todo: put the right number of vertices in here
     }
 
@@ -414,6 +425,9 @@ namespace gfx {
         validate(resource->handle->Map(0, &range, &mapped_buffer));
         memcpy(mapped_buffer, data, size);
         resource->handle->Unmap(0, &range);
+
+        auto name_str = std::wstring(name.begin(), name.end());
+        resource->handle->SetName(name_str.c_str());
 
         // Store the resource data in the device struct
         id.is_loaded = true;

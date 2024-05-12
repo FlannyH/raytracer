@@ -16,6 +16,14 @@ namespace gfx {
         return mat_translate * mat_rotate * mat_scale;
     }
 
+    glm::mat4 Transform::as_view_matrix()
+    {
+        return (glm::lookAt(
+            position,
+            position + forward_vector(),
+            up_vector()));
+    }
+
     glm::vec3 Transform::forward_vector() {
         return rotation * glm::vec3{ 0,0,-1 };
     }

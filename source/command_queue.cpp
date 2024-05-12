@@ -61,6 +61,8 @@ namespace gfx {
     }
 
     void CommandQueue::execute() {
+        if (m_command_lists_to_execute.empty()) return;
+
         std::vector<ID3D12CommandList*> cmds(m_command_lists_to_execute.size());
         for (size_t i = 0; i < cmds.size(); ++i) {
             auto cmd = m_command_lists_to_execute[i]->get();

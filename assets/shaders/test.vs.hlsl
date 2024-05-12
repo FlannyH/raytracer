@@ -6,16 +6,21 @@ struct Vertex {
     float2 texcoord0;
 };
 
-struct DrawPacket {
+struct DrawMeshPacket {
     float4x4 model_transform;
     uint vertex_buffer;
     uint tex;
 };
 
-struct RootConstants
-{
+struct CameraMatricesPacket {
+    float4x4 view_matrix;
+    float4x4 projection_matrix;
+};
+
+struct RootConstants {
     uint packet_buffer;
-    uint offset;
+    uint camera_matrices_offset;
+    uint draw_mesh_packet_offset;
 };
 ConstantBuffer<RootConstants> root_constants : register(b0, space0);
 
@@ -28,11 +33,15 @@ struct VertexOut {
 
 float4 main(in uint vertex_index : SV_VertexID, out VertexOut output) : SV_POSITION {
     ByteAddressBuffer packet_buffer = ResourceDescriptorHeap[NonUniformResourceIndex(root_constants.packet_buffer & MASK_ID)];
-    DrawPacket packet = packet_buffer.Load<DrawPacket>(root_constants.offset);
+    DrawMeshPacket draw_packet = packet_buffer.Load<DrawMeshPacket>(root_constants.draw_mesh_packet_offset);
+    CameraMatricesPacket camera_matrices = packet_buffer.Load<CameraMatricesPacket>(root_constants.camera_matrices_offset);
 
-    ByteAddressBuffer vertex_buffer = ResourceDescriptorHeap[NonUniformResourceIndex(packet.vertex_buffer & MASK_ID)];
+    ByteAddressBuffer vertex_buffer = ResourceDescriptorHeap[NonUniformResourceIndex(draw_packet.vertex_buffer & MASK_ID)];
     Vertex vert = vertex_buffer.Load<Vertex>(vertex_index * sizeof(Vertex));
-    float4 vert_pos = mul(packet.model_transform, float4(vert.position, 1));
+    
+    float4 vert_pos = mul(draw_packet.model_transform, float4(vert.position, 1));
+    vert_pos = mul(camera_matrices.view_matrix, vert_pos);
+    vert_pos = mul(camera_matrices.projection_matrix, vert_pos);
 
     output.color = vert.color;
     output.texcoord0 = vert.texcoord0;

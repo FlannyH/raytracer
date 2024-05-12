@@ -25,6 +25,8 @@ namespace gfx {
         void flush(std::shared_ptr<CommandQueue> queue);
         void resize(Device& device, std::shared_ptr<CommandQueue> queue, DescriptorHeap& rtv_heap, uint32_t width, uint32_t height, PixelFormat format);
         void get_back_buffers(const Device& device, DescriptorHeap& rtv_heap);
+        int width() const { return m_width; }
+        int height() const { return m_height; }
         int current_frame_index() const {
             return m_frame_index;
         }
