@@ -200,6 +200,7 @@ namespace gfx {
                     auto mesh_node = std::make_shared<SceneNode>();
                     mesh_node->type = SceneNodeType::Mesh;
                     mesh_node->name = mesh.name;
+                    mesh_node->cached_global_transform = global_matrix;
                     mesh_node->mesh.vertex_buffer = vertex_buffer.handle;
                     mesh_node->mesh.position_buffer = position_buffer.handle;
                     // todo: D3D12_RAYTRACING_GEOMETRY_TRIANGLES_DESC

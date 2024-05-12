@@ -169,6 +169,10 @@ namespace gfx {
         // Store draw packet
         size_t packet_offset = create_draw_packet(draw_info);
 
+        // Get number of vertices from mesh
+        auto vertex_buffer = m_resources[draw_info.draw_mesh.vertex_buffer.id];
+        auto n_vertices = vertex_buffer->expect_buffer().size / sizeof(Vertex);
+
         // Get framebuffer and command buffer
         auto framebuffer = m_swapchain->curr_framebuffer();
         auto gfx_cmd = m_curr_pass_cmd->get();
@@ -184,11 +188,22 @@ namespace gfx {
         gfx_cmd->SetGraphicsRoot32BitConstant(0, m_draw_packets.handle.id, 0);
         gfx_cmd->SetGraphicsRoot32BitConstant(0, (uint32_t)m_camera_matrices_offset, 1);
         gfx_cmd->SetGraphicsRoot32BitConstant(0, (uint32_t)packet_offset, 2);
-        gfx_cmd->DrawInstanced(3, 1, 0, 0); // todo: put the right number of vertices in here
+        gfx_cmd->DrawInstanced(n_vertices, 1, 0, 0);
     }
 
     void Device::traverse_scene(SceneNode* node) {
-        //node->
+        if (node->type == SceneNodeType::Mesh) {
+            draw_mesh(DrawPacket{
+                .draw_mesh = {
+                    .model_transform = node->cached_global_transform,
+                    .vertex_buffer = node->mesh.vertex_buffer,
+                    .texture = ResourceHandle::none(), // todo: add actual textures from the model here
+                }
+            });
+        }
+        for (auto& node : node->children) {
+            traverse_scene(node.get());
+        }
     }
 
     size_t Device::create_draw_packet(DrawPacket packet) {
@@ -209,6 +224,7 @@ namespace gfx {
     }
 
     void Device::draw_scene(ResourceHandle scene_handle) {
+        std::shared_ptr<Resource> resource = m_resources[scene_handle.id];
         SceneNode* scene = m_resources[scene_handle.id]->expect_scene().root;
         traverse_scene(scene);
     }
@@ -360,6 +376,7 @@ namespace gfx {
         debug_scene_graph_nodes(resource->scene_resource.root);
 
         ResourceHandle handle = m_heap_bindless->alloc_descriptor(ResourceType::scene);
+        m_resources[handle.id] = resource;
 
         return ResourceHandlePair{ handle, resource };
     }

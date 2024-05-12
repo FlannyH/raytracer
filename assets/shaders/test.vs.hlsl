@@ -6,10 +6,16 @@ struct Vertex {
     float2 texcoord0;
 };
 
+struct ResourceHandle {
+    uint id: 27;
+    uint is_loaded: 1;
+    uint type: 4;
+};
+
 struct DrawMeshPacket {
     float4x4 model_transform;
-    uint vertex_buffer;
-    uint tex;
+    ResourceHandle vertex_buffer;
+    ResourceHandle tex;
 };
 
 struct CameraMatricesPacket {
@@ -18,7 +24,7 @@ struct CameraMatricesPacket {
 };
 
 struct RootConstants {
-    uint packet_buffer;
+    ResourceHandle packet_buffer;
     uint camera_matrices_offset;
     uint draw_mesh_packet_offset;
 };
@@ -32,11 +38,11 @@ struct VertexOut {
 #define MASK_ID ((1 << 27) - 1)
 
 float4 main(in uint vertex_index : SV_VertexID, out VertexOut output) : SV_POSITION {
-    ByteAddressBuffer packet_buffer = ResourceDescriptorHeap[NonUniformResourceIndex(root_constants.packet_buffer & MASK_ID)];
+    ByteAddressBuffer packet_buffer = ResourceDescriptorHeap[NonUniformResourceIndex(root_constants.packet_buffer.id)];
     DrawMeshPacket draw_packet = packet_buffer.Load<DrawMeshPacket>(root_constants.draw_mesh_packet_offset);
     CameraMatricesPacket camera_matrices = packet_buffer.Load<CameraMatricesPacket>(root_constants.camera_matrices_offset);
 
-    ByteAddressBuffer vertex_buffer = ResourceDescriptorHeap[NonUniformResourceIndex(draw_packet.vertex_buffer & MASK_ID)];
+    ByteAddressBuffer vertex_buffer = ResourceDescriptorHeap[NonUniformResourceIndex(draw_packet.vertex_buffer.id)];
     Vertex vert = vertex_buffer.Load<Vertex>(vertex_index * sizeof(Vertex));
     
     float4 vert_pos = mul(draw_packet.model_transform, float4(vert.position, 1));

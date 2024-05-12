@@ -30,13 +30,14 @@ int main(int n_args, char** args) {
             },
         }
     };
-    auto triangle_vb = device->load_mesh("triangle" ,1, &triangle);
+    auto scene = device->create_scene_graph_from_gltf("assets/models/hierarchy2.gltf");
+    auto triangle_vb = device->load_mesh("triangle", 1, &triangle);
     auto texture1 = device->load_texture("assets/textures/test.png");
 
     gfx::Transform camera;
     glm::vec3 camera_euler_angles(0.0f);
-    float move_speed = 0.001f;
-    float mouse_sensitivity = 0.01f;
+    float move_speed = 0.01f;
+    float mouse_sensitivity = 0.004f;
 
     while (device->should_stay_open()) {
         input::update();
@@ -60,13 +61,14 @@ int main(int n_args, char** args) {
             .color_target = gfx::ResourceHandle::none()
         });
         device->set_camera(camera);
-        device->draw_mesh(gfx::DrawPacket{
-            .draw_mesh = {
-                .model_transform = glm::mat4(1.0f),
-                .vertex_buffer = triangle_vb.handle,
-                .texture = texture1.handle
-            },
-        });
+        //device->draw_mesh(gfx::DrawPacket{
+        //    .draw_mesh = {
+        //        .model_transform = glm::mat4(1.0f),
+        //        .vertex_buffer = triangle_vb.handle,
+        //        .texture = gfx::ResourceHandle::none()
+        //    },
+        //});
+        device->draw_scene(scene.handle);
         device->end_raster_pass();
         device->end_frame();
     }
