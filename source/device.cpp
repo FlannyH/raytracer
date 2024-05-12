@@ -373,7 +373,6 @@ namespace gfx {
         const auto resource = std::make_shared<Resource>();
         resource->type = ResourceType::scene;
         resource->scene_resource.root = gfx::create_scene_graph_from_gltf(*this, path);
-        debug_scene_graph_nodes(resource->scene_resource.root);
 
         ResourceHandle handle = m_heap_bindless->alloc_descriptor(ResourceType::scene);
         m_resources[handle.id] = resource;

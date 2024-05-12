@@ -143,29 +143,46 @@ namespace gfx {
         // Get all child nodes
         for (auto& node_index : node_indices) {
             auto& node = model.nodes[node_index];
-            for (int i = 0; i < depth; ++i) printf("\t");
-            printf("node: %s\n", node.name.c_str());
 
             // Convert matrix in gltf model to glm::mat4. If the matrix doesn't exist, just set it to identity matrix
             glm::mat4 local_matrix(1.0f);
             int i = 0;
-            for (const auto& value : node.matrix) { local_matrix[i / 4][i % 4] = static_cast<float>(value); i++; }
+            if (node.matrix.empty()) {
+                Transform local_transform;
+                if (node.translation.empty() == false) {
+                    local_transform.position = glm::vec3(
+                        node.translation[0],
+                        node.translation[1],
+                        node.translation[2]
+                    );
+                }
+                if (node.rotation.empty() == false) {
+                    local_transform.rotation = glm::quat(
+                        node.rotation[3],
+                        node.rotation[0],
+                        node.rotation[1],
+                        node.rotation[2]
+                    );
+                }
+                if (node.scale.empty() == false) {
+                    local_transform.scale = glm::vec3(
+                        node.scale[0],
+                        node.scale[1],
+                        node.scale[2]
+                    );
+                }
+                
+                local_matrix = local_transform.as_matrix();
+            }
+            else {
+                for (const auto& value : node.matrix) { local_matrix[i / 4][i % 4] = static_cast<float>(value); i++; }
+            }
             glm::mat4 global_matrix = local_transform * local_matrix;
 
             // Make a child node 
             auto scene_node = std::make_shared<SceneNode>();
             scene_node->name = node.name;
             scene_node->cached_global_transform = global_matrix;
-
-            if (node.translation.size() > 0) {
-                scene_node->local_transform.position = glm::vec3(node.translation[0], node.translation[1], node.translation[2]);
-            }
-            if (node.scale.size() > 0) {
-                scene_node->local_transform.scale = glm::vec3(node.scale[0], node.scale[1], node.scale[2]);
-            }
-            if (node.rotation.size() > 0) {
-                scene_node->local_transform.rotation = glm::quat(node.rotation[3], node.rotation[0], node.rotation[1], node.rotation[2]);
-            }
 
             // If it has a mesh, process it
             if (node.mesh != -1)
@@ -174,10 +191,6 @@ namespace gfx {
                 auto& primitives = mesh.primitives;
                 for (auto& primitive : primitives)
                 {
-                    // todo
-                    for (int i = -1; i < depth; ++i) printf("\t");
-                    printf("mesh: %s\n", mesh.name.c_str());
-
                     // Get the vertices, as well as a separate positions buffer, which we'll use to build ray tracing acceleration structures
                     std::vector<Vertex> vertices = parse_primitive(primitive, model, path);
                     std::vector<glm::vec3> positions;
@@ -211,8 +224,6 @@ namespace gfx {
             // If it has a light, process it
             if (node.light != -1) {
                 auto& light = model.lights[node.light];
-                for (int i = -1; i < depth; ++i) printf("\t");
-                printf("%s light: %s\n", light.type.c_str(), light.name.c_str());
                 auto light_node = std::make_shared<SceneNode>();
                 light_node->type = SceneNodeType::Light;
                 light_node->name = light.name;
@@ -222,7 +233,7 @@ namespace gfx {
             // If it has children, process those
             if (!node.children.empty())
             {
-                traverse_nodes(device, node.children, model, local_matrix, scene_node.get(), path, depth + 1);
+                traverse_nodes(device, node.children, model, global_matrix, scene_node.get(), path, depth + 1);
             }
             parent->add_child_node(scene_node);
         }
