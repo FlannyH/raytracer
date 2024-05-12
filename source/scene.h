@@ -9,19 +9,14 @@
 
 namespace gfx {
     struct Transform {
-        glm::vec3 position;
-        glm::quat rotation;
-        glm::vec3 scale;
+        glm::vec3 position{ 0, 0, 0 };
+        glm::quat rotation{ 1, 0, 0, 0 };
+        glm::vec3 scale{ 1, 1, 1 };
 
-        static Transform identity()
-        {
-            return Transform{
-                .position = glm::vec3(0.0f, 0.0f, 0.0f),
-                .rotation = glm::quat(1.0f, 0.0f, 0.0f, 0.0f),
-                .scale = glm::vec3(1.0f, 1.0f, 1.0f),
-            };
-        }
         glm::mat4 as_matrix();
+        glm::vec3 forward_vector();
+        glm::vec3 right_vector();
+        glm::vec3 up_vector();
     };
 
     enum class SceneNodeType : uint8_t {
@@ -31,7 +26,7 @@ namespace gfx {
     };
 
     struct SceneNode {
-        Transform local_transform = Transform::identity();
+        Transform local_transform;
         glm::mat4 cached_global_transform;
         std::shared_ptr<SceneNode> parent = nullptr;
         std::vector<std::shared_ptr<SceneNode>> children;

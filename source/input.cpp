@@ -103,6 +103,7 @@ namespace input {
 		glfwSetMouseButtonCallback(window, mouse_button_callback);
 		glfwSetScrollCallback(window, mouse_scroll_callback);
 	}
+
 	void update() {
 		// Copy new state to curr, and curr to prev - this way curr and prev are stable across the entire frame, while new is being updated by the callback
 		memcpy(keys_prev, keys_curr, sizeof(keys_prev));

@@ -9,16 +9,26 @@
 #include <tinygltf/tiny_gltf.h>
 
 namespace gfx {
-    glm::mat4 Transform::as_matrix()
-    {
+    glm::mat4 Transform::as_matrix() {
         glm::mat4 mat_translate = glm::translate(glm::mat4(1.0f), position);
         glm::mat4 mat_rotate = glm::toMat4(rotation);
         glm::mat4 mat_scale = glm::scale(glm::mat4(1.0f), scale);
         return mat_translate * mat_rotate * mat_scale;
     }
 
-    void SceneNode::add_child_node(std::shared_ptr<SceneNode> new_child)
-    {
+    glm::vec3 Transform::forward_vector() {
+        return rotation * glm::vec3{ 0,0,-1 };
+    }
+
+    glm::vec3 Transform::right_vector() {
+        return rotation * glm::vec3{ 1,0,0 };
+    }
+
+    glm::vec3 Transform::up_vector() {
+        return rotation * glm::vec3{ 0,1,0 };
+    }
+
+    void SceneNode::add_child_node(std::shared_ptr<SceneNode> new_child) {
         children.push_back(new_child);
     }
 
@@ -137,7 +147,7 @@ namespace gfx {
             auto scene_node = std::make_shared<SceneNode>();
             scene_node->name = node.name;
             scene_node->cached_global_transform = global_matrix;
-            scene_node->local_transform = Transform::identity();
+
             if (node.translation.size() > 0) {
                 scene_node->local_transform.position = glm::vec3(node.translation[0], node.translation[1], node.translation[2]);
             }
