@@ -68,7 +68,7 @@ namespace gfx {
         ResourceHandlePair load_texture(const std::string& path); // Load a texture from a file
         ResourceHandlePair load_texture(const std::string& name, uint32_t width, uint32_t height, void* data, PixelFormat pixel_format); // Load a texture from memory
         ResourceHandlePair load_mesh(const std::string& name, uint64_t n_triangles, Triangle* tris);
-        ResourceHandlePair create_scene_graph_from_gltf(const std::string& name);
+        ResourceHandlePair create_scene_graph_from_gltf(const std::string& path);
         ResourceHandlePair create_buffer(const std::string& name, size_t size, void* data);
         void unload_bindless_resource(ResourceHandle id);
 
