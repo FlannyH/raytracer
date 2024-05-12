@@ -45,6 +45,8 @@ int main(int n_args, char** args) {
         if (input::key_held(input::Key::s)) camera.position -= camera.forward_vector() * move_speed;
         if (input::key_held(input::Key::d)) camera.position += camera.right_vector() * move_speed;
         if (input::key_held(input::Key::a)) camera.position -= camera.right_vector() * move_speed;
+        if (input::key_held(input::Key::space)) camera.position.y += move_speed;
+        if (input::key_held(input::Key::left_shift)) camera.position.y -= move_speed;
         if (input::mouse_button(input::MouseButton::right)) {
             camera_euler_angles.y -= input::mouse_movement().x * mouse_sensitivity;
             camera_euler_angles.x -= input::mouse_movement().y * mouse_sensitivity;
