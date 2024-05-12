@@ -35,12 +35,15 @@ int main(int n_args, char** args) {
     float scale = 1.00f;
 
     while (device->should_stay_open()) {
+        input::update();
+
         if (input::key_held(input::Key::up))
             scale *= 1.005f;
         if (input::key_held(input::Key::down))
             scale /= 1.005f;
 
-        input::update();
+        scale += 0.05f * input::mouse_scroll().y;
+
         device->begin_frame();
         device->begin_raster_pass(pipeline, gfx::RasterPassInfo{
             .color_target = gfx::ResourceHandle::none()
