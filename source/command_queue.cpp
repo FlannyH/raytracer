@@ -90,6 +90,3 @@ namespace gfx {
         return n_cleaned_up;
     }
 }
-
-namespace gfx {
-}

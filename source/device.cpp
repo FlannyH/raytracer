@@ -303,7 +303,7 @@ namespace gfx {
         memcpy(mapped_buffer, data, upload_size);
         upload_buffer->handle->Unmap(0, &upload_range);
 
-        const auto texture_size_box = D3D12_BOX{
+        const auto texture_size_box = D3D12_BOX {
             .left = 0,
             .top = 0,
             .front = 0,
@@ -368,8 +368,7 @@ namespace gfx {
         }
     }
 
-    ResourceHandlePair Device::create_scene_graph_from_gltf(const std::string& path)
-    {
+    ResourceHandlePair Device::create_scene_graph_from_gltf(const std::string& path) {
         const auto resource = std::make_shared<Resource>();
         resource->type = ResourceType::scene;
         resource->scene_resource.root = gfx::create_scene_graph_from_gltf(*this, path);
@@ -460,8 +459,8 @@ namespace gfx {
     bool Device::should_stay_open() {
         return glfwWindowShouldClose(m_window_glfw) == false;
     }
-    void Device::set_full_screen(bool full_screen)
-    {
+
+    void Device::set_full_screen(bool full_screen) {
         if (full_screen == true && m_is_fullscreen == false) {
             // Store window coords
             glfwGetWindowPos(m_window_glfw, &m_pos_x_pre_fullscreen, &m_pos_y_pre_fullscreen);
@@ -489,8 +488,8 @@ namespace gfx {
         }
         m_is_fullscreen = full_screen;
     }
-    int Device::find_dominant_monitor()
-    {
+
+    int Device::find_dominant_monitor() {
         int monitor = 0;
         int best_score = 0;
 

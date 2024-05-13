@@ -117,14 +117,12 @@ namespace gfx {
         m_frame_wait_values[framebuffer_index()] = m_frame_index;
     }
 
-    void Swapchain::flush(std::shared_ptr<CommandQueue> queue)
-    {
+    void Swapchain::flush(std::shared_ptr<CommandQueue> queue) {
         m_fence->gpu_signal(queue, m_frame_index + 1);
         m_fence->cpu_wait(m_frame_index + 1);
     }
 
-    void Swapchain::resize(Device& device, std::shared_ptr<CommandQueue> queue, DescriptorHeap& rtv_heap, uint32_t width, uint32_t height, PixelFormat format)
-    {
+    void Swapchain::resize(Device& device, std::shared_ptr<CommandQueue> queue, DescriptorHeap& rtv_heap, uint32_t width, uint32_t height, PixelFormat format) {
         printf("Resizing swapchain: %ix%i -> %ix%i\n", m_width, m_height, width, height);
         m_width = width;
         m_height = height;
@@ -134,8 +132,7 @@ namespace gfx {
         get_back_buffers(device, rtv_heap);
     }
 
-    void Swapchain::get_back_buffers(const Device& device, DescriptorHeap& rtv_heap)
-    {
+    void Swapchain::get_back_buffers(const Device& device, DescriptorHeap& rtv_heap) {
         // Create render targets
         for (UINT i = 0; i < backbuffer_count; i++) {
             // Allocate descriptor

@@ -20,15 +20,15 @@ namespace gfx {
 
         // Create global root signature
         D3D12_ROOT_PARAMETER1 root_parameters[1] = {
-    {
-        .ParameterType = D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS,
-        .Constants = {
-            .ShaderRegister = 0,
-            .RegisterSpace = 0,
-            .Num32BitValues = 3,
-        },
-        .ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL,
-    },
+            {
+                .ParameterType = D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS,
+                .Constants = {
+                    .ShaderRegister = 0,
+                    .RegisterSpace = 0,
+                    .Num32BitValues = 3,
+                },
+                .ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL,
+            },
         };
 
         D3D12_STATIC_SAMPLER_DESC samplers[1] = {
@@ -81,7 +81,7 @@ namespace gfx {
         }
 
 
-        D3D12_GRAPHICS_PIPELINE_STATE_DESC pipeline_state_desc{
+        D3D12_GRAPHICS_PIPELINE_STATE_DESC pipeline_state_desc {
             .pRootSignature = root_signature.Get(),
             .VS = {
                 vs.shader_blob->GetBufferPointer(),

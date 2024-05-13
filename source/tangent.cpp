@@ -9,6 +9,8 @@ namespace gfx {
 		interface_.m_getNormal = get_normal;
 		interface_.m_getTexCoord = get_tex_coord;
 		interface_.m_setTSpaceBasic = set_tspace_basic;
+		mesh.n_triangles = 0;
+		mesh.vertices = nullptr;
 		context.m_pInterface = &interface_;
 	}
 

@@ -53,5 +53,4 @@ namespace gfx {
         new_handle.ptr += id.id * m_descriptor_size;
         return new_handle;
     }
-
 }

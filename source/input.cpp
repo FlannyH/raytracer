@@ -120,56 +120,47 @@ namespace input {
 		mouse_scroll_y_curr = mouse_scroll_y_new;
 	}
 
-	bool key_held(Key key)
-	{
+	bool key_held(Key key) {
 		return keys_curr[(size_t)key];
 	}
 
-	bool key_pressed(Key key)
-	{
+	bool key_pressed(Key key) {
 		auto curr = keys_curr[(size_t)key];
 		auto prev = keys_prev[(size_t)key];
 		return curr && !prev;
 	}
 
-	bool key_released(Key key)
-	{
+	bool key_released(Key key) {
 		auto curr = keys_curr[(size_t)key];
 		auto prev = keys_prev[(size_t)key];
 		return prev && !curr;
 	}
 
-	bool mouse_button(MouseButton mouse_button)
-	{
+	bool mouse_button(MouseButton mouse_button) {
 		return mouse_buttons_curr[(size_t)mouse_button];
 	}
 
-	bool mouse_button_down(MouseButton mouse_button)
-	{
+	bool mouse_button_down(MouseButton mouse_button) {
 		auto curr = mouse_buttons_curr[(size_t)mouse_button];
 		auto prev = mouse_buttons_prev[(size_t)mouse_button];
 		return curr && !prev;
 	}
 
-	bool mouse_button_up(MouseButton mouse_button)
-	{
+	bool mouse_button_up(MouseButton mouse_button) {
 		auto curr = mouse_buttons_curr[(size_t)mouse_button];
 		auto prev = mouse_buttons_prev[(size_t)mouse_button];
 		return prev && !curr;
 	}
 
-	glm::vec2 mouse_scroll()
-	{
+	glm::vec2 mouse_scroll() {
 		return glm::vec2(mouse_scroll_x_curr - mouse_scroll_x_prev, mouse_scroll_y_curr - mouse_scroll_y_prev);
 	}
 
-	glm::vec2 mouse_position()
-	{
+	glm::vec2 mouse_position() {
 		return glm::vec2(mouse_x_curr, mouse_y_curr);
 	}
 
-	glm::vec2 mouse_movement()
-	{
+	glm::vec2 mouse_movement() {
 		return glm::vec2(mouse_x_curr - mouse_x_prev, mouse_y_curr - mouse_y_prev);
 	}
 }

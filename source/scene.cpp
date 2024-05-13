@@ -17,8 +17,7 @@ namespace gfx {
         return mat_translate * mat_rotate * mat_scale;
     }
 
-    glm::mat4 Transform::as_view_matrix()
-    {
+    glm::mat4 Transform::as_view_matrix() {
         return (glm::lookAt(
             position,
             position + forward_vector(),
@@ -107,7 +106,7 @@ namespace gfx {
             size_component = 8;
             break;
         default:
-            std::invalid_argument("Unsupported component type");
+            std::abort(); // Unsupported component type
         }
 
         const size_t n_desired_components = sizeof(Out) / sizeof(ComponentType);
@@ -151,24 +150,24 @@ namespace gfx {
                 Transform local_transform;
                 if (node.translation.empty() == false) {
                     local_transform.position = glm::vec3(
-                        node.translation[0],
-                        node.translation[1],
-                        node.translation[2]
+                        (float)node.translation[0],
+                        (float)node.translation[1],
+                        (float)node.translation[2]
                     );
                 }
                 if (node.rotation.empty() == false) {
                     local_transform.rotation = glm::quat(
-                        node.rotation[3],
-                        node.rotation[0],
-                        node.rotation[1],
-                        node.rotation[2]
+                        (float)node.rotation[3],
+                        (float)node.rotation[0],
+                        (float)node.rotation[1],
+                        (float)node.rotation[2]
                     );
                 }
                 if (node.scale.empty() == false) {
                     local_transform.scale = glm::vec3(
-                        node.scale[0],
-                        node.scale[1],
-                        node.scale[2]
+                        (float)node.scale[0],
+                        (float)node.scale[1],
+                        (float)node.scale[2]
                     );
                 }
                 
@@ -185,12 +184,10 @@ namespace gfx {
             scene_node->cached_global_transform = global_matrix;
 
             // If it has a mesh, process it
-            if (node.mesh != -1)
-            {
+            if (node.mesh != -1) {
                 auto& mesh = model.meshes[node.mesh];
                 auto& primitives = mesh.primitives;
-                for (auto& primitive : primitives)
-                {
+                for (auto& primitive : primitives) {
                     // Get the vertices, as well as a separate positions buffer, which we'll use to build ray tracing acceleration structures
                     std::vector<Vertex> vertices = parse_primitive(primitive, model, path);
                     std::vector<glm::vec3> positions;
@@ -231,16 +228,14 @@ namespace gfx {
             }
 
             // If it has children, process those
-            if (!node.children.empty())
-            {
+            if (!node.children.empty()) {
                 traverse_nodes(device, node.children, model, global_matrix, scene_node.get(), path, depth + 1);
             }
             parent->add_child_node(scene_node);
         }
     }
 
-    SceneNode* create_scene_graph_from_gltf(Device& device, const std::string& path)
-    {
+    SceneNode* create_scene_graph_from_gltf(Device& device, const std::string& path) {
         tinygltf::TinyGLTF loader;
         tinygltf::Model model;
         std::string error;

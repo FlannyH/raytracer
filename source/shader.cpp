@@ -19,8 +19,8 @@ namespace gfx {
             return "";
         }
     }
-    std::wstring to_wstring(const std::string& s)
-    {
+
+    std::wstring to_wstring(const std::string& s) {
         std::wstring temp(s.size(), L' ');
         for (size_t i = 0; i < s.size(); ++i) {
             temp[i] = s[i];
@@ -28,15 +28,13 @@ namespace gfx {
         return temp;
     }
 
-    std::string to_string(const std::wstring& s)
-    {
+    std::string to_string(const std::wstring& s) {
         std::string temp(s.size(), L' ');
         for (size_t i = 0; i < s.size(); ++i) {
             temp[i] = s[i];
         }
         return temp;
     }
-
 
     Shader::Shader(const std::string& path, const std::string& entry_point, const ShaderType type) {
         // Init dxc
@@ -68,7 +66,7 @@ namespace gfx {
         args.emplace_back(DXC_ARG_DEBUG); //-Zi
 
         // Compile it
-        const DxcBuffer buffer{
+        const DxcBuffer buffer {
             .Ptr = source_blob->GetBufferPointer(),
             .Size = source_blob->GetBufferSize(),
             .Encoding = DXC_CP_ACP,

@@ -13,8 +13,7 @@ inline void validate(const HRESULT hr) {
     }
 }
 
-inline void read_file(const std::string& path, size_t& size_bytes, char*& data, const bool silent)
-{
+inline void read_file(const std::string& path, size_t& size_bytes, char*& data, const bool silent) {
     // Open file
     std::ifstream file_stream(path, std::ios::binary);
 
