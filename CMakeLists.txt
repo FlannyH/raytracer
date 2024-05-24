@@ -26,8 +26,9 @@ add_executable (raytracer
     "source/scene.cpp" 
     "source/input.cpp"
     "source/tangent.cpp"
+    "source/pass_info.cpp"
     "external/include/mikktspace/mikktspace.c"
- "source/tangent.h")
+)
 
 target_include_directories(raytracer PUBLIC "external/include")
 target_link_directories(raytracer PUBLIC "external/libraries")

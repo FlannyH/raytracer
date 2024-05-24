@@ -11,13 +11,13 @@
 #include "glfw/glfw3.h"
 #include "glm/matrix.hpp"
 #include "resource.h"
+#include "pass_info.h"
 
 namespace gfx {
     struct CommandBuffer;
     struct Swapchain;
     struct CommandQueue;
     struct DescriptorHeap;
-    struct RenderPass;
     struct Pipeline;
     struct Transform;
 
@@ -39,10 +39,6 @@ namespace gfx {
         };
     };
 
-    struct RasterPassInfo {
-        ResourceHandle color_target; // If the ResourceHandle has type `none`, it will instead use the swapchain framebuffer as a color target
-    };
-
     struct Device {
         // Initialization
         Device(int width, int height, bool debug_layer_enabled);
@@ -59,7 +55,8 @@ namespace gfx {
 
         // Rasterization
         std::shared_ptr<Pipeline> create_raster_pipeline(const std::string& vertex_shader_path, const std::string& pixel_shader_path);
-        void begin_raster_pass(std::shared_ptr<Pipeline> pipeline, RasterPassInfo&& render_pass_info);
+        std::shared_ptr<RasterPassInfo> create_pass_resources(int n_color_buffers, bool has_depth_buffer);
+        void begin_raster_pass(std::shared_ptr<Pipeline> pipeline, std::shared_ptr<RasterPassInfo> render_pass_info);
         void end_raster_pass();
         void draw_mesh(DrawPacket&& draw_info);
         void draw_scene(ResourceHandle scene_handle);
@@ -67,6 +64,8 @@ namespace gfx {
         // Resource management
         ResourceHandlePair load_texture(const std::string& path); // Load a texture from a file
         ResourceHandlePair load_texture(const std::string& name, uint32_t width, uint32_t height, void* data, PixelFormat pixel_format); // Load a texture from memory
+        ResourceHandlePair create_frame_buffer(const std::string& name, uint32_t width, uint32_t height, PixelFormat pixel_format);
+        ResourceHandlePair create_depth_buffer(const std::string& name, uint32_t width, uint32_t height);
         ResourceHandlePair load_mesh(const std::string& name, uint64_t n_triangles, Triangle* tris);
         ResourceHandlePair create_scene_graph_from_gltf(const std::string& path);
         ResourceHandlePair create_buffer(const std::string& name, size_t size, void* data);
@@ -87,6 +86,7 @@ namespace gfx {
         ComPtr<ID3D12Debug1> m_debug_layer = nullptr;
         ComPtr<ID3D12DebugDevice> m_device_debug = nullptr;
         std::shared_ptr<DescriptorHeap> m_heap_rtv = nullptr;
+        std::shared_ptr<DescriptorHeap> m_heap_dsv = nullptr;
         std::shared_ptr<DescriptorHeap> m_heap_bindless = nullptr;
         std::shared_ptr<CommandQueue> m_queue_gfx = nullptr;
 

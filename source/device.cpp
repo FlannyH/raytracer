@@ -77,6 +77,7 @@ namespace gfx {
 
         // Create descriptor heaps
         m_heap_rtv = std::make_shared<DescriptorHeap>(*this, D3D12_DESCRIPTOR_HEAP_TYPE_RTV, D3D12_DESCRIPTOR_HEAP_FLAG_NONE, backbuffer_count);
+        m_heap_dsv = std::make_shared<DescriptorHeap>(*this, D3D12_DESCRIPTOR_HEAP_TYPE_DSV, D3D12_DESCRIPTOR_HEAP_FLAG_NONE, backbuffer_count);
         m_heap_bindless = std::make_shared<DescriptorHeap>(*this, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE, D3D12_MAX_SHADER_VISIBLE_DESCRIPTOR_HEAP_SIZE_TIER_1 / 2);
 
         // Create draw packet buffer
@@ -104,6 +105,10 @@ namespace gfx {
 
     std::shared_ptr<Pipeline> Device::create_raster_pipeline(const std::string& vertex_shader, const std::string& pixel_shader) {
         return std::make_shared<Pipeline>(*this, vertex_shader, pixel_shader);
+    }
+
+    std::shared_ptr<RasterPassInfo> Device::create_pass_resources(int n_color_buffers, bool has_depth_buffer) {
+        return std::make_shared<RasterPassInfo>(*this, n_color_buffers, has_depth_buffer);
     }
 
     void Device::begin_frame() {
@@ -145,14 +150,18 @@ namespace gfx {
         m_camera_matrices_offset = create_draw_packet(packet);
     }
 
-    void Device::begin_raster_pass(std::shared_ptr<Pipeline> pipeline, RasterPassInfo&& render_pass_info) {
+    void Device::begin_raster_pass(std::shared_ptr<Pipeline> pipeline, std::shared_ptr<RasterPassInfo> render_pass_info) {
         // Create command buffer for this pass
         m_curr_bound_pipeline = pipeline;
         m_curr_pass_cmd = m_queue_gfx->create_command_buffer(*this, pipeline.get(), m_swapchain->current_frame_index());
 
-        // If the color target is the swapchain, prepare the swapchain for that
-        if ((ResourceType)render_pass_info.color_target.type == ResourceType::none) {
+        // If the color target is none, we render to swapchain, prepare the swapchain for that
+        if (render_pass_info->color_targets[0].size() == 0) {
             m_swapchain->prepare_render(m_curr_pass_cmd);
+        }
+        // Otherwise, prepare render targets
+        else {
+            render_pass_info->prepare_render(m_curr_pass_cmd);
         }
     }
 
@@ -269,7 +278,7 @@ namespace gfx {
         heap_properties.Type = D3D12_HEAP_TYPE_DEFAULT;
 
         const auto upload_size = width * height * size_per_pixel(pixel_format);
-        auto id = m_heap_bindless->alloc_descriptor(ResourceType::buffer);
+        auto id = m_heap_bindless->alloc_descriptor(ResourceType::texture);
         auto descriptor = m_heap_bindless->fetch_cpu_handle(id);
         validate(device->CreateCommittedResource(
             &heap_properties,
@@ -339,6 +348,108 @@ namespace gfx {
         validate(cmd->Close());
 
         id.is_loaded = true; // todo, only set this to true when the upload command buffer finished (when the fence value was reached)
+
+        m_resource_name_map[name] = id;
+        m_resources[id.id] = resource;
+
+        return ResourceHandlePair{ id, resource };
+    }
+
+    ResourceHandlePair Device::create_frame_buffer(const std::string& name, uint32_t width, uint32_t height, PixelFormat pixel_format) {        
+        // Make texture resource
+        const auto resource = std::make_shared<Resource>();
+        *resource = {
+            .type = ResourceType::texture,
+            .texture_resource = {
+                .data = nullptr, // render target doesn't have CPU-side data
+                .width = width,
+                .height = height,
+                .pixel_format = DXGI_FORMAT_R8G8B8A8_UNORM,
+            }
+        };
+        // Get the pixel format
+        resource->expect_texture().pixel_format = pixel_format_to_dx12(pixel_format);
+
+        // Create a d3d12 resource for the texture
+        D3D12_RESOURCE_DESC resource_desc = {};
+        resource_desc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+        resource_desc.Width = resource->expect_texture().width;
+        resource_desc.Height = resource->expect_texture().height;
+        resource_desc.DepthOrArraySize = 1;
+        resource_desc.MipLevels = 1;
+        resource_desc.Format = static_cast<DXGI_FORMAT>(resource->expect_texture().pixel_format);
+        resource_desc.SampleDesc.Count = 1;
+        resource_desc.Flags = D3D12_RESOURCE_FLAG_NONE;
+        resource_desc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
+
+        D3D12_HEAP_PROPERTIES heap_properties = {};
+        heap_properties.Type = D3D12_HEAP_TYPE_DEFAULT;
+
+        const auto upload_size = width * height * size_per_pixel(pixel_format);
+        auto id = m_heap_rtv->alloc_descriptor(ResourceType::texture);
+        auto descriptor = m_heap_bindless->fetch_cpu_handle(id);
+        validate(device->CreateCommittedResource(
+            &heap_properties,
+            D3D12_HEAP_FLAG_NONE,
+            &resource_desc,
+            D3D12_RESOURCE_STATE_COMMON,
+            nullptr,
+            IID_PPV_ARGS(&resource->handle)
+        ));
+        auto name_str = std::wstring(name.begin(), name.end());
+        resource->handle->SetName(name_str.c_str());
+
+        id.is_loaded = true;
+
+        m_resources[id.id] = resource;
+
+        return ResourceHandlePair{ id, resource };
+    }
+
+    ResourceHandlePair Device::create_depth_buffer(const std::string& name, uint32_t width, uint32_t height)
+    {        
+        // Make texture resource
+        const auto resource = std::make_shared<Resource>();
+        *resource = {
+            .type = ResourceType::texture,
+            .texture_resource = {
+                .data = nullptr, // render target doesn't have CPU-side data
+                .width = width,
+                .height = height,
+                .pixel_format = DXGI_FORMAT_D24_UNORM_S8_UINT,
+            }
+        };
+
+        // Create a d3d12 resource for the texture
+        D3D12_RESOURCE_DESC resource_desc = {};
+        resource_desc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+        resource_desc.Width = resource->expect_texture().width;
+        resource_desc.Height = resource->expect_texture().height;
+        resource_desc.DepthOrArraySize = 1;
+        resource_desc.MipLevels = 1;
+        resource_desc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
+        resource_desc.SampleDesc.Count = 1;
+        resource_desc.Flags = D3D12_RESOURCE_FLAG_NONE;
+        resource_desc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
+
+        D3D12_HEAP_PROPERTIES heap_properties = {};
+        heap_properties.Type = D3D12_HEAP_TYPE_DEFAULT;
+
+        const auto upload_size = width * height * 4;
+        auto id = m_heap_rtv->alloc_descriptor(ResourceType::texture);
+        auto descriptor = m_heap_bindless->fetch_cpu_handle(id);
+        validate(device->CreateCommittedResource(
+            &heap_properties,
+            D3D12_HEAP_FLAG_NONE,
+            &resource_desc,
+            D3D12_RESOURCE_STATE_COMMON,
+            nullptr,
+            IID_PPV_ARGS(&resource->handle)
+        ));
+        auto name_str = std::wstring(name.begin(), name.end());
+        resource->handle->SetName(name_str.c_str());
+
+        id.is_loaded = true;
 
         m_resource_name_map[name] = id;
         m_resources[id.id] = resource;

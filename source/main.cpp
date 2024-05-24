@@ -4,10 +4,23 @@
 #include "input.h"
 #include "scene.h"
 
+/*
+* TODO:
+* [ ] camera should be a separate struct with functions, out of main function
+* [ ] resources should live in the DescriptorHeap, since each heap has its own indices
+* [ ] make render target allocate from RTV and DSV heaps
+* [ ] implement raster pass info prepare_render (transition to STATE_RENDER_TARGET)
+* [ ] implement raster pass info prepare_read (transition to shader resource)
+* [ ] make render target desc struct to give user more control over their render pass textures 
+* [ ] implement rendering to depth texture
+* [ ] maybe a raster pass info can take input resources so it can transition the states properly?
+*/
+
 int main(int n_args, char** args) {
     const auto device = std::make_unique<gfx::Device>(1280, 720, false);
     device->init_context();
     const auto pipeline = device->create_raster_pipeline("assets/shaders/test.vs.hlsl", "assets/shaders/test.ps.hlsl");
+    const auto test_pass = device->create_pass_resources(1, true);
 
     printf("Renderer initialized!\n");
 
@@ -37,9 +50,7 @@ int main(int n_args, char** args) {
         }
 
         device->begin_frame();
-        device->begin_raster_pass(pipeline, gfx::RasterPassInfo{
-            .color_target = gfx::ResourceHandle::none()
-        });
+        device->begin_raster_pass(pipeline, test_pass);
         device->set_camera(camera);
         device->draw_scene(scene.handle);
         device->end_raster_pass();
