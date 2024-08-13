@@ -3,7 +3,7 @@
 #include <string>
 
 #include "common.h"
-#include <dxc/dxcapi.h>
+#include "dxc/dxcapi.h"
 
 namespace gfx {
     struct Device;
