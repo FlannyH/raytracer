@@ -154,10 +154,44 @@ namespace gfx {
         if ((ResourceType)render_pass_info.color_target.type == ResourceType::none) {
             m_swapchain->prepare_render(m_curr_pass_cmd);
         }
+        // Otherwise, if the color target is a texture, transition the texture to render target
+        else {
+            auto& texture = m_resources.at(render_pass_info.color_target.id);
+            auto gfx_cmd = m_curr_pass_cmd->get();
+
+            const D3D12_RESOURCE_BARRIER render_target_barrier = {
+                .Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION,
+                .Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE,
+                .Transition = {
+                    .pResource = texture->handle.Get(),
+                    .Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES,
+                    .StateBefore = D3D12_RESOURCE_STATE_ALL_SHADER_RESOURCE,
+                    .StateAfter = D3D12_RESOURCE_STATE_RENDER_TARGET,
+                },
+            };
+            gfx_cmd->ResourceBarrier(1, &render_target_barrier);
+            m_curr_render_target = texture;
+                
+        }
     }
 
     void Device::end_raster_pass() {
-        m_curr_bound_pipeline = nullptr;
+        // If the current render target wasn't the swapchain, the m_curr_render_target pointer is not null
+        // In this case, transition it back to a shader resource, so we can run compute shaders on it if we want, or blit it to the swapchain
+        if (m_curr_render_target.get() != nullptr) {
+            const D3D12_RESOURCE_BARRIER render_target_barrier = {
+                .Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION,
+                .Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE,
+                .Transition = {
+                    .pResource = m_curr_render_target->handle.Get(),
+                    .Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES,
+                    .StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET,
+                    .StateAfter = D3D12_RESOURCE_STATE_ALL_SHADER_RESOURCE,
+                },
+            };
+            m_curr_render_target.reset();
+        }
+        m_curr_bound_pipeline.reset();
     }
 
     void Device::draw_mesh(DrawPacket&& draw_info) {

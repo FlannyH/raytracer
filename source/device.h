@@ -113,5 +113,6 @@ namespace gfx {
         ResourceHandlePair m_draw_packets{}; // Scratch buffer that is used to send draw info to the shader
         size_t m_draw_packet_cursor = 0;
         size_t m_camera_matrices_offset = 0;
+        std::shared_ptr<Resource> m_curr_render_target = nullptr;
     };
 };
