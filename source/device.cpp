@@ -487,6 +487,84 @@ namespace gfx {
         return ResourceHandlePair{ id, resource };
     }
 
+    ResourceHandlePair Device::create_render_target(const std::string& name, uint32_t width, uint32_t height, PixelFormat pixel_format) {
+        // Make texture resource
+        const auto resource = std::make_shared<Resource>();
+        *resource = {
+            .type = ResourceType::texture,
+            .texture_resource = {
+                .data = nullptr,
+                .width = width,
+                .height = height,
+                .pixel_format = DXGI_FORMAT_R8G8B8A8_UNORM,
+            }
+        };
+
+        // Get the pixel format
+        resource->expect_texture().pixel_format = pixel_format_to_dx12(pixel_format);
+
+        // Create a d3d12 resource for the texture
+        D3D12_RESOURCE_DESC resource_desc = {};
+        resource_desc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+        resource_desc.Width = resource->expect_texture().width;
+        resource_desc.Height = resource->expect_texture().height;
+        resource_desc.DepthOrArraySize = 1;
+        resource_desc.MipLevels = 1;
+        resource_desc.Format = static_cast<DXGI_FORMAT>(resource->expect_texture().pixel_format);
+        resource_desc.SampleDesc.Count = 1;
+        resource_desc.Flags = D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
+        resource_desc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
+
+        // Create resource
+        D3D12_HEAP_PROPERTIES heap_properties = {};
+        heap_properties.Type = D3D12_HEAP_TYPE_DEFAULT;
+        validate(device->CreateCommittedResource(
+            &heap_properties,
+            D3D12_HEAP_FLAG_NONE,
+            &resource_desc,
+            D3D12_RESOURCE_STATE_ALL_SHADER_RESOURCE,
+            nullptr,
+            IID_PPV_ARGS(&resource->handle)
+        ));
+
+        // todo: make this its own function or combine this function using some type of flag, I've repeated this 3 times now
+        // Create SRV
+        D3D12_SHADER_RESOURCE_VIEW_DESC srv_desc = {
+            .Format = resource_desc.Format,
+            .ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D,
+            .Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING,
+            .Texture2D = {
+                .MostDetailedMip = 0,
+                .MipLevels = 1,
+                .PlaneSlice = 0,
+                .ResourceMinLODClamp = 0.0f
+            }
+        };
+        auto srv_id = m_heap_bindless->alloc_descriptor(ResourceType::buffer);
+        auto srv_descriptor = m_heap_bindless->fetch_cpu_handle(srv_id);
+        device->CreateShaderResourceView(resource->handle.Get(), &srv_desc, srv_descriptor);
+        srv_id.is_loaded = true;
+
+        // Create RTV
+        D3D12_RENDER_TARGET_VIEW_DESC rtv_desc = {
+            .Format = resource_desc.Format,
+            .ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D,
+            .Texture2D = {
+                .MipSlice = 0,
+                .PlaneSlice = 0,
+            }
+        };
+        auto rtv_id = m_heap_rtv->alloc_descriptor(ResourceType::texture);
+        auto rtv_descriptor = m_heap_rtv->fetch_cpu_handle(rtv_id);
+        device->CreateRenderTargetView(resource->handle.Get(), &rtv_desc, rtv_descriptor);
+        rtv_id.is_loaded = true;
+
+        m_resource_name_map[name] = srv_id;
+        m_resources[srv_id.id] = resource;
+
+        return ResourceHandlePair{ srv_id, resource };
+    }
+
     void Device::unload_bindless_resource(ResourceHandle id) {
         m_heap_bindless->free_descriptor(id);
     }

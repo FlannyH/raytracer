@@ -70,6 +70,7 @@ namespace gfx {
         ResourceHandlePair load_mesh(const std::string& name, uint64_t n_triangles, Triangle* tris);
         ResourceHandlePair create_scene_graph_from_gltf(const std::string& path);
         ResourceHandlePair create_buffer(const std::string& name, size_t size, void* data);
+        ResourceHandlePair create_render_target(const std::string& name, uint32_t width, uint32_t height, PixelFormat pixel_format);
         void unload_bindless_resource(ResourceHandle id);
 
     public:
