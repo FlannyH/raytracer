@@ -189,6 +189,7 @@ namespace gfx {
                     .StateAfter = D3D12_RESOURCE_STATE_ALL_SHADER_RESOURCE,
                 },
             };
+            m_curr_pass_cmd->get()->ResourceBarrier(1, &render_target_barrier);
             m_curr_render_target.reset();
         }
         m_curr_bound_pipeline.reset();
