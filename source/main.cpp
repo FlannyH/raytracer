@@ -1,26 +1,19 @@
-#include "device.h"
 #include "buffer.h"
 #include <glm/gtx/transform.hpp>
 #include "input.h"
 #include "scene.h"
+#include "renderer.h"
 
 int main(int n_args, char** args) {
-    const auto device = std::make_unique<gfx::Device>(1280, 720, true);
-    device->init_context();
-    const auto pipeline = device->create_raster_pipeline("assets/shaders/test.vs.hlsl", "assets/shaders/test.ps.hlsl");
-
-    printf("Renderer initialized!\n");
-
-    auto scene = device->create_scene_graph_from_gltf("assets/models/hierarchy2.gltf");
-    auto texture1 = device->load_texture("assets/textures/test.png");
-    auto render_target = device->create_render_target("offscreen target", 512, 512, gfx::PixelFormat::rgba_8);
+    const auto renderer = std::make_unique<gfx::Renderer>(1280, 720, true);
+    auto scene = renderer->load_scene_gltf("assets/models/hierarchy2.gltf");
 
     gfx::Transform camera;
     glm::vec3 camera_euler_angles(0.0f);
     float move_speed = 0.01f;
     float mouse_sensitivity = 0.004f;
 
-    while (device->should_stay_open()) {
+    while (renderer->should_stay_open()) {
         input::update();
 
         if (input::key_held(input::Key::w)) camera.position += camera.forward_vector() * move_speed;
@@ -37,13 +30,11 @@ int main(int n_args, char** args) {
             camera.rotation = glm::quat(camera_euler_angles);
         }
 
-        device->begin_frame();
-        device->begin_raster_pass(pipeline, gfx::RasterPassInfo{
-            .color_target = render_target.handle
-        });
-        device->set_camera(camera);
-        device->draw_scene(scene.handle);
-        device->end_raster_pass();
-        device->end_frame();
+        renderer->begin_frame();
+        
+        renderer->set_camera(camera);
+        renderer->draw_scene(scene);
+        
+        renderer->end_frame();
     }
 }
