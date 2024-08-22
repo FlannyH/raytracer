@@ -44,10 +44,6 @@ int main(int n_args, char** args) {
         device->set_camera(camera);
         device->draw_scene(scene.handle);
         device->end_raster_pass();
-        device->begin_raster_pass(pipeline, gfx::RasterPassInfo{
-            .color_target = gfx::ResourceHandle::none()
-        });
-        device->end_raster_pass();
         device->end_frame();
     }
 }

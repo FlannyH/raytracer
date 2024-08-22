@@ -180,6 +180,9 @@ namespace gfx {
                 .bottom = (LONG)texture->expect_texture().height,
             };
             m_curr_pass_cmd->get()->RSSetScissorRects(1, &scissor);
+            if (render_pass_info.clear_on_begin) {
+                m_curr_pass_cmd->get()->ClearRenderTargetView(color_target, &texture->expect_texture().clear_color.x, 0, nullptr);
+            }
         }
     }
 
@@ -484,7 +487,7 @@ namespace gfx {
         return ResourceHandlePair{ id, resource };
     }
 
-    ResourceHandlePair Device::create_render_target(const std::string& name, uint32_t width, uint32_t height, PixelFormat pixel_format) {
+    ResourceHandlePair Device::create_render_target(const std::string& name, uint32_t width, uint32_t height, PixelFormat pixel_format, glm::vec4 clear_color) {
         // Make texture resource
         const auto resource = std::make_shared<Resource>();
         *resource = {
@@ -494,6 +497,7 @@ namespace gfx {
                 .width = width,
                 .height = height,
                 .pixel_format = DXGI_FORMAT_R8G8B8A8_UNORM,
+                .clear_color = clear_color,
                 .rtv_handle = ResourceHandle::none(),
                 .dsv_handle = ResourceHandle::none(),
             }
@@ -513,6 +517,10 @@ namespace gfx {
         resource_desc.SampleDesc.Count = 1;
         resource_desc.Flags = D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
         resource_desc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
+        D3D12_CLEAR_VALUE clear_value = {
+            .Format = resource_desc.Format,
+            .Color = { clear_color.r, clear_color.g, clear_color.b, clear_color.a },
+        };
 
         // Create resource
         D3D12_HEAP_PROPERTIES heap_properties = {};
@@ -522,7 +530,7 @@ namespace gfx {
             D3D12_HEAP_FLAG_NONE,
             &resource_desc,
             D3D12_RESOURCE_STATE_COMMON,
-            nullptr,
+            &clear_value,
             IID_PPV_ARGS(&resource->handle)
         ));
         resource->current_state = D3D12_RESOURCE_STATE_COMMON;

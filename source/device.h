@@ -41,6 +41,7 @@ namespace gfx {
 
     struct RasterPassInfo {
         ResourceHandle color_target; // If the ResourceHandle has type `none`, it will instead use the swapchain framebuffer as a color target
+        bool clear_on_begin = true;
     };
 
     struct Device {
@@ -70,7 +71,7 @@ namespace gfx {
         ResourceHandlePair load_mesh(const std::string& name, uint64_t n_triangles, Triangle* tris);
         ResourceHandlePair create_scene_graph_from_gltf(const std::string& path);
         ResourceHandlePair create_buffer(const std::string& name, size_t size, void* data);
-        ResourceHandlePair create_render_target(const std::string& name, uint32_t width, uint32_t height, PixelFormat pixel_format);
+        ResourceHandlePair create_render_target(const std::string& name, uint32_t width, uint32_t height, PixelFormat pixel_format, glm::vec4 clear_color = { 0.0f, 0.0f, 0.0f, 1.0f });
         void unload_bindless_resource(ResourceHandle id);
         void transition_resource(CommandBuffer* cmd, Resource* resource, D3D12_RESOURCE_STATES new_state);
 

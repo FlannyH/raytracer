@@ -63,14 +63,18 @@ namespace gfx {
 
     void Swapchain::prepare_render(std::shared_ptr<CommandBuffer> command_buffer) {
         // todo: figure out a way to use transition_resource() for this in a nice way
-        D3D12_RESOURCE_BARRIER render_target_barrier;
-        render_target_barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
-        render_target_barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
-        render_target_barrier.Transition.pResource = curr_framebuffer().Get();
-        render_target_barrier.Transition.StateBefore = m_render_target_states[framebuffer_index()];
-        render_target_barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_RENDER_TARGET;
-        render_target_barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
-        m_render_target_states[framebuffer_index()] = D3D12_RESOURCE_STATE_RENDER_TARGET;
+        auto cmd = command_buffer->get();
+        if (m_render_target_states[framebuffer_index()] != D3D12_RESOURCE_STATE_RENDER_TARGET) {
+            D3D12_RESOURCE_BARRIER render_target_barrier;
+            render_target_barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+            render_target_barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
+            render_target_barrier.Transition.pResource = curr_framebuffer().Get();
+            render_target_barrier.Transition.StateBefore = m_render_target_states[framebuffer_index()];
+            render_target_barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_RENDER_TARGET;
+            render_target_barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+            m_render_target_states[framebuffer_index()] = D3D12_RESOURCE_STATE_RENDER_TARGET;
+            cmd->ResourceBarrier(1, &render_target_barrier);
+        }
 
         const auto viewport = D3D12_VIEWPORT {
             .TopLeftX = 0.0f,
@@ -90,8 +94,6 @@ namespace gfx {
 
         const float clear_color[4] = {0.0f, 0.0f, 0.0f, 1.0f};
 
-        auto cmd = command_buffer->get();
-        cmd->ResourceBarrier(1, &render_target_barrier);
         cmd->OMSetRenderTargets(1, &m_render_target_views[framebuffer_index()], FALSE, nullptr);
         cmd->RSSetViewports(1, &viewport);
         cmd->RSSetScissorRects(1, &scissor_rect);
@@ -104,17 +106,18 @@ namespace gfx {
 
     void Swapchain::prepare_present(std::shared_ptr<CommandBuffer> command_buffer) {
         // todo: figure out a way to use transition_resource() for this in a nice way
-        D3D12_RESOURCE_BARRIER present_barrier;
-        present_barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
-        present_barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
-        present_barrier.Transition.pResource = curr_framebuffer().Get();
-        present_barrier.Transition.StateBefore = m_render_target_states[framebuffer_index()];
-        present_barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_PRESENT;
-        present_barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
-        m_render_target_states[framebuffer_index()] = D3D12_RESOURCE_STATE_PRESENT;
-
-        auto cmd = command_buffer->get();
-        cmd->ResourceBarrier(1, &present_barrier);
+        if (m_render_target_states[framebuffer_index()] != D3D12_RESOURCE_STATE_PRESENT) {
+            auto cmd = command_buffer->get();
+            D3D12_RESOURCE_BARRIER present_barrier;
+            present_barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+            present_barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
+            present_barrier.Transition.pResource = curr_framebuffer().Get();
+            present_barrier.Transition.StateBefore = m_render_target_states[framebuffer_index()];
+            present_barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_PRESENT;
+            present_barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+            m_render_target_states[framebuffer_index()] = D3D12_RESOURCE_STATE_PRESENT;
+            cmd->ResourceBarrier(1, &present_barrier);
+        }
     }
 
     void Swapchain::synchronize(std::shared_ptr<CommandQueue> queue) {
