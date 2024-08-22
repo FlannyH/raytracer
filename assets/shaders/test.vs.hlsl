@@ -35,8 +35,6 @@ struct VertexOut {
     float2 texcoord0 : TEXCOORD0;
 };
 
-#define MASK_ID ((1 << 27) - 1)
-
 float4 main(in uint vertex_index : SV_VertexID, out VertexOut output) : SV_POSITION {
     ByteAddressBuffer packet_buffer = ResourceDescriptorHeap[NonUniformResourceIndex(root_constants.packet_buffer.id)];
     DrawMeshPacket draw_packet = packet_buffer.Load<DrawMeshPacket>(root_constants.draw_mesh_packet_offset);
