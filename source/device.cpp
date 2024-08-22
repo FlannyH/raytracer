@@ -135,16 +135,6 @@ namespace gfx {
         glfwSwapBuffers(m_window_glfw);
     }
 
-    // todo: maybe make separate camera struct that holds the transform, fov, near and far plane, and also caches its matrices?
-    void Device::set_camera(Transform& transform) {
-        DrawPacket packet;
-        packet.camera_matrices = {
-            .view_matrix = transform.as_view_matrix(),
-            .projection_matrix = glm::perspectiveFov(glm::radians(70.f), (float)m_swapchain->width(), (float)m_swapchain->height(), 0.1f, 1000.0f),
-        };
-        m_camera_matrices_offset = create_draw_packet(packet);
-    }
-
     void Device::begin_raster_pass(std::shared_ptr<Pipeline> pipeline, RasterPassInfo&& render_pass_info) {
         // Create command buffer for this pass
         m_curr_bound_pipeline = pipeline;

@@ -56,7 +56,6 @@ namespace gfx {
         void set_full_screen(bool full_screen);
         void begin_frame();
         void end_frame();
-        void set_camera(Transform& transform);
 
         // Rasterization
         std::shared_ptr<Pipeline> create_raster_pipeline(const std::string& vertex_shader_path, const std::string& pixel_shader_path);
