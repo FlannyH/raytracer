@@ -72,6 +72,7 @@ namespace gfx {
         ResourceHandlePair create_buffer(const std::string& name, size_t size, void* data);
         ResourceHandlePair create_render_target(const std::string& name, uint32_t width, uint32_t height, PixelFormat pixel_format);
         void unload_bindless_resource(ResourceHandle id);
+        void transition_resource(CommandBuffer* cmd, Resource* resource, D3D12_RESOURCE_STATES new_state);
 
     public:
         ComPtr<ID3D12Device> device = nullptr;

@@ -5,7 +5,7 @@
 #include "scene.h"
 
 int main(int n_args, char** args) {
-    const auto device = std::make_unique<gfx::Device>(1280, 720, false);
+    const auto device = std::make_unique<gfx::Device>(1280, 720, true);
     device->init_context();
     const auto pipeline = device->create_raster_pipeline("assets/shaders/test.vs.hlsl", "assets/shaders/test.ps.hlsl");
 
@@ -13,6 +13,7 @@ int main(int n_args, char** args) {
 
     auto scene = device->create_scene_graph_from_gltf("assets/models/hierarchy2.gltf");
     auto texture1 = device->load_texture("assets/textures/test.png");
+    auto render_target = device->create_render_target("offscreen target", 512, 512, gfx::PixelFormat::rgba_8);
 
     gfx::Transform camera;
     glm::vec3 camera_euler_angles(0.0f);
@@ -38,10 +39,14 @@ int main(int n_args, char** args) {
 
         device->begin_frame();
         device->begin_raster_pass(pipeline, gfx::RasterPassInfo{
-            .color_target = gfx::ResourceHandle::none()
+            .color_target = render_target.handle
         });
         device->set_camera(camera);
         device->draw_scene(scene.handle);
+        device->end_raster_pass();
+        device->begin_raster_pass(pipeline, gfx::RasterPassInfo{
+            .color_target = gfx::ResourceHandle::none()
+        });
         device->end_raster_pass();
         device->end_frame();
     }

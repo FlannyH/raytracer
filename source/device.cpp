@@ -154,24 +154,32 @@ namespace gfx {
         if ((ResourceType)render_pass_info.color_target.type == ResourceType::none) {
             m_swapchain->prepare_render(m_curr_pass_cmd);
         }
-        // Otherwise, if the color target is a texture, transition the texture to render target
+        // Otherwise, if the color target is a texture, transition the texture to render target, and then bind it
         else {
             auto& texture = m_resources.at(render_pass_info.color_target.id);
             auto gfx_cmd = m_curr_pass_cmd->get();
 
-            const D3D12_RESOURCE_BARRIER render_target_barrier = {
-                .Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION,
-                .Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE,
-                .Transition = {
-                    .pResource = texture->handle.Get(),
-                    .Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES,
-                    .StateBefore = D3D12_RESOURCE_STATE_ALL_SHADER_RESOURCE,
-                    .StateAfter = D3D12_RESOURCE_STATE_RENDER_TARGET,
-                },
-            };
-            gfx_cmd->ResourceBarrier(1, &render_target_barrier);
+            transition_resource(m_curr_pass_cmd.get(), texture.get(), D3D12_RESOURCE_STATE_RENDER_TARGET);
             m_curr_render_target = texture;
                 
+            auto color_target = m_heap_rtv->fetch_cpu_handle(texture->expect_texture().rtv_handle);
+            m_curr_pass_cmd->get()->OMSetRenderTargets(1, &color_target, false, NULL);
+            D3D12_VIEWPORT viewport{
+                .TopLeftX = 0.0f,
+                .TopLeftY = 0.0f,
+                .Width = (float)texture->expect_texture().width,
+                .Height = (float)texture->expect_texture().height,
+                .MinDepth = 0.0f,
+                .MaxDepth = 1.0f,
+            };
+            m_curr_pass_cmd->get()->RSSetViewports(1, &viewport);
+            D3D12_RECT scissor{
+                .left = 0,
+                .top = 0,
+                .right = (LONG)texture->expect_texture().width,
+                .bottom = (LONG)texture->expect_texture().height,
+            };
+            m_curr_pass_cmd->get()->RSSetScissorRects(1, &scissor);
         }
     }
 
@@ -179,20 +187,8 @@ namespace gfx {
         // If the current render target wasn't the swapchain, the m_curr_render_target pointer is not null
         // In this case, transition it back to a shader resource, so we can run compute shaders on it if we want, or blit it to the swapchain
         if (m_curr_render_target.get() != nullptr) {
-            const D3D12_RESOURCE_BARRIER render_target_barrier = {
-                .Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION,
-                .Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE,
-                .Transition = {
-                    .pResource = m_curr_render_target->handle.Get(),
-                    .Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES,
-                    .StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET,
-                    .StateAfter = D3D12_RESOURCE_STATE_ALL_SHADER_RESOURCE,
-                },
-            };
-            m_curr_pass_cmd->get()->ResourceBarrier(1, &render_target_barrier);
-            m_curr_render_target.reset();
+            transition_resource(m_curr_pass_cmd.get(), m_curr_render_target.get(), D3D12_RESOURCE_STATE_COMMON);
         }
-        m_curr_bound_pipeline.reset();
     }
 
     void Device::draw_mesh(DrawPacket&& draw_info) {
@@ -478,6 +474,7 @@ namespace gfx {
 
         auto name_str = std::wstring(name.begin(), name.end());
         resource->handle->SetName(name_str.c_str());
+        resource->name = name;
 
         // Store the resource data in the device struct
         id.is_loaded = true;
@@ -497,6 +494,8 @@ namespace gfx {
                 .width = width,
                 .height = height,
                 .pixel_format = DXGI_FORMAT_R8G8B8A8_UNORM,
+                .rtv_handle = ResourceHandle::none(),
+                .dsv_handle = ResourceHandle::none(),
             }
         };
 
@@ -522,10 +521,14 @@ namespace gfx {
             &heap_properties,
             D3D12_HEAP_FLAG_NONE,
             &resource_desc,
-            D3D12_RESOURCE_STATE_ALL_SHADER_RESOURCE,
+            D3D12_RESOURCE_STATE_COMMON,
             nullptr,
             IID_PPV_ARGS(&resource->handle)
         ));
+        resource->current_state = D3D12_RESOURCE_STATE_COMMON;
+        auto name_str = std::wstring(name.begin(), name.end());
+        resource->handle->SetName(name_str.c_str());
+        resource->name = name;
 
         // todo: make this its own function or combine this function using some type of flag, I've repeated this 3 times now
         // Create SRV
@@ -558,6 +561,7 @@ namespace gfx {
         auto rtv_descriptor = m_heap_rtv->fetch_cpu_handle(rtv_id);
         device->CreateRenderTargetView(resource->handle.Get(), &rtv_desc, rtv_descriptor);
         rtv_id.is_loaded = true;
+        resource->expect_texture().rtv_handle = rtv_id;
 
         m_resource_name_map[name] = srv_id;
         m_resources[srv_id.id] = resource;
@@ -567,6 +571,23 @@ namespace gfx {
 
     void Device::unload_bindless_resource(ResourceHandle id) {
         m_heap_bindless->free_descriptor(id);
+    }
+
+    void Device::transition_resource(CommandBuffer* cmd, Resource* resource, D3D12_RESOURCE_STATES new_state) {
+        if (resource->current_state == new_state) return;
+
+        const D3D12_RESOURCE_BARRIER barrier = {
+            .Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION,
+            .Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE,
+            .Transition = {
+                .pResource = resource->handle.Get(),
+                .Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES,
+                .StateBefore = resource->current_state,
+                .StateAfter = new_state,
+            },
+        };
+        cmd->get()->ResourceBarrier(1, &barrier);
+        resource->current_state = new_state;
     }
 
     bool Device::should_stay_open() {

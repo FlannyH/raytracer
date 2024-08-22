@@ -53,3 +53,4 @@ inline void read_file(const std::string& path, size_t& size_bytes, char*& data, 
     }
     memcpy(data, buffer.data(), size_bytes);
 }
+

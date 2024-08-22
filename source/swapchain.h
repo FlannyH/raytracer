@@ -41,6 +41,7 @@ namespace gfx {
         ComPtr<IDXGISwapChain3> m_swapchain = nullptr;
         ComPtr<ID3D12Resource> m_render_targets[backbuffer_count] = {};
         D3D12_CPU_DESCRIPTOR_HANDLE m_render_target_views[backbuffer_count] = {};
+        D3D12_RESOURCE_STATES m_render_target_states[backbuffer_count] = {};
         std::shared_ptr<Fence> m_fence;
         int m_frame_wait_values[backbuffer_count]{};
         int m_frame_index = 0;
