@@ -25,6 +25,8 @@ namespace gfx {
         int x = 0;
         int y = 0;
         m_device->get_window_size(x, y);
+        if (x < 8) x = 8;
+        if (y < 8) y = 8;
         m_resolution.x = (float)x;
         m_resolution.y = (float)y;
         m_device->begin_frame();
