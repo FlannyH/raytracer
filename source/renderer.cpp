@@ -51,7 +51,9 @@ namespace gfx {
     void Renderer::end_frame() {
         // Render scene
         m_device->begin_raster_pass(m_pipeline_scene, RasterPassInfo{
-            .color_target = m_color_target,
+            .color_targets = {
+                m_color_target,
+            },
             .depth_target = m_depth_target,
             .clear_on_begin = true,
         });
@@ -62,7 +64,7 @@ namespace gfx {
 
         // Final blit
         m_device->begin_raster_pass(m_pipeline_final_blit, RasterPassInfo{
-            .color_target = ResourceHandle::none(), // render to swapchain
+            .color_targets = {}, // render to swapchain
             .clear_on_begin = false, // We're blitting to the entire buffer, no need to clear first
         });
         m_device->set_root_constants({

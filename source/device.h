@@ -23,7 +23,7 @@ namespace gfx {
     struct Transform;
 
     struct RasterPassInfo {
-        ResourceHandle color_target; // If the ResourceHandle has type `none`, it will instead use the swapchain framebuffer as a color target
+        std::vector<ResourceHandle> color_targets; // If empty, it will instead use the swapchain framebuffer as a color target
         ResourceHandle depth_target; // Optional; passing `ResourceHandle::none()` will disable depth testing
         bool clear_on_begin = true;
     };
@@ -104,7 +104,7 @@ namespace gfx {
         ResourceHandlePair m_draw_packets{}; // Scratch buffer that is used to send draw info to the shader
         size_t m_draw_packet_cursor = 0;
         size_t m_camera_matrices_offset = 0;
-        std::shared_ptr<Resource> m_curr_render_target = nullptr;
+        std::vector<std::shared_ptr<Resource>> m_curr_render_targets;
         std::shared_ptr<Resource> m_curr_depth_target = nullptr;
     };
 };

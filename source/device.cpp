@@ -160,11 +160,11 @@ namespace gfx {
         D3D12_RECT scissor{};
         bool have_rtv = false;
         bool have_dsv = false;
-        D3D12_CPU_DESCRIPTOR_HANDLE rtv_handle{};
+        std::vector<D3D12_CPU_DESCRIPTOR_HANDLE> rtv_handles;
         D3D12_CPU_DESCRIPTOR_HANDLE dsv_handle{};
 
         // If the color target is the swapchain, prepare the swapchain for that
-        if ((ResourceType)render_pass_info.color_target.type != ResourceType::texture) {
+        if (render_pass_info.color_targets.empty()) {
             m_swapchain->prepare_render(m_curr_pass_cmd);
             viewport = {
                 .TopLeftX = 0.0f,
@@ -180,35 +180,39 @@ namespace gfx {
                 .right = (LONG)m_width,
                 .bottom = (LONG)m_height,
             };
-            rtv_handle = m_swapchain->curr_framebuffer_rtv();
+            rtv_handles.push_back(m_swapchain->curr_framebuffer_rtv());
             have_rtv = true;
         }
 
         // Otherwise, if the color target is a texture, transition the texture to render target, and then bind it
+
         else {
-            auto& texture = m_resources.at(render_pass_info.color_target.id);
-            auto gfx_cmd = m_curr_pass_cmd->get();
+            for (auto& color_target : render_pass_info.color_targets) {
+                auto& texture = m_resources.at(color_target.id);
+                auto gfx_cmd = m_curr_pass_cmd->get();
 
-            transition_resource(m_curr_pass_cmd.get(), texture.get(), D3D12_RESOURCE_STATE_RENDER_TARGET);
-            m_curr_render_target = texture;
-            rtv_handle = m_heap_rtv->fetch_cpu_handle(texture->expect_texture().rtv_handle);
+                transition_resource(m_curr_pass_cmd.get(), texture.get(), D3D12_RESOURCE_STATE_RENDER_TARGET);
+                m_curr_render_targets.push_back(texture);
+                auto rtv_handle = m_heap_rtv->fetch_cpu_handle(texture->expect_texture().rtv_handle);
+                rtv_handles.push_back(rtv_handle);
 
-            viewport = {
-                .TopLeftX = 0.0f,
-                .TopLeftY = 0.0f,
-                .Width = (FLOAT)texture->expect_texture().width,
-                .Height = (FLOAT)texture->expect_texture().height,
-                .MinDepth = 0.0f,
-                .MaxDepth = 1.0f,
-            };
-            scissor = {
-                .left = 0,
-                .top = 0,
-                .right = (LONG)texture->expect_texture().width,
-                .bottom = (LONG)texture->expect_texture().height,
-            };
-            if (render_pass_info.clear_on_begin) {
-                m_curr_pass_cmd->get()->ClearRenderTargetView(rtv_handle, &texture->expect_texture().clear_color.x, 0, nullptr);
+                viewport = {
+                    .TopLeftX = 0.0f,
+                    .TopLeftY = 0.0f,
+                    .Width = (FLOAT)texture->expect_texture().width,
+                    .Height = (FLOAT)texture->expect_texture().height,
+                    .MinDepth = 0.0f,
+                    .MaxDepth = 1.0f,
+                };
+                scissor = {
+                    .left = 0,
+                    .top = 0,
+                    .right = (LONG)texture->expect_texture().width,
+                    .bottom = (LONG)texture->expect_texture().height,
+                };
+                if (render_pass_info.clear_on_begin) {
+                    m_curr_pass_cmd->get()->ClearRenderTargetView(rtv_handle, &texture->expect_texture().clear_color.x, 0, nullptr);
+                }
             }
             have_rtv = true;
         }
@@ -229,8 +233,8 @@ namespace gfx {
         m_curr_pass_cmd->get()->RSSetViewports(1, &viewport);
         m_curr_pass_cmd->get()->RSSetScissorRects(1, &scissor);
         m_curr_pass_cmd->get()->OMSetRenderTargets(
-            have_rtv ? 1 : 0,
-            have_rtv ? &rtv_handle : nullptr, 
+            have_rtv ? rtv_handles.size() : 0,
+            have_rtv ? rtv_handles.data() : nullptr,
             false, 
             have_dsv ? &dsv_handle : nullptr
         );
@@ -239,10 +243,10 @@ namespace gfx {
     void Device::end_raster_pass() {
         // If the current render target wasn't the swapchain, the m_curr_render_target pointer is not null
         // In this case, transition it back to a shader resource, so we can run compute shaders on it if we want, or blit it to the swapchain
-        if (m_curr_render_target.get() != nullptr) {
-            transition_resource(m_curr_pass_cmd.get(), m_curr_render_target.get(), D3D12_RESOURCE_STATE_COMMON);
-            m_curr_render_target = nullptr;
+        for (auto& render_target : m_curr_render_targets) {
+            transition_resource(m_curr_pass_cmd.get(), render_target.get(), D3D12_RESOURCE_STATE_COMMON);
         }
+        m_curr_render_targets.clear();
 
         if (m_curr_depth_target.get() != nullptr) {
             transition_resource(m_curr_pass_cmd.get(), m_curr_depth_target.get(), D3D12_RESOURCE_STATE_COMMON);
