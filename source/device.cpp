@@ -133,6 +133,14 @@ namespace gfx {
         glfwSwapBuffers(m_window_glfw);
     }
 
+    void Device::set_root_constants(const std::vector<uint32_t>& constants) {
+        auto gfx_cmd = m_curr_pass_cmd->get();
+        UINT index = 0;
+        for (const auto& constant : constants) {
+            gfx_cmd->SetGraphicsRoot32BitConstant(0, constant, index++);
+        }
+    }
+
     void Device::begin_raster_pass(std::shared_ptr<Pipeline> pipeline, RasterPassInfo&& render_pass_info) {
         // Create command buffer for this pass
         m_curr_bound_pipeline = pipeline;
