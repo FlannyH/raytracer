@@ -9,8 +9,12 @@ namespace gfx {
         m_device = std::make_unique<Device>(width, height, debug_layer_enabled);
         m_pipeline_scene = m_device->create_raster_pipeline("assets/shaders/test.vs.hlsl", "assets/shaders/test.ps.hlsl");
         m_pipeline_final_blit = m_device->create_raster_pipeline("assets/shaders/fullscreen_quad.vs.hlsl", "assets/shaders/final_blit.ps.hlsl");
-        m_color_target = m_device->create_render_target("Color framebuffer", 256, 192, PixelFormat::rgba_8).handle;
-        m_depth_target = m_device->create_depth_target("Depth framebuffer", 256, 192, PixelFormat::depth_f32).handle;
+        m_color_target = m_device->create_render_target("Color framebuffer", width, height, PixelFormat::rgba_8).handle;
+        m_normal_target = m_device->create_render_target("Normal framebuffer", width,height, PixelFormat::rgba_8).handle;
+        m_roughness_target = m_device->create_render_target("Roughness framebuffer", width, height, PixelFormat::rgba_8).handle;
+        m_metallic_target = m_device->create_render_target("Metallic framebuffer", width, height, PixelFormat::rgba_8).handle;
+        m_emissive_target = m_device->create_render_target("Emissive framebuffer", width, height, PixelFormat::rgba_8).handle;
+        m_depth_target = m_device->create_depth_target("Depth framebuffer", width, height, PixelFormat::depth_f32).handle;
     }
 
     // Common rendering
@@ -39,6 +43,10 @@ namespace gfx {
         m_render_resolution = m_resolution * resolution_scale;
         if (m_render_resolution != prev_render_resolution) {
             resize_texture(m_color_target, m_render_resolution.x, m_render_resolution.y);
+            resize_texture(m_normal_target, m_render_resolution.x, m_render_resolution.y);
+            resize_texture(m_roughness_target, m_render_resolution.x, m_render_resolution.y);
+            resize_texture(m_metallic_target, m_render_resolution.x, m_render_resolution.y);
+            resize_texture(m_emissive_target, m_render_resolution.x, m_render_resolution.y);
             resize_texture(m_depth_target, m_render_resolution.x, m_render_resolution.y);
         }
 
@@ -53,6 +61,10 @@ namespace gfx {
         m_device->begin_raster_pass(m_pipeline_scene, RasterPassInfo{
             .color_targets = {
                 m_color_target,
+                m_normal_target,
+                m_roughness_target, 
+                m_metallic_target, 
+                m_emissive_target,
             },
             .depth_target = m_depth_target,
             .clear_on_begin = true,

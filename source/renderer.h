@@ -24,6 +24,10 @@ namespace gfx {
     private:
         std::unique_ptr<Device> m_device;
         ResourceHandle m_color_target = ResourceHandle::none();
+        ResourceHandle m_normal_target = ResourceHandle::none();
+        ResourceHandle m_roughness_target = ResourceHandle::none();
+        ResourceHandle m_metallic_target = ResourceHandle::none();
+        ResourceHandle m_emissive_target = ResourceHandle::none();
         ResourceHandle m_depth_target = ResourceHandle::none();
         glm::vec2 m_resolution = { 0.0f, 0.0f };
         glm::vec2 m_render_resolution = { 0.0f, 0.0f };
