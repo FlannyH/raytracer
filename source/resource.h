@@ -12,10 +12,12 @@ namespace gfx {
 
     enum class PixelFormat {
         none = 0,
-        r_8,
-        rg_8,
-        rgba_8,
-        depth_f32,
+        r8_unorm,
+        rg8_unorm,
+        rgba8_unorm,
+        rg11_b10_float,
+        rgba16_float,
+        depth32_foat,
     };
 
     // General
@@ -78,7 +80,7 @@ namespace gfx {
         {
         case PixelFormat::none:
             return 0;
-        case PixelFormat::rgba_8:
+        case PixelFormat::rgba8_unorm:
             return 4;
         }
         return 0;
@@ -133,10 +135,12 @@ namespace gfx {
 
     inline DXGI_FORMAT pixel_format_to_dx12(PixelFormat format) {
         switch (format) {
-        case PixelFormat::r_8:       return DXGI_FORMAT_R8_UNORM;  break;
-        case PixelFormat::rg_8:       return DXGI_FORMAT_R8G8_UNORM;  break;
-        case PixelFormat::rgba_8:       return DXGI_FORMAT_R8G8B8A8_UNORM;  break;
-        case PixelFormat::depth_f32:    return DXGI_FORMAT_D32_FLOAT;       break;
+        case PixelFormat::r8_unorm:         return DXGI_FORMAT_R8_UNORM;            break;
+        case PixelFormat::rg8_unorm:        return DXGI_FORMAT_R8G8_UNORM;          break;
+        case PixelFormat::rgba8_unorm:      return DXGI_FORMAT_R8G8B8A8_UNORM;      break;
+        case PixelFormat::rg11_b10_float:   return DXGI_FORMAT_R11G11B10_FLOAT;     break;
+        case PixelFormat::rgba16_float:     return DXGI_FORMAT_R16G16B16A16_FLOAT;  break;
+        case PixelFormat::depth32_foat:     return DXGI_FORMAT_D32_FLOAT;           break;
         }
     }
 

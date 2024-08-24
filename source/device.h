@@ -89,7 +89,7 @@ namespace gfx {
         int m_pos_x_pre_fullscreen = 0;
         int m_pos_y_pre_fullscreen = 0;
         bool m_is_fullscreen = false;
-        PixelFormat m_framebuffer_format = PixelFormat::rgba_8;
+        PixelFormat m_framebuffer_format = PixelFormat::rgba8_unorm;
 
         // Resource management
         std::unordered_map<uint64_t, std::shared_ptr<Resource>> m_resources; // Maps linking resource IDs and actual resource data

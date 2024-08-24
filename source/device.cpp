@@ -338,7 +338,7 @@ namespace gfx {
         int width, height, channels;
         uint8_t* data = stbi_load(path.c_str(), &width, &height, &channels, 4);
 
-        return load_texture(path, width, height, data, PixelFormat::rgba_8);
+        return load_texture(path, width, height, data, PixelFormat::rgba8_unorm);
     }
 
     ResourceHandlePair Device::load_texture(const std::string& name, uint32_t width, uint32_t height, void* data, PixelFormat pixel_format) {
