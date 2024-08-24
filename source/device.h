@@ -60,13 +60,13 @@ namespace gfx {
         ResourceHandlePair create_depth_target(const std::string& name, uint32_t width, uint32_t height, PixelFormat pixel_format, float clear_value = 1.0f);
         void resize_texture(ResourceHandle& texture, const uint32_t width, const uint32_t height);
         void unload_bindless_resource(ResourceHandle id);
-        void transition_resource(CommandBuffer* cmd, Resource* resource, D3D12_RESOURCE_STATES new_state);
 
         ComPtr<ID3D12Device> device = nullptr;
         ComPtr<IDXGIFactory4> factory = nullptr;
         HWND window_hwnd = nullptr;
 
     private:
+        void transition_resource(CommandBuffer* cmd, Resource* resource, D3D12_RESOURCE_STATES new_state);
         int find_dominant_monitor(); // Returns the index of the monitor the window overlaps with most
         void clean_up_old_resources();
         void traverse_scene(SceneNode* node);
