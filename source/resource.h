@@ -10,6 +10,12 @@
 namespace gfx {
     struct SceneNode;
 
+    enum class PixelFormat {
+        none = 0,
+        rgba_8,
+        depth_f32,
+    };
+
     // General
     enum class ResourceType {
         none = 0,
@@ -36,7 +42,7 @@ namespace gfx {
                 .type = (uint32_t)ResourceType::none,
             };
         }
-        uint32_t as_u32() {
+        uint32_t as_u32() const {
             return id | is_loaded << 27 | type << 28;
         }
     };
@@ -44,7 +50,7 @@ namespace gfx {
     struct TextureResource {
         void* data;
         uint32_t width, height;
-        uint32_t pixel_format;
+        PixelFormat pixel_format;
         // Extra optional handles for render targets
         glm::vec4 clear_color;
         ResourceHandle rtv_handle;
@@ -63,12 +69,6 @@ namespace gfx {
     struct BufferWithOffset {
         ResourceHandle buffer;
         uint32_t offset;
-    };
-
-    enum class PixelFormat {
-        none = 0,
-        rgba_8,
-        depth_f32,
     };
 
     inline size_t size_per_pixel(const PixelFormat format) {

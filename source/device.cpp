@@ -322,12 +322,9 @@ namespace gfx {
                 .data = static_cast<uint8_t*>(data),
                 .width = width,
                 .height = height,
-                .pixel_format = DXGI_FORMAT_R8G8B8A8_UNORM,
+                .pixel_format = pixel_format,
             }
         };
-
-        // Get the pixel format
-        resource->expect_texture().pixel_format = pixel_format_to_dx12(pixel_format);
 
         // Create a d3d12 resource for the texture
         D3D12_RESOURCE_DESC resource_desc = {};
@@ -336,7 +333,7 @@ namespace gfx {
         resource_desc.Height = resource->expect_texture().height;
         resource_desc.DepthOrArraySize = 1;
         resource_desc.MipLevels = 1;
-        resource_desc.Format = static_cast<DXGI_FORMAT>(resource->expect_texture().pixel_format);
+        resource_desc.Format = pixel_format_to_dx12(pixel_format);
         resource_desc.SampleDesc.Count = 1;
         resource_desc.Flags = D3D12_RESOURCE_FLAG_NONE;
         resource_desc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
@@ -542,15 +539,12 @@ namespace gfx {
                 .data = nullptr,
                 .width = width,
                 .height = height,
-                .pixel_format = DXGI_FORMAT_R8G8B8A8_UNORM,
+                .pixel_format = pixel_format,
                 .clear_color = clear_color,
                 .rtv_handle = ResourceHandle::none(),
                 .dsv_handle = ResourceHandle::none(),
             }
         };
-
-        // Get the pixel format
-        resource->expect_texture().pixel_format = pixel_format_to_dx12(pixel_format);
 
         // Create a d3d12 resource for the texture
         D3D12_RESOURCE_DESC resource_desc = {};
@@ -559,7 +553,7 @@ namespace gfx {
         resource_desc.Height = resource->expect_texture().height;
         resource_desc.DepthOrArraySize = 1;
         resource_desc.MipLevels = 1;
-        resource_desc.Format = static_cast<DXGI_FORMAT>(resource->expect_texture().pixel_format);
+        resource_desc.Format = pixel_format_to_dx12(pixel_format);
         resource_desc.SampleDesc.Count = 1;
         resource_desc.Flags = D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
         resource_desc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
@@ -632,15 +626,12 @@ namespace gfx {
                 .data = nullptr,
                 .width = width,
                 .height = height,
-                .pixel_format = DXGI_FORMAT_D32_FLOAT,
+                .pixel_format = pixel_format,
                 .clear_color = glm::vec4(clear_depth, 0.0f, 0.0f, 1.0f),
                 .rtv_handle = ResourceHandle::none(),
                 .dsv_handle = ResourceHandle::none(),
             }
         };
-
-        // Get the pixel format
-        resource->expect_texture().pixel_format = pixel_format_to_dx12(pixel_format);
 
         // Create a d3d12 resource for the texture
         D3D12_RESOURCE_DESC resource_desc = {};
@@ -649,7 +640,7 @@ namespace gfx {
         resource_desc.Height = resource->expect_texture().height;
         resource_desc.DepthOrArraySize = 1;
         resource_desc.MipLevels = 1;
-        resource_desc.Format = static_cast<DXGI_FORMAT>(resource->expect_texture().pixel_format);
+        resource_desc.Format = pixel_format_to_dx12(pixel_format);
         resource_desc.SampleDesc.Count = 1;
         resource_desc.Flags = D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
         resource_desc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
