@@ -369,50 +369,52 @@ namespace gfx {
         device->CreateShaderResourceView(resource->handle.Get(), &srv_desc, descriptor);
 
         // We need to copy the texture from an upload buffer
-        const auto upload_buffer_id = create_buffer("Upload buffer", upload_size, data);
+        if (data) {
+            const auto upload_buffer_id = create_buffer("Upload buffer", upload_size, data);
 
-        const auto& upload_buffer = m_resources[static_cast<uint64_t>(upload_buffer_id.handle.id)];
+            const auto& upload_buffer = m_resources[static_cast<uint64_t>(upload_buffer_id.handle.id)];
 
-        void* mapped_buffer;
-        const D3D12_RANGE upload_range = { 0, upload_size };
-        validate(upload_buffer->handle->Map(0, &upload_range, &mapped_buffer));
-        memcpy(mapped_buffer, data, upload_size);
-        upload_buffer->handle->Unmap(0, &upload_range);
+            void* mapped_buffer;
+            const D3D12_RANGE upload_range = { 0, upload_size };
+            validate(upload_buffer->handle->Map(0, &upload_range, &mapped_buffer));
+            memcpy(mapped_buffer, data, upload_size);
+            upload_buffer->handle->Unmap(0, &upload_range);
 
-        const auto texture_size_box = D3D12_BOX {
-            .left = 0,
-            .top = 0,
-            .front = 0,
-            .right = width,
-            .bottom = height,
-            .back = 1,
-        };
+            const auto texture_size_box = D3D12_BOX{
+                .left = 0,
+                .top = 0,
+                .front = 0,
+                .right = width,
+                .bottom = height,
+                .back = 1,
+            };
 
-        const auto texture_copy_source = D3D12_TEXTURE_COPY_LOCATION {
-            .pResource = upload_buffer->handle.Get(),
-            .Type = D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT,
-            .PlacedFootprint = {
-                .Offset = 0,
-                .Footprint = {
-                    .Format = static_cast<DXGI_FORMAT>(resource->expect_texture().pixel_format),
-                    .Width = resource->expect_texture().width,
-                    .Height = resource->expect_texture().height,
-                    .Depth = 1,
-                    .RowPitch = resource->expect_texture().width * static_cast<uint32_t>(size_per_pixel(pixel_format)),
+            const auto texture_copy_source = D3D12_TEXTURE_COPY_LOCATION{
+                .pResource = upload_buffer->handle.Get(),
+                .Type = D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT,
+                .PlacedFootprint = {
+                    .Offset = 0,
+                    .Footprint = {
+                        .Format = static_cast<DXGI_FORMAT>(resource->expect_texture().pixel_format),
+                        .Width = resource->expect_texture().width,
+                        .Height = resource->expect_texture().height,
+                        .Depth = 1,
+                        .RowPitch = resource->expect_texture().width * static_cast<uint32_t>(size_per_pixel(pixel_format)),
+                    }
                 }
-            }
-        };
+            };
 
-        const auto texture_copy_dest = D3D12_TEXTURE_COPY_LOCATION {
-            .pResource = resource->handle.Get(),
-            .Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX,
-            .SubresourceIndex = 0,
-        };
+            const auto texture_copy_dest = D3D12_TEXTURE_COPY_LOCATION{
+                .pResource = resource->handle.Get(),
+                .Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX,
+                .SubresourceIndex = 0,
+            };
 
-        const auto upload_command_buffer = m_upload_queue->create_command_buffer(*this, nullptr, ++m_upload_fence_value_when_done);
-        const auto cmd = upload_command_buffer->get();
-        cmd->CopyTextureRegion(&texture_copy_dest, 0, 0, 0, &texture_copy_source, &texture_size_box);
-        validate(cmd->Close());
+            const auto upload_command_buffer = m_upload_queue->create_command_buffer(*this, nullptr, ++m_upload_fence_value_when_done);
+            const auto cmd = upload_command_buffer->get();
+            cmd->CopyTextureRegion(&texture_copy_dest, 0, 0, 0, &texture_copy_source, &texture_size_box);
+            validate(cmd->Close());
+        }
 
         id.is_loaded = true; // todo, only set this to true when the upload command buffer finished (when the fence value was reached)
 
