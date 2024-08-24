@@ -218,10 +218,10 @@ namespace gfx {
 
         char* mapped_buffer;
         const size_t start = m_draw_packet_cursor + DRAW_PACKET_BUFFER_SIZE * (m_swapchain->current_frame_index() % backbuffer_count);
-        const D3D12_RANGE write_range = { 0, 0 };
-        validate(m_draw_packets.resource->handle->Map(0, &write_range, (void**)&mapped_buffer));
+        const D3D12_RANGE read_range = { 0, 0 };
+        validate(m_draw_packets.resource->handle->Map(0, &read_range, (void**)&mapped_buffer));
         memcpy(mapped_buffer + start, data, size_bytes);
-        m_draw_packets.resource->handle->Unmap(0, &write_range);
+        m_draw_packets.resource->handle->Unmap(0, &read_range);
 
         // Return the byte offset of that draw packet, and update the cursor to the next entry, wrapping at the end
         add_and_align(m_draw_packet_cursor, size_bytes, (size_t)GPU_BUFFER_PREFERRED_ALIGNMENT);
