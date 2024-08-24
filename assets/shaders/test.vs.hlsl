@@ -48,9 +48,9 @@ float4 main(in uint vertex_index : SV_VertexID, out VertexOut output) : SV_POSIT
     float4 vert_pos = mul(draw_packet.model_transform, float4(vert.position, 1));
     vert_pos = mul(camera_matrices.view_matrix, vert_pos);
     vert_pos = mul(camera_matrices.projection_matrix, vert_pos);
-
+    
     output.color = vert.color;
-    output.normal = vert.normal;
+    output.normal = mul((float3x3)draw_packet.model_transform, vert.normal);
     output.tangent = vert.tangent;
     output.texcoord0 = vert.texcoord0;
     return vert_pos;

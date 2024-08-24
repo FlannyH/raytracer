@@ -56,7 +56,7 @@ PixelOut main(in float4 position : SV_Position, in VertexOut input)
         output.color *= tex_color;
     }
     
-    output.normal = float4(input.normal, 1.0f);
+    output.normal = float4((input.normal + 1.0) * 0.5, 1.0f);
     
     // todo: implement pbr
     output.roughness_metallic = float2(0.0f, 0.0f);
