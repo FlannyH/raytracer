@@ -68,6 +68,7 @@ namespace gfx {
     enum class PixelFormat {
         none = 0,
         rgba_8,
+        depth_f32,
     };
 
     inline size_t size_per_pixel(const PixelFormat format) {
@@ -130,9 +131,8 @@ namespace gfx {
 
     inline DXGI_FORMAT pixel_format_to_dx12(PixelFormat format) {
         switch (format) {
-        case PixelFormat::rgba_8:
-            return DXGI_FORMAT_R8G8B8A8_UNORM;
-            break;
+        case PixelFormat::rgba_8:       return DXGI_FORMAT_R8G8B8A8_UNORM;  break;
+        case PixelFormat::depth_f32:    return DXGI_FORMAT_D32_FLOAT;       break;
         }
     }
 

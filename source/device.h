@@ -55,6 +55,7 @@ namespace gfx {
         ResourceHandlePair create_scene_graph_from_gltf(const std::string& path);
         ResourceHandlePair create_buffer(const std::string& name, size_t size, void* data);
         ResourceHandlePair create_render_target(const std::string& name, uint32_t width, uint32_t height, PixelFormat pixel_format, glm::vec4 clear_color = { 0.0f, 0.0f, 0.0f, 1.0f });
+        ResourceHandlePair create_depth_target(const std::string& name, uint32_t width, uint32_t height, PixelFormat pixel_format, float clear_value = 1.0f);
         void unload_bindless_resource(ResourceHandle id);
         void transition_resource(CommandBuffer* cmd, Resource* resource, D3D12_RESOURCE_STATES new_state);
 
@@ -71,6 +72,7 @@ namespace gfx {
         ComPtr<ID3D12Debug1> m_debug_layer = nullptr;
         ComPtr<ID3D12DebugDevice> m_device_debug = nullptr;
         std::shared_ptr<DescriptorHeap> m_heap_rtv = nullptr;
+        std::shared_ptr<DescriptorHeap> m_heap_dsv = nullptr;
         std::shared_ptr<DescriptorHeap> m_heap_bindless = nullptr;
         std::shared_ptr<CommandQueue> m_queue_gfx = nullptr;
 
@@ -98,5 +100,6 @@ namespace gfx {
         size_t m_draw_packet_cursor = 0;
         size_t m_camera_matrices_offset = 0;
         std::shared_ptr<Resource> m_curr_render_target = nullptr;
+        std::shared_ptr<Resource> m_curr_depth_target = nullptr;
     };
 };

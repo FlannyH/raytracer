@@ -570,6 +570,85 @@ namespace gfx {
         return ResourceHandlePair{ srv_id, resource };
     }
 
+    ResourceHandlePair Device::create_depth_target(const std::string& name, uint32_t width, uint32_t height, PixelFormat pixel_format, float clear_depth) {
+        // Make texture resource
+        const auto resource = std::make_shared<Resource>();
+        *resource = {
+            .type = ResourceType::texture,
+            .texture_resource = {
+                .data = nullptr,
+                .width = width,
+                .height = height,
+                .pixel_format = DXGI_FORMAT_D32_FLOAT,
+                .clear_color = glm::vec4(clear_depth, 0.0f, 0.0f, 1.0f),
+                .rtv_handle = ResourceHandle::none(),
+                .dsv_handle = ResourceHandle::none(),
+            }
+        };
+
+        // Get the pixel format
+        resource->expect_texture().pixel_format = pixel_format_to_dx12(pixel_format);
+
+        // Create a d3d12 resource for the texture
+        D3D12_RESOURCE_DESC resource_desc = {};
+        resource_desc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+        resource_desc.Width = resource->expect_texture().width;
+        resource_desc.Height = resource->expect_texture().height;
+        resource_desc.DepthOrArraySize = 1;
+        resource_desc.MipLevels = 1;
+        resource_desc.Format = static_cast<DXGI_FORMAT>(resource->expect_texture().pixel_format);
+        resource_desc.SampleDesc.Count = 1;
+        resource_desc.Flags = D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
+        resource_desc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
+        D3D12_CLEAR_VALUE clear_value = {
+            .Format = resource_desc.Format,
+            .DepthStencil = {
+                .Depth = 1.0f,
+                .Stencil = 0,
+            }
+        };
+
+        // Create resource
+        D3D12_HEAP_PROPERTIES heap_properties = {};
+        heap_properties.Type = D3D12_HEAP_TYPE_DEFAULT;
+        validate(device->CreateCommittedResource(
+            &heap_properties,
+            D3D12_HEAP_FLAG_ALLOW_ALL_BUFFERS_AND_TEXTURES,
+            &resource_desc,
+            D3D12_RESOURCE_STATE_COMMON,
+            &clear_value,
+            IID_PPV_ARGS(&resource->handle)
+        ));
+        resource->current_state = D3D12_RESOURCE_STATE_COMMON;
+        auto name_str = std::wstring(name.begin(), name.end());
+        resource->handle->SetName(name_str.c_str());
+        resource->name = name;
+
+        // Allocate SRV id, so we can store it in the resources map
+        // However, since this is a depth texture, we can't actually create a SRV for this
+        auto srv_id = m_heap_bindless->alloc_descriptor(ResourceType::texture);
+
+        // Create DSV
+        D3D12_DEPTH_STENCIL_VIEW_DESC dsv_desc = {
+            .Format = resource_desc.Format,
+            .ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D,
+            .Flags = D3D12_DSV_FLAG_NONE,
+            .Texture2D = {
+                .MipSlice = 0,
+            }
+        };
+        auto dsv_id = m_heap_dsv->alloc_descriptor(ResourceType::texture);
+        auto dsv_descriptor = m_heap_dsv->fetch_cpu_handle(dsv_id);
+        device->CreateDepthStencilView(resource->handle.Get(), &dsv_desc, dsv_descriptor);
+        dsv_id.is_loaded = true;
+        resource->expect_texture().dsv_handle = dsv_id;
+
+        m_resource_name_map[name] = srv_id;
+        m_resources[srv_id.id] = resource;
+
+        return ResourceHandlePair{ srv_id, resource };
+    }
+
     void Device::unload_bindless_resource(ResourceHandle id) {
         m_heap_bindless->free_descriptor(id);
     }
