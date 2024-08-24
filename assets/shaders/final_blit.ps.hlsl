@@ -16,10 +16,11 @@ struct RootConstants
     ResourceHandle texture_to_blit;
 };
 
+sampler tex_sampler : register(s0);
 ConstantBuffer<RootConstants> root_constants : register(b0, space0);
 
-float4 main(in float4 position : SV_Position, in VertexOut input) : SV_Target0
+float4 main(in VertexOut input) : SV_Target0
 {
     Texture2D<float4> tex = ResourceDescriptorHeap[NonUniformResourceIndex(root_constants.texture_to_blit.id)];
-    return tex.Sample(tex_sampler, input.texcoord0);
+    return tex.Sample(tex_sampler, input.tex_coord);
 }

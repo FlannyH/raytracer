@@ -8,7 +8,8 @@ namespace gfx {
     Renderer::Renderer(int width, int height, bool debug_layer_enabled) {
         m_device = std::make_unique<Device>(width, height, debug_layer_enabled);
         m_pipeline_scene = m_device->create_raster_pipeline("assets/shaders/test.vs.hlsl", "assets/shaders/test.ps.hlsl");
-        m_color_target = m_device->create_render_target("Color framebuffer", 512, 512, PixelFormat::rgba_8).handle;
+        m_pipeline_final_blit = m_device->create_raster_pipeline("assets/shaders/fullscreen_quad.vs.hlsl", "assets/shaders/final_blit.ps.hlsl");
+        m_color_target = m_device->create_render_target("Color framebuffer", 256, 192, PixelFormat::rgba_8).handle;
     }
 
     // Common rendering
@@ -32,14 +33,25 @@ namespace gfx {
     }
 
     void Renderer::end_frame() {
+        // Render scene
         m_device->begin_raster_pass(m_pipeline_scene, RasterPassInfo{
-            .color_target = ResourceHandle::none(),
+            .color_target = m_color_target,
             .clear_on_begin = true,
         });
         for (auto& scene_handle : render_queue_scenes) {
             m_device->draw_scene(scene_handle);
         }
         m_device->end_raster_pass();
+
+        // Final blit
+        m_device->begin_raster_pass(m_pipeline_final_blit, RasterPassInfo{
+            .color_target = ResourceHandle::none(), // render to swapchain
+            .clear_on_begin = false, // We're blitting to the entire buffer, no need to clear first
+        });
+        m_device->set_root_constants({
+            m_color_target.as_u32(), // Texture to blit to screen
+        });
+        m_device->draw_vertices(6); // 2 triangles making up a quad
         m_device->end_frame();
     }
 

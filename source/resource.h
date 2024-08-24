@@ -36,6 +36,9 @@ namespace gfx {
                 .type = (uint32_t)ResourceType::none,
             };
         }
+        uint32_t as_u32() {
+            return id | is_loaded << 27 | type << 28;
+        }
     };
 
     struct TextureResource {

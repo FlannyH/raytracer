@@ -26,5 +26,6 @@ namespace gfx {
         glm::vec2 m_resolution = { 0.0f, 0.0f };
         std::vector<ResourceHandle> render_queue_scenes;
         std::shared_ptr<Pipeline> m_pipeline_scene = nullptr;
+        std::shared_ptr<Pipeline> m_pipeline_final_blit = nullptr;
     };
 }
