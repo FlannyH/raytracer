@@ -3,7 +3,9 @@
 #include "device.h"
 
 namespace gfx {
-    Pipeline::Pipeline(const Device& device, const std::string& vertex_shader, const std::string& pixel_shader) {
+    Pipeline::Pipeline(const Device& device, const std::string& vertex_shader, const std::string& pixel_shader, const std::vector<DXGI_FORMAT> render_target_formats, const DXGI_FORMAT depth_target_format) {
+        assert(render_target_formats.size() <= 8 && "Too many render targets!");
+
         // Compile shaders
         const auto vs = Shader(vertex_shader, "main", ShaderType::vertex);
         const auto ps = Shader(pixel_shader, "main", ShaderType::pixel);
@@ -80,7 +82,6 @@ namespace gfx {
             signature = nullptr;
         }
 
-
         D3D12_GRAPHICS_PIPELINE_STATE_DESC pipeline_state_desc {
             .pRootSignature = root_signature.Get(),
             .VS = {
@@ -106,18 +107,21 @@ namespace gfx {
                 .ConservativeRaster = D3D12_CONSERVATIVE_RASTERIZATION_MODE_OFF,
             },
             .DepthStencilState = {
-                .DepthEnable = true,
+                .DepthEnable = (depth_target_format != DXGI_FORMAT_UNKNOWN),
                 .DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL,
                 .DepthFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL,
                 .StencilEnable = false,
             },
             .PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE,
-            .NumRenderTargets = 1,
-            .RTVFormats = {
-                DXGI_FORMAT_R8G8B8A8_UNORM,
-            },
+            .NumRenderTargets = (UINT)render_target_formats.size(),
+            .DSVFormat = depth_target_format,
             .SampleDesc {.Count = 1},
         };
+
+        size_t i = 0;
+        for (size_t i = 0; i < render_target_formats.size(); ++i) {
+            pipeline_state_desc.RTVFormats[i] = render_target_formats[i];
+        }
 
         pipeline_state_desc.BlendState.RenderTarget[0] = {
             .BlendEnable = FALSE,

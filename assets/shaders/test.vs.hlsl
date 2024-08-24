@@ -31,6 +31,8 @@ struct RootConstants {
 ConstantBuffer<RootConstants> root_constants : register(b0, space0);
 
 struct VertexOut {
+    float3 normal : NORMAL0;
+    float4 tangent : TANGENT0;
     float4 color : COLOR0;
     float2 texcoord0 : TEXCOORD0;
 };
@@ -48,6 +50,8 @@ float4 main(in uint vertex_index : SV_VertexID, out VertexOut output) : SV_POSIT
     vert_pos = mul(camera_matrices.projection_matrix, vert_pos);
 
     output.color = vert.color;
+    output.normal = vert.normal;
+    output.tangent = vert.tangent;
     output.texcoord0 = vert.texcoord0;
     return vert_pos;
 }

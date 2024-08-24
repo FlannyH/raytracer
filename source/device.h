@@ -43,7 +43,7 @@ namespace gfx {
         void set_root_constants(const std::vector<uint32_t>& constants);
 
         // Rasterization
-        std::shared_ptr<Pipeline> create_raster_pipeline(const std::string& vertex_shader_path, const std::string& pixel_shader_path);
+        std::shared_ptr<Pipeline> create_raster_pipeline(const std::string& vertex_shader_path, const std::string& pixel_shader_path, const std::initializer_list<ResourceHandle> render_targets, const ResourceHandle depth_target = ResourceHandle::none());
         void begin_raster_pass(std::shared_ptr<Pipeline> pipeline, RasterPassInfo&& render_pass_info);
         void end_raster_pass();
         size_t create_draw_packet(const void* data, const size_t size_bytes); // Returns the byte offset into the `m_draw_packets` buffer where this new draw packet was allocated

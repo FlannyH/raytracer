@@ -100,8 +100,31 @@ namespace gfx {
         glfwGetWindowSize(m_window_glfw, &width, &height);
     }
 
-    std::shared_ptr<Pipeline> Device::create_raster_pipeline(const std::string& vertex_shader, const std::string& pixel_shader) {
-        return std::make_shared<Pipeline>(*this, vertex_shader, pixel_shader);
+    std::shared_ptr<Pipeline> Device::create_raster_pipeline(const std::string& vertex_shader, const std::string& pixel_shader, const std::initializer_list<ResourceHandle> render_targets, const ResourceHandle depth_target) {
+        std::vector<DXGI_FORMAT> render_target_formats;
+        DXGI_FORMAT depth_target_format = DXGI_FORMAT_UNKNOWN;
+
+        // If we specify render targets, specify the formats
+        for (auto& render_target : render_targets) {
+            const auto& resource = m_resources.at(render_target.id);
+            const auto& texture = resource->expect_texture();
+            const auto& pixel_format = pixel_format_to_dx12(texture.pixel_format);
+            render_target_formats.push_back(pixel_format);
+        }
+
+        // Otherwise, assume swapchain target and get its format
+        if (render_target_formats.empty()) {
+            render_target_formats.push_back(m_swapchain->curr_framebuffer()->GetDesc().Format);
+        }
+
+        // Get depth format
+        if (depth_target.type != (uint32_t)ResourceType::none) {
+            const auto& resource = m_resources.at(depth_target.id);
+            const auto& texture = resource->expect_texture();
+            depth_target_format = pixel_format_to_dx12(texture.pixel_format);
+        }
+
+        return std::make_shared<Pipeline>(*this, vertex_shader, pixel_shader, render_target_formats, depth_target_format);
     }
 
     void Device::begin_frame() {
