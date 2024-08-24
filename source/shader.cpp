@@ -51,6 +51,11 @@ namespace gfx {
         ComPtr<IDxcBlobEncoding> source_blob;
         _dxc_utils->LoadFile(to_wstring(path).c_str(), nullptr, &source_blob);
 
+        if (source_blob.Get() == nullptr) {
+            printf("[ERROR] Could not load file '%s'! Does the file exist?\n", path.c_str());
+            return;
+        }
+
         // Set up compilation arguments
         std::vector<LPCWSTR> args;
 

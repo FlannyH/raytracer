@@ -250,7 +250,7 @@ namespace gfx {
 
         // Find default scene and create a scene graph from it
         auto& scene = model.scenes[model.defaultScene];
-        printf("Loading scene \"%s\"\n", scene.name.c_str());
+        printf("[INFO]  Loading scene \"%s\"\n", scene.name.c_str());
 
         auto scene_node = new SceneNode();
         traverse_nodes(device, scene.nodes, model, glm::mat4(1.0f), scene_node, path);

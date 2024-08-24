@@ -21,35 +21,17 @@ namespace gfx {
     struct Pipeline;
     struct Transform;
 
-    struct DrawMeshPacket {
-        glm::mat4 model_transform;
-        ResourceHandle vertex_buffer;
-        ResourceHandle texture;
-    };
-
-    struct GlobalRaster3DPacket {
-        glm::mat4 view_matrix;
-        glm::mat4 projection_matrix;
-    };
-
-    struct DrawPacket {
-        union {
-            DrawMeshPacket draw_mesh;
-            GlobalRaster3DPacket camera_matrices;
-        };
-    };
-
     struct RasterPassInfo {
         ResourceHandle color_target; // If the ResourceHandle has type `none`, it will instead use the swapchain framebuffer as a color target
         bool clear_on_begin = true;
     };
 
     struct Device {
+    public:
         // Initialization
         Device(int width, int height, bool debug_layer_enabled);
         void resize_window(int width, int height) const;
         void get_window_size(int& width, int& height) const;
-        void init_context();
 
         // Common rendering
         bool should_stay_open();
@@ -61,7 +43,8 @@ namespace gfx {
         std::shared_ptr<Pipeline> create_raster_pipeline(const std::string& vertex_shader_path, const std::string& pixel_shader_path);
         void begin_raster_pass(std::shared_ptr<Pipeline> pipeline, RasterPassInfo&& render_pass_info);
         void end_raster_pass();
-        void draw_mesh(DrawPacket&& draw_info);
+        size_t create_draw_packet(const void* data, const size_t size_bytes); // Returns the byte offset into the `m_draw_packets` buffer where this new draw packet was allocated
+        void draw_mesh(const PacketDrawMesh& draw_info);
         void draw_scene(ResourceHandle scene_handle);
 
         // Resource management
@@ -74,7 +57,6 @@ namespace gfx {
         void unload_bindless_resource(ResourceHandle id);
         void transition_resource(CommandBuffer* cmd, Resource* resource, D3D12_RESOURCE_STATES new_state);
 
-    public:
         ComPtr<ID3D12Device> device = nullptr;
         ComPtr<IDXGIFactory4> factory = nullptr;
         HWND window_hwnd = nullptr;
@@ -82,7 +64,6 @@ namespace gfx {
     private:
         int find_dominant_monitor(); // Returns the index of the monitor the window overlaps with most
         void traverse_scene(SceneNode* node);
-        size_t create_draw_packet(DrawPacket packet); // Returns the byte offset into the `m_draw_packets` buffer where this new draw packet was allocated
 
         // Device
         GLFWwindow* m_window_glfw = nullptr;

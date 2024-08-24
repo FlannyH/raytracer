@@ -5,6 +5,7 @@
 #include <glm/vec4.hpp>
 #include <glm/vec3.hpp>
 #include <glm/vec2.hpp>
+#include <glm/matrix.hpp>
 
 namespace gfx {
     struct SceneNode;
@@ -131,4 +132,15 @@ namespace gfx {
             break;
         }
     }
+
+    struct PacketDrawMesh {
+        glm::mat4 model_transform;
+        ResourceHandle vertex_buffer;
+        ResourceHandle texture;
+    };
+
+    struct PacketCamera {
+        glm::mat4 view_matrix;
+        glm::mat4 projection_matrix;
+    };
 }

@@ -54,3 +54,9 @@ inline void read_file(const std::string& path, size_t& size_bytes, char*& data, 
     memcpy(data, buffer.data(), size_bytes);
 }
 
+template<typename T>
+void add_and_align(T& destination, const T value_to_add, const T alignment) {
+    destination += value_to_add;
+    destination += (alignment - 1);
+    destination -= (destination % alignment);
+}

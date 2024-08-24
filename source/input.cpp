@@ -48,6 +48,7 @@ namespace input {
 		if (key == GLFW_KEY_DOWN) return Key::down;
 		if (key == GLFW_KEY_LEFT) return Key::left;
 		if (key == GLFW_KEY_RIGHT) return Key::right;
+		return Key::invalid;
 	}
 
 	static void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods) {

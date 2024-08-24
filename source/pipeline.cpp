@@ -10,11 +10,11 @@ namespace gfx {
 
         // Make sure it worked
         if (vs.shader_blob.Get() == nullptr) {
-            printf("[ERROR] Failed to create render pipeline: vertex shader compilation failed");
+            printf("[ERROR] Failed to create render pipeline: vertex shader compilation failed\n");
             return;
         }
         if (ps.shader_blob.Get() == nullptr) {
-            printf("[ERROR] Failed to create render pipeline: pixel shader compilation failed");
+            printf("[ERROR] Failed to create render pipeline: pixel shader compilation failed\n");
             return;
         }
 

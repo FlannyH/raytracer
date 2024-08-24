@@ -18,7 +18,8 @@
 #include "input.h"
 
 namespace gfx {
-    #define N_DRAW_PACKETS 16384
+    #define DRAW_PACKET_BUFFER_SIZE (1024)
+    #define GPU_BUFFER_PREFERRED_ALIGNMENT 64
 
     Device::Device(const int width, const int height, const bool debug_layer_enabled) {
         // Create window
@@ -79,12 +80,16 @@ namespace gfx {
         m_heap_rtv = std::make_shared<DescriptorHeap>(*this, D3D12_DESCRIPTOR_HEAP_TYPE_RTV, D3D12_DESCRIPTOR_HEAP_FLAG_NONE, 256);
         m_heap_bindless = std::make_shared<DescriptorHeap>(*this, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE, D3D12_MAX_SHADER_VISIBLE_DESCRIPTOR_HEAP_SIZE_TIER_1 / 2);
 
-        // Create draw packet buffer
-        DrawPacket* empty_draw_packets = new DrawPacket[N_DRAW_PACKETS];
-        m_draw_packets = create_buffer("Draw Packets", sizeof(DrawPacket) * N_DRAW_PACKETS, empty_draw_packets);
-        delete[] empty_draw_packets;
-    }
+        // Create triple buffered draw packet buffer
+        m_draw_packets = create_buffer("Draw Packets", DRAW_PACKET_BUFFER_SIZE * backbuffer_count, nullptr);
 
+        // Init context
+        m_queue_gfx = std::make_shared<CommandQueue>(*this, CommandBufferType::graphics);
+        m_upload_queue = std::make_shared<CommandQueue>(*this, CommandBufferType::graphics);
+        m_swapchain = std::make_shared<Swapchain>(*this, *m_queue_gfx, *m_heap_rtv, m_framebuffer_format);
+        input::init(m_window_glfw);
+        get_window_size(m_width, m_height);
+    }
 
     void Device::resize_window(const int width, const int height) const {
         glfwSetWindowSize(m_window_glfw, width, height);
@@ -92,14 +97,6 @@ namespace gfx {
 
     void Device::get_window_size(int& width, int& height) const {
         glfwGetWindowSize(m_window_glfw, &width, &height);
-    }
-
-    void Device::init_context() {
-        m_queue_gfx = std::make_shared<CommandQueue>(*this, CommandBufferType::graphics);
-        m_upload_queue = std::make_shared<CommandQueue>(*this, CommandBufferType::graphics);
-        m_swapchain = std::make_shared<Swapchain>(*this, *m_queue_gfx, *m_heap_rtv, m_framebuffer_format);
-        input::init(m_window_glfw);
-        get_window_size(m_width, m_height);
     }
 
     std::shared_ptr<Pipeline> Device::create_raster_pipeline(const std::string& vertex_shader, const std::string& pixel_shader) {
@@ -124,6 +121,7 @@ namespace gfx {
         m_upload_queue->execute();
         m_swapchain->next_framebuffer();
         m_queue_gfx->clean_up_old_command_buffers(m_swapchain->current_fence_completed_value());
+        m_draw_packet_cursor = 0;
     }
 
     void Device::end_frame() {
@@ -184,17 +182,17 @@ namespace gfx {
         }
     }
 
-    void Device::draw_mesh(DrawPacket&& draw_info) {
+    void Device::draw_mesh(const PacketDrawMesh& draw_info) {
         if (!m_curr_bound_pipeline) {
-            printf("[ERROR] Attempt to record draw call without a pipeline set! Did you forget to call `begin_raster_pass()`?");
+            printf("[ERROR] Attempt to record draw call without a pipeline set! Did you forget to call `begin_raster_pass()`?\n");
             return;
         }
 
         // Store draw packet
-        size_t packet_offset = create_draw_packet(draw_info);
+        size_t packet_offset = create_draw_packet(&draw_info, sizeof(draw_info));
 
         // Get number of vertices from mesh
-        auto vertex_buffer = m_resources[draw_info.draw_mesh.vertex_buffer.id];
+        auto vertex_buffer = m_resources[draw_info.vertex_buffer.id];
         auto n_vertices = vertex_buffer->expect_buffer().size / sizeof(Vertex);
 
         // Get framebuffer and command buffer
@@ -214,37 +212,33 @@ namespace gfx {
         gfx_cmd->SetGraphicsRoot32BitConstant(0, (uint32_t)packet_offset, 2);
         gfx_cmd->DrawInstanced(n_vertices, 1, 0, 0);
     }
+    size_t Device::create_draw_packet(const void* data, size_t size_bytes) {
+        // Allocate data in the draw packets buffer
+        assert(((m_draw_packet_cursor + size_bytes) < DRAW_PACKET_BUFFER_SIZE) && "Failed to allocate draw packet: buffer overflow!");
+
+        char* mapped_buffer;
+        const size_t start = m_draw_packet_cursor + DRAW_PACKET_BUFFER_SIZE * (m_swapchain->current_frame_index() % backbuffer_count);
+        const D3D12_RANGE write_range = { 0, 0 };
+        validate(m_draw_packets.resource->handle->Map(0, &write_range, (void**)&mapped_buffer));
+        memcpy(mapped_buffer + start, data, size_bytes);
+        m_draw_packets.resource->handle->Unmap(0, &write_range);
+
+        // Return the byte offset of that draw packet, and update the cursor to the next entry, wrapping at the end
+        add_and_align(m_draw_packet_cursor, size_bytes, (size_t)GPU_BUFFER_PREFERRED_ALIGNMENT);
+        return start;
+    }
 
     void Device::traverse_scene(SceneNode* node) {
         if (node->type == SceneNodeType::Mesh) {
-            draw_mesh(DrawPacket{
-                .draw_mesh = {
-                    .model_transform = node->cached_global_transform,
-                    .vertex_buffer = node->mesh.vertex_buffer,
-                    .texture = ResourceHandle::none(), // todo: add actual textures from the model here
-                }
-            });
+            draw_mesh(PacketDrawMesh{
+                .model_transform = node->cached_global_transform,
+                .vertex_buffer = node->mesh.vertex_buffer,
+                .texture = ResourceHandle::none(), // todo: add actual textures from the model here
+                });
         }
         for (auto& node : node->children) {
             traverse_scene(node.get());
         }
-    }
-
-    size_t Device::create_draw_packet(DrawPacket packet) {
-        // Update the draw packet at the cursor position
-        DrawPacket* mapped_buffer;
-        const D3D12_RANGE write_range = { 
-            m_draw_packet_cursor * sizeof(DrawPacket),
-            (m_draw_packet_cursor + 1) * sizeof(DrawPacket)
-        };
-        validate(m_draw_packets.resource->handle->Map(0, &write_range, (void**)&mapped_buffer));
-        memcpy(&mapped_buffer[m_draw_packet_cursor], &packet, sizeof(DrawPacket));
-        m_draw_packets.resource->handle->Unmap(0, &write_range);
-
-        // Return the byte offset of that draw packet, and update the cursor to the next entry, wrapping at the end
-        const size_t byte_offset_into_buffer = m_draw_packet_cursor * sizeof(DrawPacket);
-        m_draw_packet_cursor = (m_draw_packet_cursor + 1) % N_DRAW_PACKETS;
-        return byte_offset_into_buffer;
     }
 
     void Device::draw_scene(ResourceHandle scene_handle) {
@@ -458,12 +452,14 @@ namespace gfx {
         const auto handle = m_heap_bindless->fetch_cpu_handle(id);
         device->CreateShaderResourceView(resource->handle.Get(), &srv_desc, handle);
 
-        // Copy the buffer data to the GPU
-        void* mapped_buffer = nullptr;
-        D3D12_RANGE range = { 0, size };
-        validate(resource->handle->Map(0, &range, &mapped_buffer));
-        memcpy(mapped_buffer, data, size);
-        resource->handle->Unmap(0, &range);
+        if (data) {
+            // Copy the buffer data to the GPU
+            void* mapped_buffer = nullptr;
+            D3D12_RANGE range = { 0, size };
+            validate(resource->handle->Map(0, &range, &mapped_buffer));
+            memcpy(mapped_buffer, data, size);
+            resource->handle->Unmap(0, &range);
+        }
 
         auto name_str = std::wstring(name.begin(), name.end());
         resource->handle->SetName(name_str.c_str());
@@ -517,7 +513,7 @@ namespace gfx {
         heap_properties.Type = D3D12_HEAP_TYPE_DEFAULT;
         validate(device->CreateCommittedResource(
             &heap_properties,
-            D3D12_HEAP_FLAG_NONE,
+            D3D12_HEAP_FLAG_ALLOW_ALL_BUFFERS_AND_TEXTURES,
             &resource_desc,
             D3D12_RESOURCE_STATE_COMMON,
             &clear_value,
