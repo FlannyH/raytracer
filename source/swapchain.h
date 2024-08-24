@@ -18,6 +18,7 @@ namespace gfx {
         Swapchain(const Device& device, const CommandQueue& queue, DescriptorHeap& rtv_heap, PixelFormat format);
         ComPtr<ID3D12Resource> next_framebuffer();
         ComPtr<ID3D12Resource> curr_framebuffer();
+        D3D12_CPU_DESCRIPTOR_HANDLE curr_framebuffer_rtv();
         void prepare_render(std::shared_ptr<CommandBuffer> command_buffer);
         void present();
         void prepare_present(std::shared_ptr<CommandBuffer> command_buffer);

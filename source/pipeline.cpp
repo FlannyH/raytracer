@@ -106,8 +106,10 @@ namespace gfx {
                 .ConservativeRaster = D3D12_CONSERVATIVE_RASTERIZATION_MODE_OFF,
             },
             .DepthStencilState = {
-                .DepthEnable = FALSE,
-                .StencilEnable = FALSE,
+                .DepthEnable = true,
+                .DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL,
+                .DepthFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL,
+                .StencilEnable = false,
             },
             .PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE,
             .NumRenderTargets = 1,

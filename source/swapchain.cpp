@@ -61,6 +61,10 @@ namespace gfx {
         return m_render_targets[framebuffer_index()];
     }
 
+    D3D12_CPU_DESCRIPTOR_HANDLE Swapchain::curr_framebuffer_rtv() {
+        return m_render_target_views[framebuffer_index()];
+    }
+
     void Swapchain::prepare_render(std::shared_ptr<CommandBuffer> command_buffer) {
         // todo: figure out a way to use transition_resource() for this in a nice way
         auto cmd = command_buffer->get();

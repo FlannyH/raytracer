@@ -23,6 +23,7 @@ namespace gfx {
 
     struct RasterPassInfo {
         ResourceHandle color_target; // If the ResourceHandle has type `none`, it will instead use the swapchain framebuffer as a color target
+        ResourceHandle depth_target; // Optional; passing `ResourceHandle::none()` will disable depth testing
         bool clear_on_begin = true;
     };
 

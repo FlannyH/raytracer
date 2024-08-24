@@ -78,6 +78,7 @@ namespace gfx {
 
         // Create descriptor heaps
         m_heap_rtv = std::make_shared<DescriptorHeap>(*this, D3D12_DESCRIPTOR_HEAP_TYPE_RTV, D3D12_DESCRIPTOR_HEAP_FLAG_NONE, 256);
+        m_heap_dsv = std::make_shared<DescriptorHeap>(*this, D3D12_DESCRIPTOR_HEAP_TYPE_DSV, D3D12_DESCRIPTOR_HEAP_FLAG_NONE, 256);
         m_heap_bindless = std::make_shared<DescriptorHeap>(*this, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE, D3D12_MAX_SHADER_VISIBLE_DESCRIPTOR_HEAP_SIZE_TIER_1 / 2);
 
         // Create triple buffered draw packet buffer
@@ -154,10 +155,34 @@ namespace gfx {
         m_curr_pass_cmd->get()->SetPipelineState(m_curr_bound_pipeline->pipeline_state.Get());
         m_curr_pass_cmd->get()->SetGraphicsRootSignature(m_curr_bound_pipeline->root_signature.Get());
 
+        D3D12_VIEWPORT viewport{};
+        D3D12_RECT scissor{};
+        bool have_rtv = false;
+        bool have_dsv = false;
+        D3D12_CPU_DESCRIPTOR_HANDLE rtv_handle{};
+        D3D12_CPU_DESCRIPTOR_HANDLE dsv_handle{};
+
         // If the color target is the swapchain, prepare the swapchain for that
-        if ((ResourceType)render_pass_info.color_target.type == ResourceType::none) {
+        if ((ResourceType)render_pass_info.color_target.type != ResourceType::texture) {
             m_swapchain->prepare_render(m_curr_pass_cmd);
+            viewport = {
+                .TopLeftX = 0.0f,
+                .TopLeftY = 0.0f,
+                .Width = (FLOAT)m_width,
+                .Height = (FLOAT)m_height,
+                .MinDepth = 0.0f,
+                .MaxDepth = 1.0f,
+            };
+            scissor = {
+                .left = 0,
+                .top = 0,
+                .right = (LONG)m_width,
+                .bottom = (LONG)m_height,
+            };
+            rtv_handle = m_swapchain->curr_framebuffer_rtv();
+            have_rtv = true;
         }
+
         // Otherwise, if the color target is a texture, transition the texture to render target, and then bind it
         else {
             auto& texture = m_resources.at(render_pass_info.color_target.id);
@@ -165,29 +190,49 @@ namespace gfx {
 
             transition_resource(m_curr_pass_cmd.get(), texture.get(), D3D12_RESOURCE_STATE_RENDER_TARGET);
             m_curr_render_target = texture;
-                
-            auto color_target = m_heap_rtv->fetch_cpu_handle(texture->expect_texture().rtv_handle);
-            m_curr_pass_cmd->get()->OMSetRenderTargets(1, &color_target, false, NULL);
-            D3D12_VIEWPORT viewport{
+            rtv_handle = m_heap_rtv->fetch_cpu_handle(texture->expect_texture().rtv_handle);
+
+            viewport = {
                 .TopLeftX = 0.0f,
                 .TopLeftY = 0.0f,
-                .Width = (float)texture->expect_texture().width,
-                .Height = (float)texture->expect_texture().height,
+                .Width = (FLOAT)texture->expect_texture().width,
+                .Height = (FLOAT)texture->expect_texture().height,
                 .MinDepth = 0.0f,
                 .MaxDepth = 1.0f,
             };
-            m_curr_pass_cmd->get()->RSSetViewports(1, &viewport);
-            D3D12_RECT scissor{
+            scissor = {
                 .left = 0,
                 .top = 0,
                 .right = (LONG)texture->expect_texture().width,
                 .bottom = (LONG)texture->expect_texture().height,
             };
-            m_curr_pass_cmd->get()->RSSetScissorRects(1, &scissor);
             if (render_pass_info.clear_on_begin) {
-                m_curr_pass_cmd->get()->ClearRenderTargetView(color_target, &texture->expect_texture().clear_color.x, 0, nullptr);
+                m_curr_pass_cmd->get()->ClearRenderTargetView(rtv_handle, &texture->expect_texture().clear_color.x, 0, nullptr);
             }
+            have_rtv = true;
         }
+
+        // If we have a depth buffer, bind it too
+        if ((ResourceType)render_pass_info.depth_target.type == ResourceType::texture) {
+            auto& texture = m_resources.at(render_pass_info.depth_target.id);
+            auto gfx_cmd = m_curr_pass_cmd->get();
+
+            transition_resource(m_curr_pass_cmd.get(), texture.get(), D3D12_RESOURCE_STATE_DEPTH_WRITE);
+            dsv_handle = m_heap_dsv->fetch_cpu_handle(texture->expect_texture().dsv_handle);
+            m_curr_depth_target = texture;
+            m_curr_pass_cmd->get()->ClearDepthStencilView(dsv_handle, D3D12_CLEAR_FLAG_DEPTH, texture->expect_texture().clear_color.x, 0, 0, nullptr);
+
+            have_dsv = true;
+        }
+        
+        m_curr_pass_cmd->get()->RSSetViewports(1, &viewport);
+        m_curr_pass_cmd->get()->RSSetScissorRects(1, &scissor);
+        m_curr_pass_cmd->get()->OMSetRenderTargets(
+            have_rtv ? 1 : 0,
+            have_rtv ? &rtv_handle : nullptr, 
+            false, 
+            have_dsv ? &dsv_handle : nullptr
+        );
     }
 
     void Device::end_raster_pass() {
@@ -195,6 +240,12 @@ namespace gfx {
         // In this case, transition it back to a shader resource, so we can run compute shaders on it if we want, or blit it to the swapchain
         if (m_curr_render_target.get() != nullptr) {
             transition_resource(m_curr_pass_cmd.get(), m_curr_render_target.get(), D3D12_RESOURCE_STATE_COMMON);
+            m_curr_render_target = nullptr;
+        }
+
+        if (m_curr_depth_target.get() != nullptr) {
+            transition_resource(m_curr_pass_cmd.get(), m_curr_depth_target.get(), D3D12_RESOURCE_STATE_COMMON);
+            m_curr_depth_target = nullptr;
         }
     }
 
@@ -544,7 +595,7 @@ namespace gfx {
                 .ResourceMinLODClamp = 0.0f
             }
         };
-        auto srv_id = m_heap_bindless->alloc_descriptor(ResourceType::buffer);
+        auto srv_id = m_heap_bindless->alloc_descriptor(ResourceType::texture);
         auto srv_descriptor = m_heap_bindless->fetch_cpu_handle(srv_id);
         device->CreateShaderResourceView(resource->handle.Get(), &srv_desc, srv_descriptor);
         srv_id.is_loaded = true;

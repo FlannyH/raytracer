@@ -22,6 +22,7 @@ namespace gfx {
     private:
         std::unique_ptr<Device> m_device;
         ResourceHandle m_color_target = ResourceHandle::none();
+        ResourceHandle m_depth_target = ResourceHandle::none();
         size_t m_camera_matrices_offset = 0;
         glm::vec2 m_resolution = { 0.0f, 0.0f };
         std::vector<ResourceHandle> render_queue_scenes;
