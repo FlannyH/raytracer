@@ -23,13 +23,26 @@ namespace gfx {
     }
 
     void Renderer::begin_frame() {
+        // Fetch window content size
         int x = 0;
         int y = 0;
         m_device->get_window_size(x, y);
+
+        // Enforce minimum framebuffer size
         if (x < 8) x = 8;
         if (y < 8) y = 8;
         m_resolution.x = (float)x;
         m_resolution.y = (float)y;
+
+        // If the render resolution changes, update the render targets
+        const glm::vec2 prev_render_resolution = m_render_resolution;
+        m_render_resolution = m_resolution * resolution_scale;
+        if (m_render_resolution != prev_render_resolution) {
+            resize_texture(m_color_target, m_render_resolution.x, m_render_resolution.y);
+            resize_texture(m_depth_target, m_render_resolution.x, m_render_resolution.y);
+        }
+
+
         m_device->begin_frame();
 
         render_queue_scenes.clear();
@@ -71,6 +84,14 @@ namespace gfx {
 
     void Renderer::draw_scene(ResourceHandlePair scene_handle) {
         render_queue_scenes.push_back(scene_handle.handle);
+    }
+
+    void Renderer::set_resolution_scale(glm::vec2 scale) {
+        resolution_scale = scale;
+    }
+
+    void Renderer::resize_texture(ResourceHandle& texture, const uint32_t width, const uint32_t height) {
+        m_device->resize_texture(texture, width, height);
     }
 
     // Resource management

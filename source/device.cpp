@@ -694,6 +694,34 @@ namespace gfx {
         return ResourceHandlePair{ srv_id, resource };
     }
 
+    void Device::resize_texture(ResourceHandle& handle, const uint32_t width, const uint32_t height) {
+        // Schedule delayed unloading - once it's no longer used
+        unload_bindless_resource(handle);
+
+        // Get texture info (is it a render target, depth target, or a regular texture?)
+        auto& resource = m_resources.at(handle.id);
+        auto& texture = resource->expect_texture();
+        assert(!((texture.rtv_handle.type != (uint32_t)ResourceType::none()) && (texture.dsv_handle.type != (uint32_t)ResourceType::none())) && "Invalid texture: both rtv_handle and dsv_handle are set!");
+        
+        // We'll store the newly created texture here
+        ResourceHandle new_handle = ResourceHandle::none();
+
+        // If it's a render target, create a new render target
+        if (texture.rtv_handle.type != (uint32_t)ResourceType::none()) {
+            handle = create_render_target(resource->name, width, height, texture.pixel_format, texture.clear_color).handle;
+            return;
+        }
+
+        // If it's a depth target, create a new depth target
+        if (texture.dsv_handle.type != (uint32_t)ResourceType::none()) {
+            handle = create_depth_target(resource->name, width, height, texture.pixel_format, texture.clear_color.r).handle;
+            return;
+        }
+
+        // todo: If it's not a render target, copy the data over
+        abort();
+    }
+
     void Device::unload_bindless_resource(ResourceHandle id) {
         // Schedule unloading this resource after the GPU is done with this frame
         ResourceHandlePair handle = {

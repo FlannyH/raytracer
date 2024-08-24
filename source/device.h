@@ -58,6 +58,7 @@ namespace gfx {
         ResourceHandlePair create_buffer(const std::string& name, size_t size, void* data);
         ResourceHandlePair create_render_target(const std::string& name, uint32_t width, uint32_t height, PixelFormat pixel_format, glm::vec4 clear_color = { 0.0f, 0.0f, 0.0f, 1.0f });
         ResourceHandlePair create_depth_target(const std::string& name, uint32_t width, uint32_t height, PixelFormat pixel_format, float clear_value = 1.0f);
+        void resize_texture(ResourceHandle& texture, const uint32_t width, const uint32_t height);
         void unload_bindless_resource(ResourceHandle id);
         void transition_resource(CommandBuffer* cmd, Resource* resource, D3D12_RESOURCE_STATES new_state);
 
