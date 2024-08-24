@@ -143,8 +143,16 @@ namespace gfx {
 
     void Device::begin_raster_pass(std::shared_ptr<Pipeline> pipeline, RasterPassInfo&& render_pass_info) {
         // Create command buffer for this pass
-        m_curr_bound_pipeline = pipeline;
         m_curr_pass_cmd = m_queue_gfx->create_command_buffer(*this, pipeline.get(), m_swapchain->current_frame_index());
+
+        // Set up pipeline
+        m_curr_bound_pipeline = pipeline;
+        ID3D12DescriptorHeap* heaps[] = {
+            m_heap_bindless->heap.Get(),
+        };
+        m_curr_pass_cmd->get()->SetDescriptorHeaps(1, heaps);
+        m_curr_pass_cmd->get()->SetPipelineState(m_curr_bound_pipeline->pipeline_state.Get());
+        m_curr_pass_cmd->get()->SetGraphicsRootSignature(m_curr_bound_pipeline->root_signature.Get());
 
         // If the color target is the swapchain, prepare the swapchain for that
         if ((ResourceType)render_pass_info.color_target.type == ResourceType::none) {
@@ -190,34 +198,17 @@ namespace gfx {
         }
     }
 
-    void Device::draw_mesh(const PacketDrawMesh& draw_info) {
+    void Device::draw_vertices(uint32_t n_vertices) {
         if (!m_curr_bound_pipeline) {
             printf("[ERROR] Attempt to record draw call without a pipeline set! Did you forget to call `begin_raster_pass()`?\n");
             return;
         }
 
-        // Store draw packet
-        size_t packet_offset = create_draw_packet(&draw_info, sizeof(draw_info));
-
-        // Get number of vertices from mesh
-        auto vertex_buffer = m_resources[draw_info.vertex_buffer.id];
-        auto n_vertices = vertex_buffer->expect_buffer().size / sizeof(Vertex);
-
-        // Get framebuffer and command buffer
-        auto framebuffer = m_swapchain->curr_framebuffer();
+        // Get command buffer
         auto gfx_cmd = m_curr_pass_cmd->get();
 
-        // Record draw call, binding all the resources in the process
-        ID3D12DescriptorHeap* heaps[] = {
-            m_heap_bindless->heap.Get(),
-        };
-        gfx_cmd->SetDescriptorHeaps(1, heaps);
-        gfx_cmd->SetGraphicsRootSignature(m_curr_bound_pipeline->root_signature.Get());
+        // Record draw call
         gfx_cmd->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-        gfx_cmd->SetPipelineState(m_curr_bound_pipeline->pipeline_state.Get());
-        gfx_cmd->SetGraphicsRoot32BitConstant(0, m_draw_packets.handle.id, 0);
-        gfx_cmd->SetGraphicsRoot32BitConstant(0, (uint32_t)m_camera_matrices_offset, 1);
-        gfx_cmd->SetGraphicsRoot32BitConstant(0, (uint32_t)packet_offset, 2);
         gfx_cmd->DrawInstanced(n_vertices, 1, 0, 0);
     }
     size_t Device::create_draw_packet(const void* data, size_t size_bytes) {
@@ -238,11 +229,19 @@ namespace gfx {
 
     void Device::traverse_scene(SceneNode* node) {
         if (node->type == SceneNodeType::Mesh) {
-            draw_mesh(PacketDrawMesh{
+            auto draw_packet = PacketDrawMesh{
                 .model_transform = node->cached_global_transform,
                 .vertex_buffer = node->mesh.vertex_buffer,
                 .texture = ResourceHandle::none(), // todo: add actual textures from the model here
-                });
+            };
+            auto n_vertices = m_resources[draw_packet.vertex_buffer.id]->expect_buffer().size / sizeof(Vertex);
+            auto draw_packet_offset = create_draw_packet(&draw_packet, sizeof(draw_packet));
+            set_root_constants({
+                m_draw_packets.handle.id,
+                (uint32_t)m_camera_matrices_offset,
+                (uint32_t)draw_packet_offset
+            });
+            draw_vertices(n_vertices);
         }
         for (auto& node : node->children) {
             traverse_scene(node.get());

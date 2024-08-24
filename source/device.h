@@ -45,7 +45,7 @@ namespace gfx {
         void begin_raster_pass(std::shared_ptr<Pipeline> pipeline, RasterPassInfo&& render_pass_info);
         void end_raster_pass();
         size_t create_draw_packet(const void* data, const size_t size_bytes); // Returns the byte offset into the `m_draw_packets` buffer where this new draw packet was allocated
-        void draw_mesh(const PacketDrawMesh& draw_info);
+        void draw_vertices(uint32_t n_vertices);
         void draw_scene(ResourceHandle scene_handle);
 
         // Resource management
