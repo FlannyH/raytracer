@@ -122,6 +122,7 @@ namespace gfx {
         m_upload_queue->execute();
         m_swapchain->next_framebuffer();
         m_queue_gfx->clean_up_old_command_buffers(m_swapchain->current_fence_completed_value());
+        clean_up_old_resources();
         m_draw_packet_cursor = 0;
     }
 
@@ -694,7 +695,13 @@ namespace gfx {
     }
 
     void Device::unload_bindless_resource(ResourceHandle id) {
-        m_heap_bindless->free_descriptor(id);
+        // Schedule unloading this resource after the GPU is done with this frame
+        ResourceHandlePair handle = {
+            .handle = id,
+            .resource = m_resources.at(id.id)
+        };
+        int fence_value = m_swapchain->current_frame_index() + 3;
+        m_resources_to_unload.push_back({ handle, fence_value });
     }
 
     void Device::transition_resource(CommandBuffer* cmd, Resource* resource, D3D12_RESOURCE_STATES new_state) {
@@ -787,5 +794,21 @@ namespace gfx {
         }
 
         return monitor;
+    }
+
+    void Device::clean_up_old_resources() {
+        while (!m_resources_to_unload.empty()) {
+            // Get the next entry in the unload queue
+            auto& [resource, desired_completed_fence_value] = m_resources_to_unload.front();
+
+            // If it's still potentially being used, end the loop here, because all subsequent queue entries have
+            // the equal or higher desired fence values
+            if ((int)m_swapchain->current_fence_completed_value() < desired_completed_fence_value) return;
+
+            // Destroy, Erase, Improve (memory usage) - good Meshuggah album btw, go listen to it
+            assert(resource.resource->handle != nullptr && "Critical error! Somehow the handle became null. Check the other code, this is sus.");
+            m_resources.erase(resource.handle.id);
+            m_resources_to_unload.pop_front();
+        }
     }
 }

@@ -6,6 +6,7 @@
 #include <memory>
 #include <unordered_map>
 #include <array>
+#include <queue>
 
 #include "common.h"
 #include "glfw/glfw3.h"
@@ -66,6 +67,7 @@ namespace gfx {
 
     private:
         int find_dominant_monitor(); // Returns the index of the monitor the window overlaps with most
+        void clean_up_old_resources();
         void traverse_scene(SceneNode* node);
 
         // Device
@@ -91,6 +93,7 @@ namespace gfx {
         // Resource management
         std::unordered_map<uint64_t, std::shared_ptr<Resource>> m_resources; // Maps linking resource IDs and actual resource data
         std::unordered_map<std::string, ResourceHandle> m_resource_name_map; // Maps resources to their names so we don't load in duplicates
+        std::deque<std::pair<ResourceHandlePair, int>> m_resources_to_unload; // Resources to unload. The integer determines when it should be unloaded
         std::shared_ptr<CommandQueue> m_upload_queue = nullptr; // Command queue for uploading resources to the GPU
         size_t m_upload_fence_value_when_done = 0; // The value the upload queue fence will signal when it's done uploading
 
