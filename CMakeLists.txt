@@ -28,7 +28,8 @@ add_executable (raytracer
     "source/tangent.cpp"            "source/tangent.h"
     "source/renderer.cpp"           "source/renderer.h"
     "external/include/mikktspace/mikktspace.c")
-
+    
+target_compile_definitions(raytracer PRIVATE _CRT_SECURE_NO_WARNINGS)
 target_include_directories(raytracer PUBLIC "external/include")
 target_link_directories(raytracer PUBLIC "external/libraries")
 target_link_libraries(raytracer PUBLIC "glfw3.lib" "dxgi.lib" "D3d12.lib" "D3DCompiler.lib" "dxcompiler.lib")

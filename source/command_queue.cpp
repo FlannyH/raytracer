@@ -70,7 +70,7 @@ namespace gfx {
             cmds[i] = cmd;
         }
         
-        command_queue->ExecuteCommandLists(cmds.size(), cmds.data());
+        command_queue->ExecuteCommandLists((UINT)cmds.size(), cmds.data());
         m_command_lists_to_execute.clear();
     }
 

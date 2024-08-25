@@ -31,7 +31,7 @@ namespace gfx {
     std::string to_string(const std::wstring& s) {
         std::string temp(s.size(), L' ');
         for (size_t i = 0; i < s.size(); ++i) {
-            temp[i] = s[i];
+            temp[i] = (char)s[i];
         }
         return temp;
     }
@@ -81,7 +81,7 @@ namespace gfx {
         _dxc_compiler->Compile(
             &buffer, 
             args.data(), 
-            args.size(),
+            (UINT32)args.size(),
             _dxc_include_handler.Get(), 
             IID_PPV_ARGS(&result)
         );

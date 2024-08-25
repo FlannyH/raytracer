@@ -1,7 +1,10 @@
 #pragma once
+#pragma warning(push)
+#pragma warning(disable:4005) // Annoying warning about APIENTRY, the code works so eh
 #include "glfw/glfw3.h"
 #include <memory>
 #include "device.h"
+#pragma warning(pop)
 
 namespace input {
 	enum class Key {

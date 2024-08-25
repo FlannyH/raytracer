@@ -6,7 +6,12 @@
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #define TINYGLTF_NOEXCEPTION
 #define JSON_NOEXCEPTION
+
+#pragma warning(push)
+#pragma warning(disable: 4018)
+#pragma warning(disable: 4267)
 #include <tinygltf/tiny_gltf.h>
+#pragma warning(pop)
 #include "tangent.h"
 
 namespace gfx {
@@ -40,6 +45,8 @@ namespace gfx {
         children.push_back(new_child);
     }
 
+#pragma warning(push)
+#pragma warning(disable: 4723) // Visual Studio is somehow convinced that dividing by max_ can cause divide by zero. I literally check for that in the if statement, so Visual Studio is tripping sack.
     /// Takes the input array, casts all the entries in the array to the output type, and then returns a pointer to the converted array. 
     template<typename In, typename Out>
     Out* convert_array(In* input, const size_t input_size_bytes, size_t& n_values, const bool normalized) {
@@ -51,7 +58,7 @@ namespace gfx {
         const size_t n_values_ = input_size_bytes / sizeof(In);
         Out* output = new Out[n_values_];
         for (size_t i = 0; i < n_values_; ++i) {
-            if (normalized) {
+            if (normalized && max_ != 0) {
                 output[i] = std::clamp(((Out)input[i]) / max_, min_, max_);
             }
             else { 
@@ -61,6 +68,7 @@ namespace gfx {
         n_values = n_values_;
         return output;
     }
+#pragma warning(pop)
 
     /// Takes the input array, casts all entries to ComponentType, converts it to ComponentType, and returns a vector of the Out type
     /// `Out` is expected to be a floating point type such as `float`, `glm::mat4`, `glm::vec3`, etc

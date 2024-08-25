@@ -256,7 +256,7 @@ namespace gfx {
         m_curr_pass_cmd->get()->RSSetViewports(1, &viewport);
         m_curr_pass_cmd->get()->RSSetScissorRects(1, &scissor);
         m_curr_pass_cmd->get()->OMSetRenderTargets(
-            have_rtv ? rtv_handles.size() : 0,
+            have_rtv ? (UINT)rtv_handles.size() : 0,
             have_rtv ? rtv_handles.data() : nullptr,
             false, 
             have_dsv ? &dsv_handle : nullptr
@@ -320,7 +320,7 @@ namespace gfx {
                 (uint32_t)m_camera_matrices_offset,
                 (uint32_t)draw_packet_offset
             });
-            draw_vertices(n_vertices);
+            draw_vertices((uint32_t)n_vertices);
         }
         for (auto& node : node->children) {
             traverse_scene(node.get());
@@ -728,19 +728,19 @@ namespace gfx {
         // Get texture info (is it a render target, depth target, or a regular texture?)
         auto& resource = m_resources.at(handle.id);
         auto& texture = resource->expect_texture();
-        assert(!((texture.rtv_handle.type != (uint32_t)ResourceType::none()) && (texture.dsv_handle.type != (uint32_t)ResourceType::none())) && "Invalid texture: both rtv_handle and dsv_handle are set!");
+        assert(!((texture.rtv_handle.type != (uint32_t)ResourceType::none) && (texture.dsv_handle.type != (uint32_t)ResourceType::none)) && "Invalid texture: both rtv_handle and dsv_handle are set!");
         
         // We'll store the newly created texture here
         ResourceHandle new_handle = ResourceHandle::none();
 
         // If it's a render target, create a new render target
-        if (texture.rtv_handle.type != (uint32_t)ResourceType::none()) {
+        if (texture.rtv_handle.type != (uint32_t)ResourceType::none) {
             handle = create_render_target(resource->name, width, height, texture.pixel_format, texture.clear_color).handle;
             return;
         }
 
         // If it's a depth target, create a new depth target
-        if (texture.dsv_handle.type != (uint32_t)ResourceType::none()) {
+        if (texture.dsv_handle.type != (uint32_t)ResourceType::none) {
             handle = create_depth_target(resource->name, width, height, texture.pixel_format, texture.clear_color.r).handle;
             return;
         }

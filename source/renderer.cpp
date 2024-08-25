@@ -46,11 +46,11 @@ namespace gfx {
         const glm::vec2 prev_render_resolution = m_render_resolution;
         m_render_resolution = m_resolution * resolution_scale;
         if (m_render_resolution != prev_render_resolution) {
-            resize_texture(m_color_target, m_render_resolution.x, m_render_resolution.y);
-            resize_texture(m_normal_target, m_render_resolution.x, m_render_resolution.y);
-            resize_texture(m_roughness_metallic_target, m_render_resolution.x, m_render_resolution.y);
-            resize_texture(m_emissive_target, m_render_resolution.x, m_render_resolution.y);
-            resize_texture(m_depth_target, m_render_resolution.x, m_render_resolution.y);
+            resize_texture(m_color_target, (uint32_t)m_render_resolution.x, (uint32_t)m_render_resolution.y);
+            resize_texture(m_normal_target, (uint32_t)m_render_resolution.x, (uint32_t)m_render_resolution.y);
+            resize_texture(m_roughness_metallic_target, (uint32_t)m_render_resolution.x, (uint32_t)m_render_resolution.y);
+            resize_texture(m_emissive_target, (uint32_t)m_render_resolution.x, (uint32_t)m_render_resolution.y);
+            resize_texture(m_depth_target, (uint32_t)m_render_resolution.x, (uint32_t)m_render_resolution.y);
         }
 
 

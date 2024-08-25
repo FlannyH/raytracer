@@ -142,6 +142,7 @@ namespace gfx {
         case PixelFormat::rgba16_float:     return DXGI_FORMAT_R16G16B16A16_FLOAT;  break;
         case PixelFormat::depth32_foat:     return DXGI_FORMAT_D32_FLOAT;           break;
         }
+        return DXGI_FORMAT_UNKNOWN;
     }
 
     struct PacketDrawMesh {

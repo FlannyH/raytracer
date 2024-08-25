@@ -23,7 +23,7 @@ namespace gfx {
 
 	int TangentCalculator::get_num_faces(const SMikkTSpaceContext* context) {
 		TangentCalculatorMesh* mesh = (TangentCalculatorMesh*)context->m_pUserData;
-		return mesh->n_triangles;
+		return (int)mesh->n_triangles;
 	}
 
 	int TangentCalculator::get_num_vertices_of_face(const SMikkTSpaceContext* context, int face) {
