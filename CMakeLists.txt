@@ -37,16 +37,15 @@ set_property(TARGET raytracer PROPERTY CXX_STANDARD 20)
 
 add_custom_command(
     TARGET raytracer POST_BUILD
-    COMMAND robocopy /e /xx
+    COMMAND robocopy /e /xx /njs /njh
             ${CMAKE_CURRENT_SOURCE_DIR}/assets/
             ${CMAKE_CURRENT_BINARY_DIR}/assets/
             || (exit 0)
 )
 add_custom_command(
     TARGET raytracer POST_BUILD
-    COMMAND robocopy /e /xx
+    COMMAND robocopy /e /xx /njs /njh
             ${CMAKE_CURRENT_SOURCE_DIR}/external/dll/
             ${CMAKE_CURRENT_BINARY_DIR}/
             || (exit 0)
 )
-# TODO: Add tests and install targets if needed.
