@@ -213,7 +213,7 @@ namespace gfx {
                     // Create buffers for them
                     ResourceHandlePair vertex_buffer = device.create_buffer("Vertex buffer", vertices.size() * sizeof(vertices[0]), vertices.data());
                     ResourceHandlePair position_buffer = device.create_buffer("Position buffer", positions.size() * sizeof(positions[0]), positions.data());
-                    ResourceHandlePair index_buffer = device.create_buffer("Index buffer", vertices.size() * sizeof(vertices[0]), vertices.data());
+                    ResourceHandlePair index_buffer = device.create_buffer("Index buffer", indices.size() * sizeof(indices[0]), indices.data());
 
                     auto mesh_node = std::make_shared<SceneNode>();
                     mesh_node->type = SceneNodeType::Mesh;
