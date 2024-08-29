@@ -127,6 +127,26 @@ namespace gfx {
         glm::vec4 tangent;
         glm::vec4 color;
         glm::vec2 texcoord0;
+        uint32_t material_id;
+    };
+
+    struct VertexFlags1 {
+        uint8_t tangent_sign : 1; // Tangent vector's sign. 1 = positive, 0 = negative
+        uint8_t _reserved : 7;
+    };
+    struct VertexFlags2 {
+        uint8_t _reserved : 8;
+    };
+
+    struct VertexCompressed {
+        glm::u16vec3 position; // 1.14 fixed point positions that need to be dequantized by the mesh's corresponding scaling vectors
+        uint16_t material_id; // Index into the material array. 0xFFFF means no material -> use default material
+        glm::u8vec3 normal; // Normal vector, where 0 = -1.0, 127 = 0.0, 254 = +1.0, kinda like a normal map texture
+        VertexFlags1 flags1;
+        glm::u8vec3 tangent; // Tangent vector, where 0 = -1.0, 127 = 0.0, 254 = +1.0, just like the normal vector
+        VertexFlags2 flags2;
+        glm::u16vec4 color; //RGB 0-1023 for SDR, with brighter HDR colors above that. Alpha is in range 0 - 1023, and values above that should be clamped to 1023 (1.0)
+        glm::vec2 texcoord0;
     };
 
     struct Triangle {
@@ -147,6 +167,8 @@ namespace gfx {
 
     struct PacketDrawMesh {
         glm::mat4 model_transform;
+        glm::vec4 position_offset;
+        glm::vec4 position_scale;
         ResourceHandle vertex_buffer;
         ResourceHandle texture;
     };

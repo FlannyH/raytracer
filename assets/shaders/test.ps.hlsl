@@ -6,6 +6,8 @@ struct ResourceHandle {
 
 struct DrawMeshPacket {
     float4x4 model_transform;
+    float4 position_offset;
+    float4 position_scale;
     ResourceHandle vertex_buffer;
     ResourceHandle tex;
 };
@@ -32,8 +34,8 @@ struct VertexOut {
 struct PixelOut {
     float4 color : SV_Target0;
     float4 normal : SV_Target1;
-    float2 roughness_metallic : SV_Target3;
-    float4 emissive : SV_Target4;
+    float2 roughness_metallic : SV_Target2;
+    float4 emissive : SV_Target3;
 };
 
 sampler tex_sampler : register(s0);

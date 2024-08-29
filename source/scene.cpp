@@ -198,10 +198,41 @@ namespace gfx {
                 for (auto& primitive : primitives) {
                     // Get the vertices, as well as a separate positions buffer, which we'll use to build ray tracing acceleration structures
                     std::vector<Vertex> vertices = parse_primitive(primitive, model, path);
+                    std::vector<VertexCompressed> compressed_vertices;
                     std::vector<glm::vec3> positions;
                     positions.reserve(vertices.size());
-                    for (Vertex& vertex : vertices) {
+                    compressed_vertices.reserve(vertices.size());
+
+                    // Populate position buffer
+                    for (const Vertex& vertex : vertices) {
                         positions.push_back(vertex.position);
+                    }
+
+                    // Figure out vertex position range for the same of compression
+                    glm::vec3 min_position = glm::vec3(+INFINITY);
+                    glm::vec3 max_position = glm::vec3(-INFINITY);
+                    for (const Vertex& vertex : vertices) {
+                        min_position = glm::min(min_position, vertex.position);
+                        max_position = glm::max(max_position, vertex.position);
+                    }
+
+                    // Some helper values to remap from (min, max) to (0, 65535)
+                    const glm::vec3 offset = min_position;
+                    const glm::vec3 scale = max_position - min_position;
+
+                    // Compress vertices for raster pipeline
+                    for (const Vertex& vertex : vertices) {
+                        VertexCompressed compressed_vtx{};
+                        compressed_vtx.position = glm::u16vec3((vertex.position - offset) * (65535.0f / scale));      // remap from (min, max) to (0, 65535)
+                        compressed_vtx.position = glm::clamp(compressed_vtx.position, glm::u16vec3(0), glm::u16vec3(65535));
+                        compressed_vtx.material_id = 0xFFFF;                                                        // todo: fill in material id
+                        compressed_vtx.normal = glm::u8vec3((vertex.normal + 1.0f) * 127.0f);                       // remap from (-1, +1) to (0, 254)
+                        compressed_vtx.flags1.tangent_sign = (vertex.tangent.w > 0.0f) ? 1 : 0;                     // convert tangent sign to a single bit
+                        compressed_vtx.tangent = glm::u8vec3((glm::vec3(vertex.tangent) + 1.0f) * 127.0f);          // remap from (-1, +1) to (0, 254)
+                        compressed_vtx.color = glm::u16vec4(vertex.color * 1023.0f);                                // remap from (0.0, 1.0) to (0, 1023). for RGB, higher values are valid too
+                        compressed_vtx.color.a = glm::clamp(compressed_vtx.color.a, glm::u16(0), glm::u16(1023));   // clamp alpha between 0, 1023, where 1023 = 1.0
+                        compressed_vtx.texcoord0 = vertex.texcoord0;                                                // keep this one the same
+                        compressed_vertices.push_back(compressed_vtx);
                     }
 
                     // Generate index buffer
@@ -211,7 +242,7 @@ namespace gfx {
                     }
 
                     // Create buffers for them
-                    ResourceHandlePair vertex_buffer = device.create_buffer("Vertex buffer", vertices.size() * sizeof(vertices[0]), vertices.data());
+                    ResourceHandlePair vertex_buffer = device.create_buffer("Compressed Vertex buffer", compressed_vertices.size() * sizeof(compressed_vertices[0]), compressed_vertices.data());
                     ResourceHandlePair position_buffer = device.create_buffer("Position buffer", positions.size() * sizeof(positions[0]), positions.data());
                     ResourceHandlePair index_buffer = device.create_buffer("Index buffer", indices.size() * sizeof(indices[0]), indices.data());
 
@@ -219,6 +250,8 @@ namespace gfx {
                     mesh_node->type = SceneNodeType::Mesh;
                     mesh_node->name = mesh.name;
                     mesh_node->cached_global_transform = global_matrix;
+                    mesh_node->position_offset = offset;
+                    mesh_node->position_scale = scale;
                     mesh_node->mesh.vertex_buffer = vertex_buffer.handle;
                     mesh_node->mesh.position_buffer = position_buffer.handle;
                     // todo: D3D12_RAYTRACING_GEOMETRY_TRIANGLES_DESC

@@ -6,6 +6,27 @@ struct Vertex {
     float2 texcoord0;
 };
 
+struct VertexCompressed {
+    uint pos_x : 16;
+    uint pos_y : 16;
+    uint pos_z : 16;
+    uint material_id : 16;
+    uint normal_x : 8;
+    uint normal_y : 8;
+    uint normal_z : 8;
+    uint flags1_tangent_sign: 1;
+    uint flags1_reserved : 7;
+    uint tangent_x: 8;
+    uint tangent_y: 8;
+    uint tangent_z: 8;
+    uint flags2_reserved : 8;
+    uint color_r : 16;
+    uint color_g : 16;
+    uint color_b : 16;
+    uint color_a : 16;
+    float2 texcoord0;
+};
+
 struct ResourceHandle {
     uint id: 27;
     uint is_loaded: 1;
@@ -14,6 +35,8 @@ struct ResourceHandle {
 
 struct DrawMeshPacket {
     float4x4 model_transform;
+    float4 position_offset;
+    float4 position_scale;
     ResourceHandle vertex_buffer;
     ResourceHandle tex;
 };
@@ -43,7 +66,23 @@ float4 main(in uint vertex_index : SV_VertexID, out VertexOut output) : SV_POSIT
     CameraMatricesPacket camera_matrices = packet_buffer.Load<CameraMatricesPacket>(root_constants.camera_matrices_offset);
 
     ByteAddressBuffer vertex_buffer = ResourceDescriptorHeap[NonUniformResourceIndex(draw_packet.vertex_buffer.id)];
-    Vertex vert = vertex_buffer.Load<Vertex>(vertex_index * sizeof(Vertex));
+    VertexCompressed vert_compressed = vertex_buffer.Load < VertexCompressed > (vertex_index * sizeof(VertexCompressed));
+    // Decompress vertex
+    Vertex vert;
+    vert.position.x = ((float)vert_compressed.pos_x / 65535.0f) * draw_packet.position_scale.x + draw_packet.position_offset.x;
+    vert.position.y = ((float)vert_compressed.pos_y / 65535.0f) * draw_packet.position_scale.y + draw_packet.position_offset.y;
+    vert.position.z = ((float)vert_compressed.pos_z / 65535.0f) * draw_packet.position_scale.z + draw_packet.position_offset.z;
+    vert.normal.x = ((float) vert_compressed.normal_x / 127.0f) - 1.0f;
+    vert.normal.y = ((float)vert_compressed.normal_y / 127.0f) - 1.0f;
+    vert.normal.z = ((float)vert_compressed.normal_z / 127.0f) - 1.0f;
+    vert.tangent.x = ((float)vert_compressed.tangent_x / 127.0f) - 1.0f;
+    vert.tangent.y = ((float)vert_compressed.tangent_y / 127.0f) - 1.0f;
+    vert.tangent.z = ((float)vert_compressed.tangent_z / 127.0f) - 1.0f;
+    vert.color.r = (float) vert_compressed.color_r / 1023.0f;
+    vert.color.g = (float) vert_compressed.color_g / 1023.0f;
+    vert.color.b = (float) vert_compressed.color_b / 1023.0f;
+    vert.color.a = (float) vert_compressed.color_a / 1023.0f;
+    vert.texcoord0 = vert_compressed.texcoord0;
     
     float4 vert_pos = mul(draw_packet.model_transform, float4(vert.position, 1));
     vert_pos = mul(camera_matrices.view_matrix, vert_pos);

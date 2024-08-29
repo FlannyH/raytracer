@@ -29,6 +29,8 @@ namespace gfx {
     struct SceneNode {
         Transform local_transform;
         glm::mat4 cached_global_transform;
+        glm::vec3 position_offset;
+        glm::vec3 position_scale;
         std::shared_ptr<SceneNode> parent = nullptr;
         std::vector<std::shared_ptr<SceneNode>> children;
         std::string name;
