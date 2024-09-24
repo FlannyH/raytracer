@@ -76,6 +76,7 @@ namespace gfx {
     /// `default_value` is used in case we want more components than we have, so then the last values will take the default value's component
     template<typename ComponentType, typename Out>
     std::vector<Out> convert_gltf_buffer(void* input, int component_type, size_t component_stride, Out default_value, size_t size_bytes, const bool normalized) {
+        if (input == nullptr || size_bytes == 0) return {};
         ComponentType* converted_array = nullptr;
         size_t size_component = 0;
         size_t n_values = 0;
@@ -298,6 +299,33 @@ namespace gfx {
         return scene_node;
     }
 
+    int size_of_gltf_component(int gltf_component) {
+        switch (gltf_component) {
+            case TINYGLTF_COMPONENT_TYPE_BYTE: return 1;
+            case TINYGLTF_COMPONENT_TYPE_UNSIGNED_BYTE: return 1;
+            case TINYGLTF_COMPONENT_TYPE_SHORT: return 2;
+            case TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT: return 2;
+            case TINYGLTF_COMPONENT_TYPE_INT: return 4;
+            case TINYGLTF_COMPONENT_TYPE_UNSIGNED_INT: return 4;
+            case TINYGLTF_COMPONENT_TYPE_FLOAT: return 4;
+            case TINYGLTF_COMPONENT_TYPE_DOUBLE: return 8;
+            default: abort();
+        }
+    }
+
+    int number_of_components(int gltf_type) {
+        switch (gltf_type) {
+        case TINYGLTF_TYPE_VEC2: return 2;
+        case TINYGLTF_TYPE_VEC3: return 3;
+        case TINYGLTF_TYPE_VEC4: return 4;
+        case TINYGLTF_TYPE_MAT2: return 4;
+        case TINYGLTF_TYPE_MAT3: return 9;
+        case TINYGLTF_TYPE_MAT4: return 16;
+        case TINYGLTF_TYPE_SCALAR: return 1;
+        default: abort();
+        }
+    }
+
     std::vector<Vertex> parse_primitive(tinygltf::Primitive& primitive, tinygltf::Model& model, const std::string& path) {
         //Accessors
         int acc_position = -1;
@@ -314,44 +342,52 @@ namespace gfx {
             }
         }
 
-        acc_position = primitive.attributes["POSITION"];
-        acc_normal = primitive.attributes["NORMAL"];
-        acc_tangent = primitive.attributes["TANGENT"];
-        acc_tex_coord = primitive.attributes["TEXCOORD_0"];
-        acc_color = primitive.attributes["COLOR_0"];
+        if (primitive.attributes.contains("POSITION")) acc_position = primitive.attributes["POSITION"];
+        if (primitive.attributes.contains("NORMAL")) acc_normal = primitive.attributes["NORMAL"];
+        if (primitive.attributes.contains("TANGENT")) acc_tangent = primitive.attributes["TANGENT"];
+        if (primitive.attributes.contains("TEXCOORD_0")) acc_tex_coord = primitive.attributes["TEXCOORD_0"];
+        if (primitive.attributes.contains("COLOR_0")) acc_color = primitive.attributes["COLOR_0"];
         acc_indices = primitive.indices;
 
-        // Get array sizes
-        const size_t size_position = model.bufferViews[acc_position].byteLength;
-        const size_t size_normal = model.bufferViews[acc_normal].byteLength;
-        const size_t size_tangent = model.bufferViews[acc_tangent].byteLength;
-        const size_t size_color = model.bufferViews[acc_color].byteLength;
-        const size_t size_tex_coord = model.bufferViews[acc_tex_coord].byteLength;
-        const size_t size_indices = model.bufferViews[acc_indices].byteLength;
+        // Get bufferviews
+        const auto* bufferview_position = (acc_position == -1) ? nullptr : &model.bufferViews[model.accessors[acc_position].bufferView];
+        const auto* bufferview_normal = (acc_normal == -1) ? nullptr : &model.bufferViews[model.accessors[acc_normal].bufferView];
+        const auto* bufferview_tangent = (acc_tangent == -1) ? nullptr : &model.bufferViews[model.accessors[acc_tangent].bufferView];
+        const auto* bufferview_color = (acc_color == -1) ? nullptr : &model.bufferViews[model.accessors[acc_color].bufferView];
+        const auto* bufferview_tex_coord = (acc_tex_coord == -1) ? nullptr : &model.bufferViews[model.accessors[acc_tex_coord].bufferView];
+        const auto* bufferview_indices = (acc_indices == -1) ? nullptr : &model.bufferViews[model.accessors[acc_indices].bufferView];
 
         // Prepare buffer data pointers
-        uint8_t* start_position = &model.buffers[model.bufferViews[acc_position].buffer].data[model.bufferViews[acc_position].byteOffset];
-        uint8_t* start_normal = &model.buffers[model.bufferViews[acc_normal].buffer].data[model.bufferViews[acc_normal].byteOffset];
-        uint8_t* start_tangent = &model.buffers[model.bufferViews[acc_tangent].buffer].data[model.bufferViews[acc_tangent].byteOffset];
-        uint8_t* start_color = &model.buffers[model.bufferViews[acc_color].buffer].data[model.bufferViews[acc_color].byteOffset];
-        uint8_t* start_tex_coord = &model.buffers[model.bufferViews[acc_tex_coord].buffer].data[model.bufferViews[acc_tex_coord].byteOffset];
-        uint8_t* start_indices = &model.buffers[model.bufferViews[acc_indices].buffer].data[model.bufferViews[acc_indices].byteOffset];
+        uint8_t* start_position = (acc_position == -1) ? nullptr : &model.buffers[bufferview_position->buffer].data[bufferview_position->byteOffset + model.accessors[acc_position].byteOffset];
+        uint8_t* start_normal = (acc_normal == -1) ? nullptr : &model.buffers[bufferview_normal->buffer].data[bufferview_normal->byteOffset + model.accessors[acc_normal].byteOffset];
+        uint8_t* start_tangent = (acc_tangent == -1) ? nullptr : &model.buffers[bufferview_tangent->buffer].data[bufferview_tangent->byteOffset + model.accessors[acc_tangent].byteOffset];
+        uint8_t* start_color = (acc_color == -1) ? nullptr : &model.buffers[bufferview_color->buffer].data[bufferview_color->byteOffset + model.accessors[acc_color].byteOffset];
+        uint8_t* start_tex_coord = (acc_tex_coord == -1) ? nullptr : &model.buffers[bufferview_tex_coord->buffer].data[bufferview_tex_coord->byteOffset + model.accessors[acc_tex_coord].byteOffset];
+        uint8_t* start_indices = (acc_indices == -1) ? nullptr : &model.buffers[bufferview_indices->buffer].data[bufferview_indices->byteOffset + model.accessors[acc_indices].byteOffset];
 
         // Get component types
-        int type_position = model.accessors[acc_position].componentType;
-        int type_normal = model.accessors[acc_normal].componentType;
-        int type_tangent = model.accessors[acc_tangent].componentType;
-        int type_color = model.accessors[acc_color].componentType;
-        int type_tex_coord = model.accessors[acc_tex_coord].componentType;
-        int type_indices = model.accessors[acc_indices].componentType;
+        int type_position = (acc_position == -1) ? 0 : model.accessors[acc_position].componentType;
+        int type_normal = (acc_normal == -1) ? 0 : model.accessors[acc_normal].componentType;
+        int type_tangent = (acc_tangent == -1) ? 0 : model.accessors[acc_tangent].componentType;
+        int type_color = (acc_color == -1) ? 0 : model.accessors[acc_color].componentType;
+        int type_tex_coord = (acc_tex_coord == -1) ? 0 : model.accessors[acc_tex_coord].componentType;
+        int type_indices = (acc_indices == -1) ? 0 : model.accessors[acc_indices].componentType;
 
         // Get component strides
-        size_t stride_position = size_position / model.accessors[acc_position].count;
-        size_t stride_normal = size_normal / model.accessors[acc_normal].count;
-        size_t stride_tangent = size_tangent / model.accessors[acc_tangent].count;
-        size_t stride_color = size_color / model.accessors[acc_color].count;
-        size_t stride_tex_coord = size_tex_coord / model.accessors[acc_tex_coord].count;
-        size_t stride_indices = size_indices / model.accessors[acc_indices].count;
+        size_t stride_position =  (acc_position == -1) ? 0 : ((bufferview_position->byteStride == 0) ? (size_of_gltf_component(type_position) * number_of_components(model.accessors[acc_position].type)) : bufferview_position->byteStride);
+        size_t stride_normal = (acc_normal == -1) ? 0 : ((bufferview_normal->byteStride == 0) ? (size_of_gltf_component(type_normal) * number_of_components(model.accessors[acc_normal].type)) : bufferview_normal->byteStride);
+        size_t stride_tangent = (acc_tangent == -1) ? 0 : ((bufferview_tangent->byteStride == 0) ? (size_of_gltf_component(type_tangent) * number_of_components(model.accessors[acc_tangent].type)) : bufferview_tangent->byteStride);
+        size_t stride_color = (acc_color == -1) ? 0 : ((bufferview_color->byteStride == 0) ? (size_of_gltf_component(type_color) * number_of_components(model.accessors[acc_color].type)) : bufferview_color->byteStride);
+        size_t stride_tex_coord = (acc_tex_coord == -1) ? 0 : ((bufferview_tex_coord->byteStride == 0) ? (size_of_gltf_component(type_tex_coord) * number_of_components(model.accessors[acc_tex_coord].type)) : bufferview_tex_coord->byteStride);
+        size_t stride_indices = (acc_indices == -1) ? 0 : ((bufferview_indices->byteStride == 0)    ? (size_of_gltf_component(type_indices)     * number_of_components(model.accessors[acc_indices].type)) : bufferview_indices->byteStride);
+
+        // Get array sizes
+        const size_t size_position = (acc_position == -1) ? 0 : model.accessors[acc_position].count * stride_position;
+        const size_t size_normal = (acc_normal == -1) ? 0 : model.accessors[acc_normal].count * stride_normal;
+        const size_t size_tangent = (acc_tangent == -1) ? 0 : model.accessors[acc_tangent].count * stride_tangent;
+        const size_t size_color = (acc_color == -1) ? 0 : model.accessors[acc_color].count * stride_color;
+        const size_t size_tex_coord = (acc_tex_coord == -1) ? 0 : model.accessors[acc_tex_coord].count * stride_tex_coord;
+        const size_t size_indices = (acc_indices == -1) ? 0 : model.accessors[acc_indices].count * stride_indices;
 
         // Default values
         glm::vec3 default_position = glm::vec3(0.0f, 0.0f, 0.0f);
@@ -362,8 +398,8 @@ namespace gfx {
         uint32_t default_index = 0;
 
         // Get normalized
-        bool norm_color = model.accessors[acc_color].normalized;
-        bool norm_tex_coord = model.accessors[acc_tex_coord].normalized;
+        bool norm_color = (acc_color == -1) ? false : model.accessors[acc_color].normalized;
+        bool norm_tex_coord = (acc_tex_coord == -1) ? false : model.accessors[acc_tex_coord].normalized;
 
         // Convert attributes to desired format
         auto positions = convert_gltf_buffer<float, glm::vec3>((void*)start_position, type_position, stride_position, default_position, size_position, false);
@@ -399,15 +435,29 @@ namespace gfx {
         std::vector<Vertex> vertices;
         vertices.reserve(indices.size());
 
-        for (uint32_t i : indices) {
-            vertices.push_back(Vertex {
-                .position = positions[i],
-                .normal = normals[i],
-                .tangent = tangents[i],
-                .color = colors[i],
-                .texcoord0 = tex_coords[i],
-                }
-            );
+        if (indices.empty()) {
+            for (size_t i = 0; i < positions.size(); ++i) {
+                vertices.push_back(Vertex{
+                    .position = positions[i],
+                    .normal = normals[i],
+                    .tangent = tangents[i],
+                    .color = colors[i],
+                    .texcoord0 = tex_coords[i],
+                    }
+                );
+            }
+        }
+        else {
+            for (uint32_t i : indices) {
+                vertices.push_back(Vertex{
+                    .position = positions[i],
+                    .normal = normals[i],
+                    .tangent = tangents[i],
+                    .color = colors[i],
+                    .texcoord0 = tex_coords[i],
+                    }
+                );
+            }
         }
 
         if (should_generate_tangents) {
