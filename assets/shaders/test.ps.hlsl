@@ -34,7 +34,7 @@ struct VertexOut {
 struct PixelOut {
     float4 color : SV_Target0;
     float4 normal : SV_Target1;
-    float2 roughness_metallic : SV_Target2;
+    float2 metal_roughness : SV_Target2;
     float4 emissive : SV_Target3;
 };
 
@@ -61,7 +61,7 @@ PixelOut main(in float4 position : SV_Position, in VertexOut input)
     output.normal = float4((input.normal + 1.0) * 0.5, 1.0f);
     
     // todo: implement pbr
-    output.roughness_metallic = float2(0.0f, 0.0f);
+    output.metal_roughness = float2(0.0f, 0.0f);
     output.emissive = float4(0.0f, 0.0f, 0.0f, 0.0f);
     
     return output;

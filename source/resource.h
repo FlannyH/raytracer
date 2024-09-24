@@ -183,12 +183,11 @@ namespace gfx {
         glm::vec3 emissive_multiplier = { 1.0f, 1.0f, 1.0f }; // Color to multiply the emissive texture with.
         ResourceHandle color_texture = ResourceHandle::none(); // If set to none, a default value of { 1, 1, 1, 1 } will be used.
         ResourceHandle normal_texture = ResourceHandle::none(); // If set to none, a default value of { 0.5, 0.5, 1.0 } will be used.
-        ResourceHandle roughness_texture = ResourceHandle::none(); // If set to none, a default value of 1.0 will be used.
-        ResourceHandle metallic_texture = ResourceHandle::none(); // If set to none, a default value of 1.0 will be used.
+        ResourceHandle metal_roughness_texture = ResourceHandle::none(); // If set to none, a default value of { 0.0, 1.0 } will be used.
         ResourceHandle emissive_texture = ResourceHandle::none(); // If set to none, a default value of { 0, 0, 0 } will be used.
         float normal_intensity = 1.0f; // Used to interpolate between { 0.5, 0.5, 1.0 } and the sampled normal map value. Can go beyond 1.0 to make the normal map more intense
         float roughness_multiplier = 1.0f; // Will be multipled with the sampled roughness texture value
         float metallic_multiplier = 1.0f; // Will be multiplied with the sample metallic texture value
-        uint32_t reserved = 0; // This makes the struct size 64 bytes, perfect for cache lines
+        uint64_t reserved = 0; // This makes the struct size 64 bytes, perfect for cache lines
     };
 }
