@@ -117,7 +117,7 @@ namespace gfx {
     }; 
 
     struct ResourceHandlePair {
-        ResourceHandle handle;
+        ResourceHandle handle = ResourceHandle::none();
         std::shared_ptr<Resource> resource = nullptr;
     };
 
