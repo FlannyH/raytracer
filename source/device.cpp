@@ -18,7 +18,7 @@
 #include "input.h"
 
 namespace gfx {
-    #define DRAW_PACKET_BUFFER_SIZE (1024)
+    #define DRAW_PACKET_BUFFER_SIZE (102400)
     #define MAX_MATERIAL_COUNT (1024)
     #define GPU_BUFFER_PREFERRED_ALIGNMENT 64
 
