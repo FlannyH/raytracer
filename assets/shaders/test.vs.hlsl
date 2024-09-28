@@ -56,7 +56,8 @@ ConstantBuffer<RootConstants> root_constants : register(b0, space0);
 
 struct VertexOut {
     float3 normal : NORMAL0;
-    float4 tangent : TANGENT0; // Since only the sign bit is used for the W component, we can store the material index in here
+    float3 tangent : TANGENT0;
+    float3 bitangent : TANGENT1;
     float4 color : COLOR0;
     float3 texcoord0_materialid : TEXCOORD0;
 };
@@ -79,6 +80,7 @@ float4 main(in uint vertex_index : SV_VertexID, out VertexOut output) : SV_POSIT
     vert.tangent.x = ((float)vert_compressed.tangent_x / 127.0f) - 1.0f;
     vert.tangent.y = ((float)vert_compressed.tangent_y / 127.0f) - 1.0f;
     vert.tangent.z = ((float)vert_compressed.tangent_z / 127.0f) - 1.0f;
+    vert.tangent.w = ((float)vert_compressed.flags1_tangent_sign * 2.0f) - 1.0f;
     vert.color.r = (float) vert_compressed.color_r / 1023.0f;
     vert.color.g = (float) vert_compressed.color_g / 1023.0f;
     vert.color.b = (float) vert_compressed.color_b / 1023.0f;
@@ -91,7 +93,8 @@ float4 main(in uint vertex_index : SV_VertexID, out VertexOut output) : SV_POSIT
     
     output.color = vert.color;
     output.normal = mul((float3x3)draw_packet.model_transform, vert.normal);
-    output.tangent = vert.tangent;
+    output.tangent = mul((float3x3)draw_packet.model_transform, vert.tangent.xyz);
+    output.bitangent = cross(output.normal, output.tangent) * vert.tangent.www;
     output.texcoord0_materialid.xy = vert.texcoord0;
     output.texcoord0_materialid.z = (float)vert_compressed.material_id;
     return vert_pos;

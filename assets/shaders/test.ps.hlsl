@@ -27,7 +27,8 @@ ConstantBuffer<RootConstants> root_constants : register(b0, space0);
 
 struct VertexOut {
     float3 normal : NORMAL0;
-    float4 tangent : TANGENT0;
+    float3 tangent : TANGENT0;
+    float3 bitangent : TANGENT1;
     float4 color : COLOR0;
     float3 texcoord0_materialid : TEXCOORD0;
 };
@@ -73,11 +74,27 @@ PixelOut main(in float4 position : SV_Position, in VertexOut input) {
     if (abs(input.texcoord0_materialid.z - 65535.0f) > 0.1f) {
         ByteAddressBuffer material_buffer = ResourceDescriptorHeap[NonUniformResourceIndex(root_constants.material_buffer & MASK_ID)];
         Material material = material_buffer.Load<Material>(((uint) input.texcoord0_materialid.z) * 64);
-        
+
+        // Color
         if (material.color_texture.is_loaded != 0) {
             Texture2D<float4> tex = ResourceDescriptorHeap[NonUniformResourceIndex(material.color_texture.id)];
             float4 tex_color = tex.Sample(tex_sampler, input.texcoord0_materialid.xy);
             output.color *= tex_color;
+        }
+        output.color *= material.color_multiplier;
+
+        // Normal
+        if (material.normal_texture.is_loaded != 0) {
+            Texture2D<float4> tex = ResourceDescriptorHeap[NonUniformResourceIndex(material.normal_texture.id)];
+            float3 tex_normal = (tex.Sample(tex_sampler, input.texcoord0_materialid.xy).xyz - 1.0f) * 2.0f;
+            float3 default_normal = float3(0.0f, 0.0f, 1.0f);
+            float3 interpolated_normal = lerp(default_normal, tex_normal, material.normal_intensity);
+            float3 normal = 
+                (tex_normal.x * input.tangent) +
+                (tex_normal.y * input.bitangent) +
+                (tex_normal.z * input.normal);
+           
+            output.normal = float4((normal + 1.0f) * 0.5f, 1.0f);
         }
     }
     
