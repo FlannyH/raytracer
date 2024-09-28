@@ -72,7 +72,7 @@ PixelOut main(in float4 position : SV_Position, in VertexOut input) {
     // Apply material
     if (abs(input.texcoord0_materialid.z - 65535.0f) > 0.1f) {
         ByteAddressBuffer material_buffer = ResourceDescriptorHeap[NonUniformResourceIndex(root_constants.material_buffer & MASK_ID)];
-        Material material = material_buffer.Load<Material>(((uint) input.texcoord0_materialid.z) * 64);
+        Material material = material_buffer.Load<Material>(((uint) round(input.texcoord0_materialid.z)) * 64);
 
         // Color
         if (material.color_texture.is_loaded != 0) {
