@@ -73,12 +73,12 @@ float4 main(in uint vertex_index : SV_VertexID, out VertexOut output) : SV_POSIT
     vert.position.x = ((float)vert_compressed.pos_x / 65535.0f) * draw_packet.position_scale.x + draw_packet.position_offset.x;
     vert.position.y = ((float)vert_compressed.pos_y / 65535.0f) * draw_packet.position_scale.y + draw_packet.position_offset.y;
     vert.position.z = ((float)vert_compressed.pos_z / 65535.0f) * draw_packet.position_scale.z + draw_packet.position_offset.z;
-    vert.normal.x = ((float) vert_compressed.normal_x / 127.0f) - 1.0f;
-    vert.normal.y = ((float)vert_compressed.normal_y / 127.0f) - 1.0f;
-    vert.normal.z = ((float)vert_compressed.normal_z / 127.0f) - 1.0f;
-    vert.tangent.x = ((float)vert_compressed.tangent_x / 127.0f) - 1.0f;
-    vert.tangent.y = ((float)vert_compressed.tangent_y / 127.0f) - 1.0f;
-    vert.tangent.z = ((float)vert_compressed.tangent_z / 127.0f) - 1.0f;
+    vert.normal.x = (float) vert_compressed.normal_x - 127.0f;
+    vert.normal.y = (float)vert_compressed.normal_y - 127.0f;
+    vert.normal.z = (float)vert_compressed.normal_z - 127.0f;
+    vert.tangent.x = (float)vert_compressed.tangent_x - 127.0f;
+    vert.tangent.y = (float)vert_compressed.tangent_y - 127.0f;
+    vert.tangent.z = (float)vert_compressed.tangent_z - 127.0f;
     vert.tangent.w = ((float)vert_compressed.flags1_tangent_sign * 2.0f) - 1.0f;
     vert.color.r = (float) vert_compressed.color_r / 1023.0f;
     vert.color.g = (float) vert_compressed.color_g / 1023.0f;
@@ -91,8 +91,8 @@ float4 main(in uint vertex_index : SV_VertexID, out VertexOut output) : SV_POSIT
     vert_pos = mul(camera_matrices.projection_matrix, vert_pos);
     
     output.color = vert.color;
-    output.normal = mul((float3x3)draw_packet.model_transform, vert.normal);
-    output.tangent = mul((float3x3)draw_packet.model_transform, vert.tangent.xyz);
+    output.normal = normalize(mul((float3x3)draw_packet.model_transform, vert.normal));
+    output.tangent.xyz = normalize(mul((float3x3)draw_packet.model_transform, vert.tangent.xyz));
     output.bitangent = cross(output.normal, output.tangent) * vert.tangent.www;
     output.texcoord0_materialid.xy = vert.texcoord0;
     output.texcoord0_materialid.z = (float)vert_compressed.material_id;
