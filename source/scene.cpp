@@ -133,7 +133,7 @@ namespace gfx {
             std::vector<Out> output;
             const size_t n_extra_components = n_desired_components - n_actual_components;
 
-            for (size_t i = 0; i < n_values; ++i) {
+            for (size_t i = 0; i < n_values / n_actual_components; ++i) {
                 // Copy the entire default value into the output, then copy the actual value into it, and then add it to the output
                 Out out{};
                 ComponentType* raw_components = &converted_array[i * n_actual_components];
@@ -289,7 +289,9 @@ namespace gfx {
 
     ResourceHandlePair upload_texture_from_gltf(const std::string& model_path, tinygltf::Model& model, Device& device, int texture_index) {
         ResourceHandlePair texture_resource;
-        const tinygltf::Image* image_gltf = (texture_index != -1) ? &model.images.at(texture_index) : nullptr;
+        const tinygltf::Texture* texture_gltf = (texture_index != -1) ? &model.textures.at(texture_index) : nullptr;
+        const tinygltf::Image* image_gltf = (texture_index != -1) ? &model.images.at(texture_gltf->source) : nullptr;
+        // todo: deduplicate textures
 
         if (!image_gltf) {
             return ResourceHandlePair();
