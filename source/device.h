@@ -60,6 +60,7 @@ namespace gfx {
         ResourceHandlePair create_depth_target(const std::string& name, uint32_t width, uint32_t height, PixelFormat pixel_format, float clear_value = 1.0f);
         void resize_texture(ResourceHandle& texture, const uint32_t width, const uint32_t height);
         void unload_bindless_resource(ResourceHandle id);
+        std::pair<int, Material*> allocate_material_slot();
 
         ComPtr<ID3D12Device> device = nullptr;
         ComPtr<IDXGIFactory4> factory = nullptr;
@@ -101,9 +102,13 @@ namespace gfx {
         // Rendering context
         std::shared_ptr<Pipeline> m_curr_bound_pipeline = nullptr; // Will point to a valid pipeline after calling begin_render_pass(), and will be null after calling end_render_pass()
         std::shared_ptr<CommandBuffer> m_curr_pass_cmd; // The command buffer used for this pass
+        std::vector<int> m_material_indices_to_reuse;
+        std::vector<Material> m_materials; // Should be uploaded to the GPU after modifying
+        ResourceHandlePair m_material_buffer{}; // Buffer that contains all currently loaded materials
         ResourceHandlePair m_draw_packets{}; // Scratch buffer that is used to send draw info to the shader pipelines
         size_t m_draw_packet_cursor = 0; // Current allocation offset into the draw packet buffer
         size_t m_camera_matrices_offset = 0; // Where the camera matrices for this frame are stored
+        bool m_should_update_material_buffer = false;
         std::vector<std::shared_ptr<Resource>> m_curr_render_targets; // Currently bound render targets - keeping track of them for proper resource transitions at the end of a render pass
         std::shared_ptr<Resource> m_curr_depth_target = nullptr; // Currently bound depth target - keeping track of them for proper resource transitions at the end of a render pass
     };

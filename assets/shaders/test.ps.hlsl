@@ -18,9 +18,10 @@ struct CameraMatricesPacket {
 };
 
 struct RootConstants {
-    ResourceHandle packet_buffer;
+    uint packet_buffer;
     uint camera_matrices_offset;
     uint draw_mesh_packet_offset;
+    uint material_buffer;
 };
 ConstantBuffer<RootConstants> root_constants : register(b0, space0);
 
@@ -28,7 +29,7 @@ struct VertexOut {
     float3 normal : NORMAL0;
     float4 tangent : TANGENT0;
     float4 color : COLOR0;
-    float2 texcoord0 : TEXCOORD0;
+    float3 texcoord0_materialid : TEXCOORD0;
 };
 
 struct PixelOut {
@@ -38,31 +39,47 @@ struct PixelOut {
     float4 emissive : SV_Target3;
 };
 
+struct Material {
+    float4 color_multiplier;
+    float3 emissive_multiplier;
+    ResourceHandle color_texture;
+    ResourceHandle normal_texture;
+    ResourceHandle metal_roughness_texture;
+    ResourceHandle emissive_texture;
+    float normal_intensity;
+    float roughness_multiplier;
+    float metallic_multiplier;
+    uint reserved0;
+    uint reserved1;
+};
+
 sampler tex_sampler : register(s0);
 
 #define MASK_ID ((1 << 27) - 1)
 
-PixelOut main(in float4 position : SV_Position, in VertexOut input)
-{
-    ByteAddressBuffer packet_buffer = ResourceDescriptorHeap[NonUniformResourceIndex(root_constants.packet_buffer.id)];
+PixelOut main(in float4 position : SV_Position, in VertexOut input) {
+    ByteAddressBuffer packet_buffer = ResourceDescriptorHeap[NonUniformResourceIndex(root_constants.packet_buffer & MASK_ID)];
     DrawMeshPacket packet = packet_buffer.Load<DrawMeshPacket>(root_constants.draw_mesh_packet_offset);
 
     PixelOut output;
     
-    // Color 
+    // Fill default values
     output.color = input.color;
-   
-    if (packet.tex.is_loaded == 1) {
-        Texture2D<float4> tex = ResourceDescriptorHeap[NonUniformResourceIndex(packet.tex.id)];
-        float4 tex_color = tex.Sample(tex_sampler, input.texcoord0);
-        output.color *= tex_color;
-    }
-    
     output.normal = float4((input.normal + 1.0) * 0.5, 1.0f);
-    
-    // todo: implement pbr
     output.metal_roughness = float2(0.0f, 0.0f);
     output.emissive = float4(0.0f, 0.0f, 0.0f, 0.0f);
+    
+    // Apply material
+    if (abs(input.texcoord0_materialid.z - 65535.0f) > 0.1f) {
+        ByteAddressBuffer material_buffer = ResourceDescriptorHeap[NonUniformResourceIndex(root_constants.material_buffer & MASK_ID)];
+        Material material = material_buffer.Load<Material>(((uint) input.texcoord0_materialid.z) * 64);
+        
+        if (material.color_texture.is_loaded != 0) {
+            Texture2D<float4> tex = ResourceDescriptorHeap[NonUniformResourceIndex(material.color_texture.id)];
+            float4 tex_color = tex.Sample(tex_sampler, input.texcoord0_materialid.xy);
+            output.color *= tex_color;
+        }
+    }
     
     return output;
 }

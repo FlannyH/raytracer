@@ -50,14 +50,15 @@ struct RootConstants {
     ResourceHandle packet_buffer;
     uint camera_matrices_offset;
     uint draw_mesh_packet_offset;
+    ResourceHandle material_buffer;
 };
 ConstantBuffer<RootConstants> root_constants : register(b0, space0);
 
 struct VertexOut {
     float3 normal : NORMAL0;
-    float4 tangent : TANGENT0;
+    float4 tangent : TANGENT0; // Since only the sign bit is used for the W component, we can store the material index in here
     float4 color : COLOR0;
-    float2 texcoord0 : TEXCOORD0;
+    float3 texcoord0_materialid : TEXCOORD0;
 };
 
 float4 main(in uint vertex_index : SV_VertexID, out VertexOut output) : SV_POSITION {
@@ -66,7 +67,7 @@ float4 main(in uint vertex_index : SV_VertexID, out VertexOut output) : SV_POSIT
     CameraMatricesPacket camera_matrices = packet_buffer.Load<CameraMatricesPacket>(root_constants.camera_matrices_offset);
 
     ByteAddressBuffer vertex_buffer = ResourceDescriptorHeap[NonUniformResourceIndex(draw_packet.vertex_buffer.id)];
-    VertexCompressed vert_compressed = vertex_buffer.Load < VertexCompressed > (vertex_index * sizeof(VertexCompressed));
+    VertexCompressed vert_compressed = vertex_buffer.Load<VertexCompressed>(vertex_index * sizeof(VertexCompressed));
     // Decompress vertex
     Vertex vert;
     vert.position.x = ((float)vert_compressed.pos_x / 65535.0f) * draw_packet.position_scale.x + draw_packet.position_offset.x;
@@ -91,6 +92,7 @@ float4 main(in uint vertex_index : SV_VertexID, out VertexOut output) : SV_POSIT
     output.color = vert.color;
     output.normal = mul((float3x3)draw_packet.model_transform, vert.normal);
     output.tangent = vert.tangent;
-    output.texcoord0 = vert.texcoord0;
+    output.texcoord0_materialid.xy = vert.texcoord0;
+    output.texcoord0_materialid.z = (float)vert_compressed.material_id;
     return vert_pos;
 }

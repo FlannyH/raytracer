@@ -19,6 +19,7 @@
 
 namespace gfx {
     #define DRAW_PACKET_BUFFER_SIZE (1024)
+    #define MAX_MATERIAL_COUNT (1024)
     #define GPU_BUFFER_PREFERRED_ALIGNMENT 64
 
     Device::Device(const int width, const int height, const bool debug_layer_enabled) {
@@ -84,6 +85,9 @@ namespace gfx {
         // Create triple buffered draw packet buffer
         m_draw_packets = create_buffer("Draw Packets", DRAW_PACKET_BUFFER_SIZE * backbuffer_count, nullptr);
 
+        // Create material buffer
+        m_material_buffer = create_buffer("Material Descriptions", MAX_MATERIAL_COUNT * sizeof(Material), nullptr);
+
         // Init context
         m_queue_gfx = std::make_shared<CommandQueue>(*this, CommandBufferType::graphics);
         m_upload_queue = std::make_shared<CommandQueue>(*this, CommandBufferType::graphics);
@@ -147,6 +151,15 @@ namespace gfx {
         m_queue_gfx->clean_up_old_command_buffers(m_swapchain->current_fence_completed_value());
         clean_up_old_resources();
         m_draw_packet_cursor = 0;
+
+        if (m_should_update_material_buffer) {
+            m_should_update_material_buffer = false;
+            char* mapped_material_buffer = nullptr;
+            const D3D12_RANGE read_range = { 0, 0 };
+            validate(m_material_buffer.resource->handle->Map(0, &read_range, (void**)&mapped_material_buffer));
+            memcpy(mapped_material_buffer, m_materials.data(), m_materials.size() * sizeof(Material));
+            m_material_buffer.resource->handle->Unmap(0, &read_range);
+        }
     }
 
     void Device::end_frame() {
@@ -318,9 +331,10 @@ namespace gfx {
             auto n_vertices = m_resources[draw_packet.vertex_buffer.id]->expect_buffer().size / sizeof(VertexCompressed);
             auto draw_packet_offset = create_draw_packet(&draw_packet, sizeof(draw_packet));
             set_root_constants({
-                m_draw_packets.handle.id,
+                m_draw_packets.handle.as_u32(),
                 (uint32_t)m_camera_matrices_offset,
-                (uint32_t)draw_packet_offset
+                (uint32_t)draw_packet_offset,
+                m_material_buffer.handle.as_u32()
             });
             draw_vertices((uint32_t)n_vertices);
         }
@@ -422,7 +436,7 @@ namespace gfx {
                 .PlacedFootprint = {
                     .Offset = 0,
                     .Footprint = {
-                        .Format = static_cast<DXGI_FORMAT>(resource->expect_texture().pixel_format),
+                        .Format = pixel_format_to_dx12(resource->expect_texture().pixel_format),
                         .Width = resource->expect_texture().width,
                         .Height = resource->expect_texture().height,
                         .Depth = 1,
@@ -759,6 +773,27 @@ namespace gfx {
         };
         int fence_value = m_swapchain->current_frame_index() + 3;
         m_resources_to_unload.push_back({ handle, fence_value });
+    }
+
+    std::pair<int, Material*> Device::allocate_material_slot() {
+        m_should_update_material_buffer = true;
+
+        // Reuse old unused material slot if one is available
+        if (!m_material_indices_to_reuse.empty()) {
+            const std::pair<int, Material*> return_value = {
+                m_material_indices_to_reuse[0],
+                &m_materials[m_material_indices_to_reuse[0]]
+            };
+            m_material_indices_to_reuse.pop_back();
+        }
+
+        // Otherwise create a new slot
+        const size_t slot_id = m_materials.size();
+        m_materials.push_back({});
+        return {
+            slot_id,
+            &m_materials[slot_id]
+        };
     }
 
     void Device::transition_resource(CommandBuffer* cmd, Resource* resource, D3D12_RESOURCE_STATES new_state) {

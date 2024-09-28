@@ -3,6 +3,7 @@
 #include <limits>
 
 #define TINYGLTF_IMPLEMENTATION
+#define TINYGLTF_NO_EXTERNAL_IMAGE
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #define TINYGLTF_NOEXCEPTION
 #define JSON_NOEXCEPTION
@@ -147,7 +148,7 @@ namespace gfx {
 
     std::vector<Vertex> parse_primitive(tinygltf::Primitive& primitive, tinygltf::Model& model, const std::string& path);
 
-    void traverse_nodes(Device& device, std::vector<int>& node_indices, tinygltf::Model& model, glm::mat4 local_transform, SceneNode* parent, const std::string& path, int depth = 0) {
+    void traverse_nodes(Device& device, std::vector<int>& node_indices, tinygltf::Model& model, glm::mat4 local_transform, SceneNode* parent, const std::string& path, const std::vector<int>& material_mapping, int depth = 0) {
         // Get all child nodes
         for (auto& node_index : node_indices) {
             auto& node = model.nodes[node_index];
@@ -224,9 +225,9 @@ namespace gfx {
                     // Compress vertices for raster pipeline
                     for (const Vertex& vertex : vertices) {
                         VertexCompressed compressed_vtx{};
-                        compressed_vtx.position = glm::u16vec3((vertex.position - offset) * (65535.0f / scale));      // remap from (min, max) to (0, 65535)
+                        compressed_vtx.position = glm::u16vec3((vertex.position - offset) * (65535.0f / scale));    // remap from (min, max) to (0, 65535)
                         compressed_vtx.position = glm::clamp(compressed_vtx.position, glm::u16vec3(0), glm::u16vec3(65535));
-                        compressed_vtx.material_id = 0xFFFF;                                                        // todo: fill in material id
+                        compressed_vtx.material_id = material_mapping.at(primitive.material);                       // todo: fill in material id
                         compressed_vtx.normal = glm::u8vec3((vertex.normal + 1.0f) * 127.0f);                       // remap from (-1, +1) to (0, 254)
                         compressed_vtx.flags1.tangent_sign = (vertex.tangent.w > 0.0f) ? 1 : 0;                     // convert tangent sign to a single bit
                         compressed_vtx.tangent = glm::u8vec3((glm::vec3(vertex.tangent) + 1.0f) * 127.0f);          // remap from (-1, +1) to (0, 254)
@@ -271,10 +272,46 @@ namespace gfx {
 
             // If it has children, process those
             if (!node.children.empty()) {
-                traverse_nodes(device, node.children, model, global_matrix, scene_node.get(), path, depth + 1);
+                traverse_nodes(device, node.children, model, global_matrix, scene_node.get(), path, material_mapping, depth + 1);
             }
             parent->add_child_node(scene_node);
         }
+    }
+
+    static PixelFormat pixel_format_from_gltf_image(const tinygltf::Image& image) {
+        if (image.component == 1 && image.pixel_type == TINYGLTF_COMPONENT_TYPE_UNSIGNED_BYTE) return PixelFormat::r8_unorm;
+        if (image.component == 2 && image.pixel_type == TINYGLTF_COMPONENT_TYPE_UNSIGNED_BYTE) return PixelFormat::rg8_unorm;
+        if (image.component == 4 && image.pixel_type == TINYGLTF_COMPONENT_TYPE_UNSIGNED_BYTE) return PixelFormat::rgba8_unorm;
+        else {
+            printf("[ERROR] Unknown/unsupported pixel type in glTF image!");
+        }
+    }
+
+    ResourceHandlePair upload_texture_from_gltf(const std::string& model_path, tinygltf::Model& model, Device& device, int texture_index) {
+        ResourceHandlePair texture_resource;
+        const tinygltf::Image* image_gltf = (texture_index != -1) ? &model.images.at(texture_index) : nullptr;
+
+        if (!image_gltf) {
+            return ResourceHandlePair();
+        }
+
+        // If the image is embedded, `uri` is empty and `image` is populated, so create a file name and use the `image` data
+        else if (image_gltf->uri.empty()) {
+            const std::string texture_path = model_path + "::" + image_gltf->name;
+            printf("Loading image: %s\n", texture_path.c_str());
+            return device.load_texture(
+                texture_path,
+                (uint32_t)image_gltf->width,
+                (uint32_t)image_gltf->height,
+                (void*)image_gltf->image.data(),
+                pixel_format_from_gltf_image(*image_gltf)
+            );
+        }
+        
+        // If the image is external, `uri` is populated and `image` is empty, so load the image from disk
+        printf("Loading image: %s\n", image_gltf->uri.c_str());
+        const std::string texture_path = model_path.substr(0, model_path.find_last_of('/') + 1) + image_gltf->uri;
+        return device.load_texture(texture_path);
     }
 
     SceneNode* create_scene_graph_from_gltf(Device& device, const std::string& path) {
@@ -290,12 +327,46 @@ namespace gfx {
             loader.LoadBinaryFromFile(&model, &error, &warning, path);
         }
 
+        // Parse materials
+        std::vector<int> material_mapping;
+        for (auto& model_material : model.materials) {
+            // Allocate slot
+            auto alloc_mat_slot = device.allocate_material_slot();
+            material_mapping.push_back(alloc_mat_slot.first);
+
+            // Figure out what textures this material has and load them
+            auto color_texture = upload_texture_from_gltf(path, model, device, model_material.pbrMetallicRoughness.baseColorTexture.index);
+            auto normal_texture = upload_texture_from_gltf(path, model, device, model_material.normalTexture.index);
+            auto metal_roughness_texture = upload_texture_from_gltf(path, model, device, model_material.pbrMetallicRoughness.metallicRoughnessTexture.index);
+            auto emissive_texture = upload_texture_from_gltf(path, model, device, model_material.emissiveTexture.index);
+
+            // Populate material struct
+            if (model_material.pbrMetallicRoughness.baseColorFactor.size() == 4) {
+                alloc_mat_slot.second->color_multiplier.r = model_material.pbrMetallicRoughness.baseColorFactor[0];
+                alloc_mat_slot.second->color_multiplier.g = model_material.pbrMetallicRoughness.baseColorFactor[1];
+                alloc_mat_slot.second->color_multiplier.b = model_material.pbrMetallicRoughness.baseColorFactor[2];
+                alloc_mat_slot.second->color_multiplier.a = model_material.pbrMetallicRoughness.baseColorFactor[3];
+            }
+            if (model_material.emissiveFactor.size() == 3) {
+                alloc_mat_slot.second->emissive_multiplier.r = model_material.emissiveFactor[0];
+                alloc_mat_slot.second->emissive_multiplier.g = model_material.emissiveFactor[1];
+                alloc_mat_slot.second->emissive_multiplier.b = model_material.emissiveFactor[2];
+            }
+            alloc_mat_slot.second->color_texture = color_texture.handle;
+            alloc_mat_slot.second->normal_texture = normal_texture.handle;
+            alloc_mat_slot.second->metal_roughness_texture = metal_roughness_texture.handle;
+            alloc_mat_slot.second->emissive_texture = emissive_texture.handle;
+            alloc_mat_slot.second->normal_intensity = 1.0f;
+            alloc_mat_slot.second->roughness_multiplier = 1.0f;
+            alloc_mat_slot.second->metallic_multiplier = 1.0f;
+        }
+
         // Find default scene and create a scene graph from it
         auto& scene = model.scenes[model.defaultScene];
         printf("[INFO]  Loading scene \"%s\"\n", scene.name.c_str());
 
         auto scene_node = new SceneNode();
-        traverse_nodes(device, scene.nodes, model, glm::mat4(1.0f), scene_node, path);
+        traverse_nodes(device, scene.nodes, model, glm::mat4(1.0f), scene_node, path, material_mapping);
         return scene_node;
     }
 
