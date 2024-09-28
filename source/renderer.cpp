@@ -92,7 +92,7 @@ namespace gfx {
     void Renderer::set_camera(Transform& transform) {
         const PacketCamera camera_matrices = {
             .view_matrix = transform.as_view_matrix(),
-            .projection_matrix = glm::perspectiveFov(glm::radians(70.f), m_resolution.x, m_resolution.y, 0.1f, 1000.0f),
+            .projection_matrix = glm::perspectiveFov(glm::radians(70.f), m_resolution.x, m_resolution.y, 0.0001f, 1000.0f),
         };
 
         m_camera_matrices_offset = m_device->create_draw_packet(&camera_matrices, sizeof(camera_matrices));
