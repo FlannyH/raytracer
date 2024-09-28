@@ -227,7 +227,7 @@ namespace gfx {
                         VertexCompressed compressed_vtx{};
                         compressed_vtx.position = glm::u16vec3((vertex.position - offset) * (65535.0f / scale));    // remap from (min, max) to (0, 65535)
                         compressed_vtx.position = glm::clamp(compressed_vtx.position, glm::u16vec3(0), glm::u16vec3(65535));
-                        compressed_vtx.material_id = material_mapping.at(primitive.material);                       // todo: fill in material id
+                        compressed_vtx.material_id = (primitive.material == -1) ? 0xFFFF : material_mapping.at(primitive.material);
                         compressed_vtx.normal = glm::u8vec3((vertex.normal + 1.0f) * 127.0f);                       // remap from (-1, +1) to (0, 254)
                         compressed_vtx.flags1.tangent_sign = (vertex.tangent.w > 0.0f) ? 1 : 0;                     // convert tangent sign to a single bit
                         compressed_vtx.tangent = glm::u8vec3((glm::vec3(vertex.tangent) + 1.0f) * 127.0f);          // remap from (-1, +1) to (0, 254)
