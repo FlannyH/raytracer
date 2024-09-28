@@ -17,7 +17,7 @@ namespace gfx {
         rgba8_unorm,
         rg11_b10_float,
         rgba16_float,
-        depth32_foat,
+        depth32_float,
     };
 
     // General
@@ -160,7 +160,7 @@ namespace gfx {
         case PixelFormat::rgba8_unorm:      return DXGI_FORMAT_R8G8B8A8_UNORM;      break;
         case PixelFormat::rg11_b10_float:   return DXGI_FORMAT_R11G11B10_FLOAT;     break;
         case PixelFormat::rgba16_float:     return DXGI_FORMAT_R16G16B16A16_FLOAT;  break;
-        case PixelFormat::depth32_foat:     return DXGI_FORMAT_D32_FLOAT;           break;
+        case PixelFormat::depth32_float:     return DXGI_FORMAT_D32_FLOAT;           break;
         }
         return DXGI_FORMAT_UNKNOWN;
     }

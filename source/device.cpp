@@ -221,7 +221,6 @@ namespace gfx {
         }
 
         // Otherwise, if the color target is a texture, transition the texture to render target, and then bind it
-
         else {
             for (auto& color_target : render_pass_info.color_targets) {
                 auto& texture = m_resources.at(color_target.id);
