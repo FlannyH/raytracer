@@ -38,7 +38,6 @@ struct DrawMeshPacket {
     float4 position_offset;
     float4 position_scale;
     ResourceHandle vertex_buffer;
-    ResourceHandle tex;
 };
 
 struct CameraMatricesPacket {

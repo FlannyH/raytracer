@@ -170,7 +170,6 @@ namespace gfx {
         glm::vec4 position_offset;
         glm::vec4 position_scale;
         ResourceHandle vertex_buffer;
-        ResourceHandle texture;
     };
 
     struct PacketCamera {

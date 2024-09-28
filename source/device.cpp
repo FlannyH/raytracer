@@ -328,7 +328,6 @@ namespace gfx {
                 .position_offset = glm::vec4(node->position_offset, 0.0f),
                 .position_scale = glm::vec4(node->position_scale, 0.0f),
                 .vertex_buffer = node->mesh.vertex_buffer,
-                .texture = ResourceHandle::none(), // todo: add actual textures from the model here
             };
             auto n_vertices = m_resources[draw_packet.vertex_buffer.id]->expect_buffer().size / sizeof(VertexCompressed);
             auto draw_packet_offset = create_draw_packet(&draw_packet, sizeof(draw_packet));
