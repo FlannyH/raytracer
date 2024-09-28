@@ -320,6 +320,8 @@ namespace gfx {
     }
 
     void Device::traverse_scene(SceneNode* node) {
+        if (!node) return;
+
         if (node->type == SceneNodeType::Mesh) {
             auto draw_packet = PacketDrawMesh{
                 .model_transform = node->cached_global_transform,

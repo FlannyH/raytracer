@@ -329,6 +329,11 @@ namespace gfx {
             loader.LoadBinaryFromFile(&model, &error, &warning, path);
         }
 
+        if (model.scenes.empty()) {
+            printf("[WARNING] Empty model or failed to load file '%s'!", path.c_str());
+            return nullptr;
+        }
+
         // Parse materials
         std::vector<int> material_mapping;
         for (auto& model_material : model.materials) {
@@ -364,6 +369,7 @@ namespace gfx {
         }
 
         // Find default scene and create a scene graph from it
+        auto scene_to_load = (model.defaultScene != -1) ? model.defaultScene : 0;
         auto& scene = model.scenes[model.defaultScene];
         printf("[INFO]  Loading scene \"%s\"\n", scene.name.c_str());
 
