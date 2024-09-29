@@ -7,8 +7,8 @@ namespace gfx {
         assert(render_target_formats.size() <= 8 && "Too many render targets!");
 
         // Compile shaders
-        const auto vs = Shader(vertex_shader_path, "main", ShaderType::vertex);
-        const auto ps = Shader(pixel_shader_path, "main", ShaderType::pixel);
+        const auto vs = Shader(vertex_shader_path, "main", ShaderType::vertex); // todo: add customizable entry point
+        const auto ps = Shader(pixel_shader_path, "main", ShaderType::pixel); // todo: add customizable entry point
 
         // Make sure it worked
         if (vs.shader_blob.Get() == nullptr) {
@@ -137,6 +137,6 @@ namespace gfx {
         };
 
         validate(device.device->CreateGraphicsPipelineState(&pipeline_state_desc, IID_PPV_ARGS(&pipeline_state)));
-        validate(pipeline_state->SetName(L"Render Pipeline State"));
+        validate(pipeline_state->SetName(L"Render Pipeline State")); // todo: add customizable name with default parameter
     }
 }
