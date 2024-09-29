@@ -108,7 +108,6 @@ PixelOut main(in float4 position : SV_Position, in VertexOut input) {
             output.emissive = tex_emissive * material.emissive_multiplier;
         }
     }
-    output.color = float4((input.normal + 1.0) * 0.5, 1.0f);
     
     return output;
 }
