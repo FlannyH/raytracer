@@ -85,13 +85,11 @@ PixelOut main(in float4 position : SV_Position, in VertexOut input) {
         // Normal
         if (material.normal_texture.is_loaded != 0) {
             Texture2D<float4> tex = ResourceDescriptorHeap[NonUniformResourceIndex(material.normal_texture.id)];
-            float3 tex_normal = (tex.Sample(tex_sampler, input.texcoord0_materialid.xy).xyz - 1.0f) * 2.0f;
+            float3 tex_normal = (tex.Sample(tex_sampler, input.texcoord0_materialid.xy).xyz * 2.0f) - 1.0f;
             float3 default_normal = float3(0.0f, 0.0f, 1.0f);
             float3 interpolated_normal = lerp(default_normal, tex_normal, material.normal_intensity);
-            float3 normal = 
-                (tex_normal.x * input.tangent) +
-                (tex_normal.y * input.bitangent) +
-                (tex_normal.z * input.normal);
+            float3x3 tbn = transpose(float3x3(input.tangent.xyz, input.bitangent.xyz, input.normal.xyz));
+            float3 normal = normalize(mul(tbn, interpolated_normal));
            
             output.normal = float4((normal + 1.0f) * 0.5f, 1.0f);
         }
@@ -110,6 +108,7 @@ PixelOut main(in float4 position : SV_Position, in VertexOut input) {
             output.emissive = tex_emissive * material.emissive_multiplier;
         }
     }
+    output.color = float4((input.normal + 1.0) * 0.5, 1.0f);
     
     return output;
 }
