@@ -383,7 +383,7 @@ namespace gfx {
     }
 
     ResourceHandlePair Device::load_texture(const std::string& path) {
-        stbi__vertically_flip_on_load = 1;
+        stbi__vertically_flip_on_load = 0;
         int width, height, channels;
         uint8_t* data = stbi_load(path.c_str(), &width, &height, &channels, 4);
 
