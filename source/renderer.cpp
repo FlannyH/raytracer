@@ -98,7 +98,7 @@ namespace gfx {
         // Final blit
         m_device->begin_raster_pass(m_pipeline_final_blit, RasterPassInfo{
             .color_targets = {}, // render to swapchain
-            .clear_on_begin = true, // We're blitting to the entire buffer, no need to clear first
+            .clear_on_begin = false, // We're blitting to the entire buffer, no need to clear first
         });
         m_device->set_graphics_root_constants({
             m_shaded_target.as_u32(), // Texture to blit to screen
