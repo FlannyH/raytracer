@@ -107,7 +107,11 @@ namespace gfx {
     }
 
     void Renderer::resize_texture(ResourceHandle& texture, const uint32_t width, const uint32_t height) {
-        m_device->resize_texture(texture, width, height);
+        uint32_t padded_width = width;
+        uint32_t padded_height = height;
+        add_and_align(padded_width, (uint32_t)0, (uint32_t)8);
+        add_and_align(padded_height, (uint32_t)0, (uint32_t)8);
+        m_device->resize_texture(texture, padded_width, padded_height);
     }
 
     // Resource management
