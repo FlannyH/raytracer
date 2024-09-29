@@ -20,7 +20,7 @@ namespace gfx {
             m_emissive_target
         }, m_depth_target);
         m_pipeline_brdf = m_device->create_compute_pipeline("assets/shaders/brdf.cs.hlsl");
-        m_pipeline_final_blit = m_device->create_raster_pipeline("assets/shaders/fullscreen_quad.vs.hlsl", "assets/shaders/final_blit.ps.hlsl", {});
+        m_pipeline_final_blit = m_device->create_raster_pipeline("assets/shaders/fullscreen_tri.vs.hlsl", "assets/shaders/final_blit.ps.hlsl", {});
     }
 
     // Common rendering
@@ -103,7 +103,7 @@ namespace gfx {
         m_device->set_graphics_root_constants({
             m_shaded_target.as_u32(), // Texture to blit to screen
         });
-        m_device->draw_vertices(6); // 2 triangles making up a quad
+        m_device->draw_vertices(3); // 2 triangles making up a quad
         m_device->end_raster_pass();
 
         // API specific end frame
