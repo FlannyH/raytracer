@@ -50,6 +50,9 @@ namespace gfx {
         void draw_vertices(uint32_t n_vertices);
         void draw_scene(ResourceHandle scene_handle);
 
+        // Compute
+        std::shared_ptr<Pipeline> create_compute_pipeline(const std::string& compute_shader_path);
+
         // Resource management
         ResourceHandlePair load_texture(const std::string& path); // Load a texture from a file
         ResourceHandlePair load_texture(const std::string& name, uint32_t width, uint32_t height, void* data, PixelFormat pixel_format); // Load a texture from memory

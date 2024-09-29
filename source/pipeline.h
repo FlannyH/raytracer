@@ -9,6 +9,7 @@ namespace gfx {
 
     struct Pipeline {
         explicit Pipeline(const Device& device, const std::string& vertex_shader_path, const std::string& pixel_shader_path, const std::vector<DXGI_FORMAT> render_target_formats, const DXGI_FORMAT depth_target_format = DXGI_FORMAT_UNKNOWN);
+        explicit Pipeline(const Device& device, const std::string& compute_shader_path);
 
     public:
         ComPtr<ID3D12PipelineState> pipeline_state;

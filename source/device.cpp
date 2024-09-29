@@ -131,6 +131,10 @@ namespace gfx {
         return std::make_shared<Pipeline>(*this, vertex_shader_path, pixel_shader_path, render_target_formats, depth_target_format);
     }
 
+    std::shared_ptr<Pipeline> Device::create_compute_pipeline(const std::string& compute_shader_path) {
+        return std::make_shared<Pipeline>(*this, compute_shader_path);
+    }
+
     void Device::begin_frame() {
         static int prev_key = 0;
         int curr_key = glfwGetKey(m_window_glfw, GLFW_KEY_F11);
