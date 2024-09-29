@@ -34,7 +34,7 @@ struct VertexOut {
 
 struct PixelOut {
     float4 color : SV_Target0;
-    float4 normal : SV_Target1;
+    float3 normal : SV_Target1;
     float2 metal_roughness : SV_Target2;
     float3 emissive : SV_Target3;
 };
@@ -65,7 +65,7 @@ PixelOut main(in float4 position : SV_Position, in VertexOut input) {
     
     // Fill default values
     output.color = input.color;
-    output.normal = float4((input.normal + 1.0) * 0.5, 1.0f);
+    output.normal = (input.normal + 1.0) * 0.5;
     output.metal_roughness = float2(0.0f, 0.0f);
     output.emissive = float3(0.0f, 0.0f, 0.0f);
     
@@ -91,7 +91,7 @@ PixelOut main(in float4 position : SV_Position, in VertexOut input) {
             float3x3 tbn = transpose(float3x3(input.tangent.xyz, input.bitangent.xyz, input.normal.xyz));
             float3 normal = normalize(mul(tbn, interpolated_normal));
            
-            output.normal = float4((normal + 1.0f) * 0.5f, 1.0f);
+            output.normal = (normal + 1.0f) * 0.5f;
         }
 
         // Metal & roughness
