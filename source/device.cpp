@@ -175,11 +175,19 @@ namespace gfx {
         glfwSwapBuffers(m_window_glfw);
     }
 
-    void Device::set_root_constants(const std::vector<uint32_t>& constants) {
+    void Device::set_graphics_root_constants(const std::vector<uint32_t>& constants) {
         auto gfx_cmd = m_curr_pass_cmd->get();
         UINT index = 0;
         for (const auto& constant : constants) {
             gfx_cmd->SetGraphicsRoot32BitConstant(0, constant, index++);
+        }
+    }
+
+    void Device::set_compute_root_constants(const std::vector<uint32_t>& constants) {
+        auto gfx_cmd = m_curr_pass_cmd->get();
+        UINT index = 0;
+        for (const auto& constant : constants) {
+            gfx_cmd->SetComputeRoot32BitConstant(0, constant, index++);
         }
     }
 
@@ -293,6 +301,26 @@ namespace gfx {
         }
     }
 
+    void Device::begin_compute_pass(std::shared_ptr<Pipeline> pipeline) {
+        // Create command buffer for this pass
+        m_curr_pass_cmd = m_queue_gfx->create_command_buffer(*this, pipeline.get(), m_swapchain->current_frame_index());
+
+        // Set up pipeline
+        m_curr_bound_pipeline = pipeline;
+        ID3D12DescriptorHeap* heaps[] = {
+            m_heap_bindless->heap.Get(),
+        };
+        m_curr_pass_cmd->get()->SetDescriptorHeaps(1, heaps);
+        m_curr_pass_cmd->get()->SetPipelineState(m_curr_bound_pipeline->pipeline_state.Get());
+        m_curr_pass_cmd->get()->SetComputeRootSignature(m_curr_bound_pipeline->root_signature.Get());
+    }
+
+    void Device::end_compute_pass() {}
+
+    void Device::dispatch_threadgroups(uint32_t x, uint32_t y, uint32_t z) {
+        m_curr_pass_cmd->get()->Dispatch(x, y, z);
+    }
+
     void Device::draw_vertices(uint32_t n_vertices) {
         if (!m_curr_bound_pipeline) {
             printf("[ERROR] Attempt to record draw call without a pipeline set! Did you forget to call `begin_raster_pass()`?\n");
@@ -306,6 +334,7 @@ namespace gfx {
         gfx_cmd->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
         gfx_cmd->DrawInstanced(n_vertices, 1, 0, 0);
     }
+
     size_t Device::create_draw_packet(const void* data, size_t size_bytes) {
         // Allocate data in the draw packets buffer
         assert(((m_draw_packet_cursor + size_bytes) < DRAW_PACKET_BUFFER_SIZE) && "Failed to allocate draw packet: buffer overflow!");
@@ -334,7 +363,7 @@ namespace gfx {
             };
             auto n_vertices = m_resources[draw_packet.vertex_buffer.id]->expect_buffer().size / sizeof(VertexCompressed);
             auto draw_packet_offset = create_draw_packet(&draw_packet, sizeof(draw_packet));
-            set_root_constants({
+            set_graphics_root_constants({
                 m_draw_packets.handle.as_u32(),
                 (uint32_t)m_camera_matrices_offset,
                 (uint32_t)draw_packet_offset,

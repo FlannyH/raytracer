@@ -27,6 +27,7 @@ namespace gfx {
         ResourceHandle m_normal_target = ResourceHandle::none();
         ResourceHandle m_roughness_metallic_target = ResourceHandle::none();
         ResourceHandle m_emissive_target = ResourceHandle::none();
+        ResourceHandle m_shaded_target = ResourceHandle::none();
         ResourceHandle m_depth_target = ResourceHandle::none();
         glm::vec2 m_resolution = { 0.0f, 0.0f };
         glm::vec2 m_render_resolution = { 0.0f, 0.0f };
@@ -34,6 +35,7 @@ namespace gfx {
         size_t m_camera_matrices_offset = 0;
         std::vector<ResourceHandle> render_queue_scenes;
         std::shared_ptr<Pipeline> m_pipeline_scene = nullptr;
+        std::shared_ptr<Pipeline> m_pipeline_brdf = nullptr;
         std::shared_ptr<Pipeline> m_pipeline_final_blit = nullptr;
     };
 }

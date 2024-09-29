@@ -40,7 +40,8 @@ namespace gfx {
         void set_full_screen(bool full_screen);
         void begin_frame();
         void end_frame();
-        void set_root_constants(const std::vector<uint32_t>& constants);
+        void set_graphics_root_constants(const std::vector<uint32_t>& constants);
+        void set_compute_root_constants(const std::vector<uint32_t>& constants);
 
         // Rasterization
         std::shared_ptr<Pipeline> create_raster_pipeline(const std::string& vertex_shader_path, const std::string& pixel_shader_path, const std::initializer_list<ResourceHandle> render_targets, const ResourceHandle depth_target = ResourceHandle::none());
@@ -52,6 +53,9 @@ namespace gfx {
 
         // Compute
         std::shared_ptr<Pipeline> create_compute_pipeline(const std::string& compute_shader_path);
+        void begin_compute_pass(std::shared_ptr<Pipeline> pipeline);
+        void end_compute_pass();
+        void dispatch_threadgroups(uint32_t x, uint32_t y, uint32_t z);
 
         // Resource management
         ResourceHandlePair load_texture(const std::string& path); // Load a texture from a file
