@@ -104,7 +104,7 @@ namespace gfx {
         glfwGetWindowSize(m_window_glfw, &width, &height);
     }
 
-    std::shared_ptr<Pipeline> Device::create_raster_pipeline(const std::string& vertex_shader, const std::string& pixel_shader, const std::initializer_list<ResourceHandle> render_targets, const ResourceHandle depth_target) {
+    std::shared_ptr<Pipeline> Device::create_raster_pipeline(const std::string& vertex_shader_path, const std::string& pixel_shader_path, const std::initializer_list<ResourceHandle> render_targets, const ResourceHandle depth_target) {
         std::vector<DXGI_FORMAT> render_target_formats;
         DXGI_FORMAT depth_target_format = DXGI_FORMAT_UNKNOWN;
 
@@ -128,7 +128,7 @@ namespace gfx {
             depth_target_format = pixel_format_to_dx12(texture.pixel_format);
         }
 
-        return std::make_shared<Pipeline>(*this, vertex_shader, pixel_shader, render_target_formats, depth_target_format);
+        return std::make_shared<Pipeline>(*this, vertex_shader_path, pixel_shader_path, render_target_formats, depth_target_format);
     }
 
     void Device::begin_frame() {

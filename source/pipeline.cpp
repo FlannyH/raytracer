@@ -3,12 +3,12 @@
 #include "device.h"
 
 namespace gfx {
-    Pipeline::Pipeline(const Device& device, const std::string& vertex_shader, const std::string& pixel_shader, const std::vector<DXGI_FORMAT> render_target_formats, const DXGI_FORMAT depth_target_format) {
+    Pipeline::Pipeline(const Device& device, const std::string& vertex_shader_path, const std::string& pixel_shader_path, const std::vector<DXGI_FORMAT> render_target_formats, const DXGI_FORMAT depth_target_format) {
         assert(render_target_formats.size() <= 8 && "Too many render targets!");
 
         // Compile shaders
-        const auto vs = Shader(vertex_shader, "main", ShaderType::vertex);
-        const auto ps = Shader(pixel_shader, "main", ShaderType::pixel);
+        const auto vs = Shader(vertex_shader_path, "main", ShaderType::vertex);
+        const auto ps = Shader(pixel_shader_path, "main", ShaderType::pixel);
 
         // Make sure it worked
         if (vs.shader_blob.Get() == nullptr) {
