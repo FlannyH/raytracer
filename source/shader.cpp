@@ -68,7 +68,11 @@ namespace gfx {
         args.emplace_back(L"-Qstrip_debug");
         args.emplace_back(L"-Qstrip_reflect");
         args.emplace_back(DXC_ARG_WARNINGS_ARE_ERRORS); //-WX
+#ifdef _DEBUG
         args.emplace_back(DXC_ARG_DEBUG); //-Zi
+#else
+        args.emplace_back(DXC_ARG_OPTIMIZATION_LEVEL3);
+#endif
 
         // Compile it
         const DxcBuffer buffer {
@@ -95,6 +99,7 @@ namespace gfx {
         }
 
         // Get PDB file
+#ifdef _DEBUG
         ComPtr<IDxcBlob> pdb_data;
         ComPtr<IDxcBlobUtf16> pdb_path;
         validate(result->GetOutput(DXC_OUT_PDB, IID_PPV_ARGS(&pdb_data), &pdb_path));
@@ -102,6 +107,7 @@ namespace gfx {
         FILE* pdb = fopen(pdb_path_string.c_str(), "wb"); 
         fwrite(pdb_data->GetBufferPointer(), 1, pdb_data->GetBufferSize(), pdb);
         fclose(pdb);
+#endif
 
         // Get shader blob
         ComPtr<IDxcBlob> dxc_shader_blob = nullptr;
