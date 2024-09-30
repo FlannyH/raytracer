@@ -83,7 +83,9 @@ namespace gfx {
         m_heap_bindless = std::make_shared<DescriptorHeap>(*this, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE, D3D12_MAX_SHADER_VISIBLE_DESCRIPTOR_HEAP_SIZE_TIER_1 / 2);
 
         // Create triple buffered draw packet buffer
-        m_draw_packets = create_buffer("Draw Packets", DRAW_PACKET_BUFFER_SIZE * backbuffer_count, nullptr);
+        for (int i = 0; i < backbuffer_count; ++i) {
+            m_draw_packets[i] = create_buffer("Draw Packets", DRAW_PACKET_BUFFER_SIZE, nullptr);
+        }
 
         // Create material buffer
         m_material_buffer = create_buffer("Material Descriptions", MAX_MATERIAL_COUNT * sizeof(Material), nullptr);
@@ -340,11 +342,11 @@ namespace gfx {
         assert(((m_draw_packet_cursor + size_bytes) < DRAW_PACKET_BUFFER_SIZE) && "Failed to allocate draw packet: buffer overflow!");
 
         char* mapped_buffer;
-        const size_t start = m_draw_packet_cursor + DRAW_PACKET_BUFFER_SIZE * (m_swapchain->current_frame_index() % backbuffer_count);
+        const size_t start = m_draw_packet_cursor;
         const D3D12_RANGE read_range = { 0, 0 };
-        validate(m_draw_packets.resource->handle->Map(0, &read_range, (void**)&mapped_buffer));
+        validate(m_draw_packets[m_swapchain->current_frame_index() % backbuffer_count].resource->handle->Map(0, &read_range, (void**)&mapped_buffer));
         memcpy(mapped_buffer + start, data, size_bytes);
-        m_draw_packets.resource->handle->Unmap(0, &read_range);
+        m_draw_packets[m_swapchain->current_frame_index() % backbuffer_count].resource->handle->Unmap(0, &read_range);
 
         // Return the byte offset of that draw packet, and update the cursor to the next entry, wrapping at the end
         add_and_align(m_draw_packet_cursor, size_bytes, (size_t)GPU_BUFFER_PREFERRED_ALIGNMENT);
@@ -364,7 +366,7 @@ namespace gfx {
             auto n_vertices = m_resources[draw_packet.vertex_buffer.id]->expect_buffer().size / sizeof(VertexCompressed);
             auto draw_packet_offset = create_draw_packet(&draw_packet, sizeof(draw_packet));
             set_graphics_root_constants({
-                m_draw_packets.handle.as_u32(),
+                m_draw_packets[m_swapchain->current_frame_index() % backbuffer_count].handle.as_u32(),
                 (uint32_t)m_camera_matrices_offset,
                 (uint32_t)draw_packet_offset,
                 m_material_buffer.handle.as_u32()

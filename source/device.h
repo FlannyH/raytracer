@@ -112,7 +112,7 @@ namespace gfx {
         std::vector<int> m_material_indices_to_reuse;
         std::vector<Material> m_materials; // Should be uploaded to the GPU after modifying
         ResourceHandlePair m_material_buffer{}; // Buffer that contains all currently loaded materials
-        ResourceHandlePair m_draw_packets{}; // Scratch buffer that is used to send draw info to the shader pipelines
+        ResourceHandlePair m_draw_packets[backbuffer_count]; // Scratch buffer that is used to send draw info to the shader pipelines
         size_t m_draw_packet_cursor = 0; // Current allocation offset into the draw packet buffer
         size_t m_camera_matrices_offset = 0; // Where the camera matrices for this frame are stored
         bool m_should_update_material_buffer = false;
