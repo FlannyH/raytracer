@@ -63,6 +63,6 @@ namespace gfx {
 		vertex.tangent.x = tangent[0];
 		vertex.tangent.y = tangent[1];
 		vertex.tangent.z = tangent[2];
-		vertex.tangent.w = sign;
+		vertex.tangent.w = -sign;
 	}
 }
