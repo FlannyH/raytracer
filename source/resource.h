@@ -145,7 +145,7 @@ namespace gfx {
         VertexFlags1 flags1;
         glm::u8vec3 tangent; // Tangent vector, where 0 = -1.0, 127 = 0.0, 254 = +1.0, just like the normal vector
         VertexFlags2 flags2;
-        glm::u16vec4 color; //RGB 0-1023 for SDR, with brighter HDR colors above that. Alpha is in range 0 - 1023, and values above that should be clamped to 1023 (1.0)
+        glm::u16vec4 color; // Linear RGB 0-1023 for SDR, with brighter HDR colors above that. Alpha is in range 0 - 1023, and values above that should be clamped to 1023 (1.0)
         glm::vec2 texcoord0;
     };
 
