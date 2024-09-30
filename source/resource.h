@@ -189,4 +189,25 @@ namespace gfx {
         float metallic_multiplier = 1.0f; // Will be multiplied with the sample metallic texture value
         uint64_t reserved = 0; // This makes the struct size 64 bytes, perfect for cache lines
     };
+
+    struct LightDirectional {
+        glm::vec3 color; // linear 0.0 - 1.0
+        float intensity; // in lux (lm/m^2)
+        glm::vec3 direction;
+    };
+
+    struct LightPoint {
+        glm::vec3 color; // linear 0.0 - 1.0
+        float intensity; // in candela (lm/sr)
+        glm::vec3 position;
+    };
+
+    struct LightSpot {
+        glm::vec3 color; // linear 0.0 - 1.0
+        float intensity; // in candela (lm/sr)
+        glm::vec3 position;
+        glm::vec3 direction;
+        float inner_cone_angle; // radians
+        float outer_cone_angle; // radians
+    };
 }
