@@ -12,15 +12,15 @@ VertexOut main(uint vertex_id : SV_VertexID)
     const float2 corners[3] =
     {
         float2(-1.0, 1.0), // Top-left
+        float2(-1.0, -3.0), // Bottom-left
         float2(3.0, 1.0), // Top-right
-        float2(-1.0, -3.0) // Bottom-left
     };
 
     float2 texCoords[3] =
     {
         float2(0.0, 0.0), // Top-left
+        float2(0.0, 2.0), // Bottom-left
         float2(2.0, 0.0), // Top-right
-        float2(0.0, 2.0) // Bottom-left
     };
     
     // Return vertex
