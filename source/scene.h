@@ -5,7 +5,7 @@
 #include <memory>
 #include <vector>
 #include "resource.h"
-#include "device.h"
+#include "renderer.h"
 
 namespace gfx {
     struct Transform {
@@ -47,5 +47,5 @@ namespace gfx {
         void add_child_node(std::shared_ptr<SceneNode> new_child);
     };
 
-    SceneNode* create_scene_graph_from_gltf(Device& device, const std::string& path);
+    SceneNode* create_scene_graph_from_gltf(Renderer& renderer, const std::string& path);
 }

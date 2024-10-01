@@ -148,7 +148,7 @@ namespace gfx {
 
     std::vector<Vertex> parse_primitive(tinygltf::Primitive& primitive, tinygltf::Model& model, const std::string& path);
 
-    void traverse_nodes(Device& device, std::vector<int>& node_indices, tinygltf::Model& model, glm::mat4 local_transform, SceneNode* parent, const std::string& path, const std::vector<int>& material_mapping, int depth = 0) {
+    void traverse_nodes(Renderer& renderer, std::vector<int>& node_indices, tinygltf::Model& model, glm::mat4 local_transform, SceneNode* parent, const std::string& path, const std::vector<int>& material_mapping, int depth = 0) {
         // Get all child nodes
         for (auto& node_index : node_indices) {
             auto& node = model.nodes[node_index];
@@ -244,9 +244,9 @@ namespace gfx {
                     }
 
                     // Create buffers for them
-                    ResourceHandlePair vertex_buffer = device.create_buffer("Compressed Vertex buffer", compressed_vertices.size() * sizeof(compressed_vertices[0]), compressed_vertices.data());
-                    ResourceHandlePair position_buffer = device.create_buffer("Position buffer", positions.size() * sizeof(positions[0]), positions.data());
-                    ResourceHandlePair index_buffer = device.create_buffer("Index buffer", indices.size() * sizeof(indices[0]), indices.data());
+                    ResourceHandlePair vertex_buffer = renderer.create_buffer("Compressed Vertex buffer", compressed_vertices.size() * sizeof(compressed_vertices[0]), compressed_vertices.data());
+                    ResourceHandlePair position_buffer = renderer.create_buffer("Position buffer", positions.size() * sizeof(positions[0]), positions.data());
+                    ResourceHandlePair index_buffer = renderer.create_buffer("Index buffer", indices.size() * sizeof(indices[0]), indices.data());
 
                     auto mesh_node = std::make_shared<SceneNode>();
                     mesh_node->type = SceneNodeType::Mesh;
@@ -256,7 +256,6 @@ namespace gfx {
                     mesh_node->position_scale = scale;
                     mesh_node->mesh.vertex_buffer = vertex_buffer.handle;
                     mesh_node->mesh.position_buffer = position_buffer.handle;
-                    // todo: D3D12_RAYTRACING_GEOMETRY_TRIANGLES_DESC
                     scene_node->add_child_node(mesh_node);
                 }
             }
@@ -272,7 +271,7 @@ namespace gfx {
 
             // If it has children, process those
             if (!node.children.empty()) {
-                traverse_nodes(device, node.children, model, global_matrix, scene_node.get(), path, material_mapping, depth + 1);
+                traverse_nodes(renderer, node.children, model, global_matrix, scene_node.get(), path, material_mapping, depth + 1);
             }
             parent->add_child_node(scene_node);
         }
@@ -287,7 +286,7 @@ namespace gfx {
         }
     }
 
-    ResourceHandlePair upload_texture_from_gltf(const std::string& model_path, tinygltf::Model& model, Device& device, int texture_index) {
+    ResourceHandlePair upload_texture_from_gltf(const std::string& model_path, tinygltf::Model& model, Renderer& renderer, int texture_index) {
         ResourceHandlePair texture_resource;
         const tinygltf::Texture* texture_gltf = (texture_index != -1) ? &model.textures.at(texture_index) : nullptr;
         const tinygltf::Image* image_gltf = (texture_index != -1) ? &model.images.at(texture_gltf->source) : nullptr;
@@ -301,7 +300,7 @@ namespace gfx {
         else if (image_gltf->uri.empty()) {
             const std::string texture_path = model_path + "::" + image_gltf->name;
             printf("Loading image: %s\n", texture_path.c_str());
-            return device.load_texture(
+            return renderer.load_texture(
                 texture_path,
                 (uint32_t)image_gltf->width,
                 (uint32_t)image_gltf->height,
@@ -313,10 +312,10 @@ namespace gfx {
         // If the image is external, `uri` is populated and `image` is empty, so load the image from disk
         printf("Loading image: %s\n", image_gltf->uri.c_str());
         const std::string texture_path = model_path.substr(0, model_path.find_last_of('/') + 1) + image_gltf->uri;
-        return device.load_texture(texture_path);
+        return renderer.load_texture(texture_path);
     }
 
-    SceneNode* create_scene_graph_from_gltf(Device& device, const std::string& path) {
+    SceneNode* create_scene_graph_from_gltf(Renderer& renderer, const std::string& path) {
         tinygltf::TinyGLTF loader;
         tinygltf::Model model;
         std::string error;
@@ -338,14 +337,14 @@ namespace gfx {
         std::vector<int> material_mapping;
         for (auto& model_material : model.materials) {
             // Allocate slot
-            auto alloc_mat_slot = device.allocate_material_slot();
+            auto alloc_mat_slot = renderer.allocate_material_slot();
             material_mapping.push_back(alloc_mat_slot.first);
 
             // Figure out what textures this material has and load them
-            auto color_texture = upload_texture_from_gltf(path, model, device, model_material.pbrMetallicRoughness.baseColorTexture.index);
-            auto normal_texture = upload_texture_from_gltf(path, model, device, model_material.normalTexture.index);
-            auto metal_roughness_texture = upload_texture_from_gltf(path, model, device, model_material.pbrMetallicRoughness.metallicRoughnessTexture.index);
-            auto emissive_texture = upload_texture_from_gltf(path, model, device, model_material.emissiveTexture.index);
+            auto color_texture = upload_texture_from_gltf(path, model, renderer, model_material.pbrMetallicRoughness.baseColorTexture.index);
+            auto normal_texture = upload_texture_from_gltf(path, model, renderer, model_material.normalTexture.index);
+            auto metal_roughness_texture = upload_texture_from_gltf(path, model, renderer, model_material.pbrMetallicRoughness.metallicRoughnessTexture.index);
+            auto emissive_texture = upload_texture_from_gltf(path, model, renderer, model_material.emissiveTexture.index);
 
             // Populate material struct
             if (model_material.pbrMetallicRoughness.baseColorFactor.size() == 4) {
@@ -374,7 +373,7 @@ namespace gfx {
         printf("[INFO]  Loading scene \"%s\"\n", scene.name.c_str());
 
         auto scene_node = new SceneNode();
-        traverse_nodes(device, scene.nodes, model, glm::mat4(1.0f), scene_node, path, material_mapping);
+        traverse_nodes(renderer, scene.nodes, model, glm::mat4(1.0f), scene_node, path, material_mapping);
         return scene_node;
     }
 

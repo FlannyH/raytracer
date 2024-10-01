@@ -21,11 +21,17 @@ namespace gfx {
     struct RenderPass;
     struct Pipeline;
     struct Transform;
+    struct Fence;
 
     struct RasterPassInfo {
-        std::vector<ResourceHandle> color_targets; // If empty, it will instead use the swapchain framebuffer as a color target
-        ResourceHandle depth_target; // Optional; passing `ResourceHandle::none()` will disable depth testing
+        std::vector<ResourceHandlePair> color_targets; // If empty, it will instead use the swapchain framebuffer as a color target
+        ResourceHandlePair depth_target; // Optional; passing `ResourceHandle::none()` will disable depth testing
         bool clear_on_begin = true;
+    };
+
+    struct UploadQueueKeepAlive {
+        size_t upload_queue_fence_value; // If the upload queue fence has this value, the resource has been uploaded, the upload buffer can be removed, and the handle's `is_loaded` flag should be set
+        std::shared_ptr<Resource> upload_buffer; // Temporary buffer that will be copied to the destination resource
     };
 
     struct Device {
@@ -42,14 +48,13 @@ namespace gfx {
         void end_frame();
         void set_graphics_root_constants(const std::vector<uint32_t>& constants);
         void set_compute_root_constants(const std::vector<uint32_t>& constants);
+        int frame_index();
 
         // Rasterization
-        std::shared_ptr<Pipeline> create_raster_pipeline(const std::string& vertex_shader_path, const std::string& pixel_shader_path, const std::initializer_list<ResourceHandle> render_targets, const ResourceHandle depth_target = ResourceHandle::none());
+        std::shared_ptr<Pipeline> create_raster_pipeline(const std::string& vertex_shader_path, const std::string& pixel_shader_path, const std::initializer_list<ResourceHandlePair> render_targets, const ResourceHandlePair depth_target = { ResourceHandle::none(), nullptr });
         void begin_raster_pass(std::shared_ptr<Pipeline> pipeline, RasterPassInfo&& render_pass_info);
         void end_raster_pass();
-        size_t create_draw_packet(const void* data, const size_t size_bytes); // Returns the byte offset into the `m_draw_packets` buffer where this new draw packet was allocated
         void draw_vertices(uint32_t n_vertices);
-        void draw_scene(ResourceHandle scene_handle);
 
         // Compute
         std::shared_ptr<Pipeline> create_compute_pipeline(const std::string& compute_shader_path);
@@ -58,16 +63,14 @@ namespace gfx {
         void dispatch_threadgroups(uint32_t x, uint32_t y, uint32_t z);
 
         // Resource management
-        ResourceHandlePair load_texture(const std::string& path); // Load a texture from a file
         ResourceHandlePair load_texture(const std::string& name, uint32_t width, uint32_t height, void* data, PixelFormat pixel_format); // Load a texture from memory
         ResourceHandlePair load_mesh(const std::string& name, uint64_t n_triangles, Triangle* tris);
-        ResourceHandlePair create_scene_graph_from_gltf(const std::string& path);
         ResourceHandlePair create_buffer(const std::string& name, size_t size, void* data);
         ResourceHandlePair create_render_target(const std::string& name, uint32_t width, uint32_t height, PixelFormat pixel_format, glm::vec4 clear_color = { 0.0f, 0.0f, 0.0f, 1.0f });
         ResourceHandlePair create_depth_target(const std::string& name, uint32_t width, uint32_t height, PixelFormat pixel_format, float clear_value = 1.0f);
-        void resize_texture(ResourceHandle& texture, const uint32_t width, const uint32_t height);
-        void unload_bindless_resource(ResourceHandle id);
-        std::pair<int, Material*> allocate_material_slot();
+        void resize_texture(ResourceHandlePair& texture, const uint32_t width, const uint32_t height);
+        void update_buffer(const ResourceHandlePair& buffer, const uint32_t offset, const uint32_t length, const void* data);
+        void queue_unload_bindless_resource(ResourceHandlePair resource);
 
         ComPtr<ID3D12Device> device = nullptr;
         ComPtr<IDXGIFactory4> factory = nullptr;
@@ -77,7 +80,6 @@ namespace gfx {
         void transition_resource(CommandBuffer* cmd, Resource* resource, D3D12_RESOURCE_STATES new_state);
         int find_dominant_monitor(); // Returns the index of the monitor the window overlaps with most
         void clean_up_old_resources();
-        void traverse_scene(SceneNode* node);
 
         // Device
         GLFWwindow* m_window_glfw = nullptr;
@@ -100,22 +102,15 @@ namespace gfx {
         PixelFormat m_framebuffer_format = PixelFormat::rgba8_unorm;
 
         // Resource management
-        std::unordered_map<uint64_t, std::shared_ptr<Resource>> m_resources; // Maps linking resource IDs and actual resource data
-        std::unordered_map<std::string, ResourceHandle> m_resource_name_map; // Maps resources to their names so we don't load in duplicates
-        std::deque<std::pair<ResourceHandlePair, int>> m_resources_to_unload; // Resources to unload. The integer determines when it should be unloaded
         std::shared_ptr<CommandQueue> m_upload_queue = nullptr; // Command queue for uploading resources to the GPU
+        std::shared_ptr<Fence> m_upload_queue_completion_fence = nullptr;
         size_t m_upload_fence_value_when_done = 0; // The value the upload queue fence will signal when it's done uploading
+        std::deque<UploadQueueKeepAlive> m_temp_upload_buffers; // Temporary upload buffer to be unloaded after it's done uploading. The integer is upload queue fence value before it should be unloaded
+        std::deque<std::pair<ResourceHandlePair, int>> m_resources_to_unload; // Resources to unload. The integer determines when it should be unloaded
 
         // Rendering context
         std::shared_ptr<Pipeline> m_curr_bound_pipeline = nullptr; // Will point to a valid pipeline after calling begin_render_pass(), and will be null after calling end_render_pass()
         std::shared_ptr<CommandBuffer> m_curr_pass_cmd; // The command buffer used for this pass
-        std::vector<int> m_material_indices_to_reuse;
-        std::vector<Material> m_materials; // Should be uploaded to the GPU after modifying
-        ResourceHandlePair m_material_buffer{}; // Buffer that contains all currently loaded materials
-        ResourceHandlePair m_draw_packets[backbuffer_count]; // Scratch buffer that is used to send draw info to the shader pipelines
-        size_t m_draw_packet_cursor = 0; // Current allocation offset into the draw packet buffer
-        size_t m_camera_matrices_offset = 0; // Where the camera matrices for this frame are stored
-        bool m_should_update_material_buffer = false;
         std::vector<std::shared_ptr<Resource>> m_curr_render_targets; // Currently bound render targets - keeping track of them for proper resource transitions at the end of a render pass
         std::shared_ptr<Resource> m_curr_depth_target = nullptr; // Currently bound depth target - keeping track of them for proper resource transitions at the end of a render pass
     };

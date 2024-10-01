@@ -1,10 +1,8 @@
 #define GLFW_EXPOSE_NATIVE_WIN32
-#define STB_IMAGE_IMPLEMENTATION
 
 #include "device.h"
 #include <glfw/glfw3native.h>
 #include <d3d12sdklayers.h>
-#include <stb/stb_image.h>
 
 #include <utility>
 
@@ -16,12 +14,9 @@
 #include "command_queue.h"
 #include "scene.h"
 #include "input.h"
+#include "fence.h"
 
 namespace gfx {
-    #define DRAW_PACKET_BUFFER_SIZE (102400)
-    #define MAX_MATERIAL_COUNT (1024)
-    #define GPU_BUFFER_PREFERRED_ALIGNMENT 64
-
     Device::Device(const int width, const int height, const bool debug_layer_enabled) {
         // Create window
         glfwInit();
@@ -82,18 +77,11 @@ namespace gfx {
         m_heap_dsv = std::make_shared<DescriptorHeap>(*this, D3D12_DESCRIPTOR_HEAP_TYPE_DSV, D3D12_DESCRIPTOR_HEAP_FLAG_NONE, 256);
         m_heap_bindless = std::make_shared<DescriptorHeap>(*this, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE, D3D12_MAX_SHADER_VISIBLE_DESCRIPTOR_HEAP_SIZE_TIER_1 / 2);
 
-        // Create triple buffered draw packet buffer
-        for (int i = 0; i < backbuffer_count; ++i) {
-            m_draw_packets[i] = create_buffer("Draw Packets", DRAW_PACKET_BUFFER_SIZE, nullptr);
-        }
-
-        // Create material buffer
-        m_material_buffer = create_buffer("Material Descriptions", MAX_MATERIAL_COUNT * sizeof(Material), nullptr);
-
         // Init context
-        m_queue_gfx = std::make_shared<CommandQueue>(*this, CommandBufferType::graphics);
-        m_upload_queue = std::make_shared<CommandQueue>(*this, CommandBufferType::graphics);
+        m_queue_gfx = std::make_shared<CommandQueue>(*this, CommandBufferType::graphics, L"Graphics command queue");
+        m_upload_queue = std::make_shared<CommandQueue>(*this, CommandBufferType::graphics, L"Upload command queue");
         m_swapchain = std::make_shared<Swapchain>(*this, *m_queue_gfx, *m_heap_rtv, m_framebuffer_format);
+        m_upload_queue_completion_fence = std::make_shared<Fence>(*this);
         input::init(m_window_glfw);
         get_window_size(m_width, m_height);
     }
@@ -106,13 +94,13 @@ namespace gfx {
         glfwGetWindowSize(m_window_glfw, &width, &height);
     }
 
-    std::shared_ptr<Pipeline> Device::create_raster_pipeline(const std::string& vertex_shader_path, const std::string& pixel_shader_path, const std::initializer_list<ResourceHandle> render_targets, const ResourceHandle depth_target) {
+    std::shared_ptr<Pipeline> Device::create_raster_pipeline(const std::string& vertex_shader_path, const std::string& pixel_shader_path, const std::initializer_list<ResourceHandlePair> render_targets, const ResourceHandlePair depth_target) {
         std::vector<DXGI_FORMAT> render_target_formats;
         DXGI_FORMAT depth_target_format = DXGI_FORMAT_UNKNOWN;
 
         // If we specify render targets, specify the formats
         for (auto& render_target : render_targets) {
-            const auto& resource = m_resources.at(render_target.id);
+            const auto& resource = render_target.resource;
             const auto& texture = resource->expect_texture();
             const auto& pixel_format = pixel_format_to_dx12(texture.pixel_format);
             render_target_formats.push_back(pixel_format);
@@ -124,8 +112,8 @@ namespace gfx {
         }
 
         // Get depth format
-        if (depth_target.type != (uint32_t)ResourceType::none) {
-            const auto& resource = m_resources.at(depth_target.id);
+        if (depth_target.handle.type != (uint32_t)ResourceType::none) {
+            const auto& resource = depth_target.resource;
             const auto& texture = resource->expect_texture();
             depth_target_format = pixel_format_to_dx12(texture.pixel_format);
         }
@@ -152,20 +140,11 @@ namespace gfx {
             m_width = width;
             m_height = height;
         }
+        m_upload_queue_completion_fence->gpu_signal(m_upload_queue, m_upload_fence_value_when_done);
         m_upload_queue->execute();
         m_swapchain->next_framebuffer();
         m_queue_gfx->clean_up_old_command_buffers(m_swapchain->current_fence_completed_value());
         clean_up_old_resources();
-        m_draw_packet_cursor = 0;
-
-        if (m_should_update_material_buffer) {
-            m_should_update_material_buffer = false;
-            char* mapped_material_buffer = nullptr;
-            const D3D12_RANGE read_range = { 0, 0 };
-            validate(m_material_buffer.resource->handle->Map(0, &read_range, (void**)&mapped_material_buffer));
-            memcpy(mapped_material_buffer, m_materials.data(), m_materials.size() * sizeof(Material));
-            m_material_buffer.resource->handle->Unmap(0, &read_range);
-        }
     }
 
     void Device::end_frame() {
@@ -191,6 +170,10 @@ namespace gfx {
         for (const auto& constant : constants) {
             gfx_cmd->SetComputeRoot32BitConstant(0, constant, index++);
         }
+    }
+
+    int Device::frame_index() {
+        return m_swapchain->current_frame_index();
     }
 
     void Device::begin_raster_pass(std::shared_ptr<Pipeline> pipeline, RasterPassInfo&& render_pass_info) {
@@ -237,7 +220,7 @@ namespace gfx {
         // Otherwise, if the color target is a texture, transition the texture to render target, and then bind it
         else {
             for (auto& color_target : render_pass_info.color_targets) {
-                auto& texture = m_resources.at(color_target.id);
+                auto& texture = color_target.resource;
                 auto gfx_cmd = m_curr_pass_cmd->get();
 
                 transition_resource(m_curr_pass_cmd.get(), texture.get(), D3D12_RESOURCE_STATE_RENDER_TARGET);
@@ -267,8 +250,8 @@ namespace gfx {
         }
 
         // If we have a depth buffer, bind it too
-        if ((ResourceType)render_pass_info.depth_target.type == ResourceType::texture) {
-            auto& texture = m_resources.at(render_pass_info.depth_target.id);
+        if ((ResourceType)render_pass_info.depth_target.handle.type == ResourceType::texture) {
+            auto& texture = render_pass_info.depth_target.resource;
             auto gfx_cmd = m_curr_pass_cmd->get();
 
             transition_resource(m_curr_pass_cmd.get(), texture.get(), D3D12_RESOURCE_STATE_DEPTH_WRITE);
@@ -337,61 +320,6 @@ namespace gfx {
         gfx_cmd->DrawInstanced(n_vertices, 1, 0, 0);
     }
 
-    size_t Device::create_draw_packet(const void* data, size_t size_bytes) {
-        // Allocate data in the draw packets buffer
-        assert(((m_draw_packet_cursor + size_bytes) < DRAW_PACKET_BUFFER_SIZE) && "Failed to allocate draw packet: buffer overflow!");
-
-        char* mapped_buffer;
-        const size_t start = m_draw_packet_cursor;
-        const D3D12_RANGE read_range = { 0, 0 };
-        validate(m_draw_packets[m_swapchain->current_frame_index() % backbuffer_count].resource->handle->Map(0, &read_range, (void**)&mapped_buffer));
-        memcpy(mapped_buffer + start, data, size_bytes);
-        m_draw_packets[m_swapchain->current_frame_index() % backbuffer_count].resource->handle->Unmap(0, &read_range);
-
-        // Return the byte offset of that draw packet, and update the cursor to the next entry, wrapping at the end
-        add_and_align(m_draw_packet_cursor, size_bytes, (size_t)GPU_BUFFER_PREFERRED_ALIGNMENT);
-        return start;
-    }
-
-    void Device::traverse_scene(SceneNode* node) {
-        if (!node) return;
-
-        if (node->type == SceneNodeType::Mesh) {
-            auto draw_packet = PacketDrawMesh{
-                .model_transform = node->cached_global_transform,
-                .position_offset = glm::vec4(node->position_offset, 0.0f),
-                .position_scale = glm::vec4(node->position_scale, 0.0f),
-                .vertex_buffer = node->mesh.vertex_buffer,
-            };
-            auto n_vertices = m_resources[draw_packet.vertex_buffer.id]->expect_buffer().size / sizeof(VertexCompressed);
-            auto draw_packet_offset = create_draw_packet(&draw_packet, sizeof(draw_packet));
-            set_graphics_root_constants({
-                m_draw_packets[m_swapchain->current_frame_index() % backbuffer_count].handle.as_u32(),
-                (uint32_t)m_camera_matrices_offset,
-                (uint32_t)draw_packet_offset,
-                m_material_buffer.handle.as_u32()
-            });
-            draw_vertices((uint32_t)n_vertices);
-        }
-        for (auto& node : node->children) {
-            traverse_scene(node.get());
-        }
-    }
-
-    void Device::draw_scene(ResourceHandle scene_handle) {
-        std::shared_ptr<Resource> resource = m_resources[scene_handle.id];
-        SceneNode* scene = m_resources[scene_handle.id]->expect_scene().root;
-        traverse_scene(scene);
-    }
-
-    ResourceHandlePair Device::load_texture(const std::string& path) {
-        stbi__vertically_flip_on_load = 0;
-        int width, height, channels;
-        uint8_t* data = stbi_load(path.c_str(), &width, &height, &channels, 4);
-
-        return load_texture(path, width, height, data, PixelFormat::rgba8_unorm);
-    }
-
     ResourceHandlePair Device::load_texture(const std::string& name, uint32_t width, uint32_t height, void* data, PixelFormat pixel_format) {
         // Make texture resource
         const auto resource = std::make_shared<Resource>();
@@ -427,10 +355,11 @@ namespace gfx {
             &heap_properties,
             D3D12_HEAP_FLAG_NONE,
             &resource_desc,
-            D3D12_RESOURCE_STATE_COMMON,
+            D3D12_RESOURCE_STATE_COPY_DEST,
             nullptr,
             IID_PPV_ARGS(&resource->handle)
         ));
+        resource->current_state = D3D12_RESOURCE_STATE_COPY_DEST;
         D3D12_SHADER_RESOURCE_VIEW_DESC srv_desc = {
             .Format = resource_desc.Format,
             .ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D,
@@ -447,8 +376,9 @@ namespace gfx {
         // We need to copy the texture from an upload buffer
         if (data) {
             const auto upload_buffer_id = create_buffer("Upload buffer", upload_size, data);
+            queue_unload_bindless_resource(upload_buffer_id);
 
-            const auto& upload_buffer = m_resources[static_cast<uint64_t>(upload_buffer_id.handle.id)];
+            const auto& upload_buffer = upload_buffer_id.resource;
 
             void* mapped_buffer;
             const D3D12_RANGE upload_range = { 0, upload_size };
@@ -486,16 +416,17 @@ namespace gfx {
                 .SubresourceIndex = 0,
             };
 
-            const auto upload_command_buffer = m_upload_queue->create_command_buffer(*this, nullptr, ++m_upload_fence_value_when_done);
+            // todo: determine whether i want this to be in a separate update_texture() function
+            ++m_upload_fence_value_when_done;
+            const auto upload_command_buffer = m_upload_queue->create_command_buffer(*this, nullptr, m_upload_fence_value_when_done);
             const auto cmd = upload_command_buffer->get();
             cmd->CopyTextureRegion(&texture_copy_dest, 0, 0, 0, &texture_copy_source, &texture_size_box);
+            transition_resource(upload_command_buffer.get(), resource.get(), D3D12_RESOURCE_STATE_COMMON);
+            m_temp_upload_buffers.push_back(UploadQueueKeepAlive{ m_upload_fence_value_when_done, upload_buffer });
             validate(cmd->Close());
         }
 
         id.is_loaded = true; // todo, only set this to true when the upload command buffer finished (when the fence value was reached)
-
-        m_resource_name_map[name] = id;
-        m_resources[id.id] = resource;
 
         return ResourceHandlePair{ id, resource };
     }
@@ -520,17 +451,6 @@ namespace gfx {
         for (auto& child : node->children) {
             debug_scene_graph_nodes(child.get(), depth + 1);
         }
-    }
-
-    ResourceHandlePair Device::create_scene_graph_from_gltf(const std::string& path) {
-        const auto resource = std::make_shared<Resource>();
-        resource->type = ResourceType::scene;
-        resource->scene_resource.root = gfx::create_scene_graph_from_gltf(*this, path);
-
-        ResourceHandle handle = m_heap_bindless->alloc_descriptor(ResourceType::scene);
-        m_resources[handle.id] = resource;
-
-        return ResourceHandlePair{ handle, resource };
     }
 
     ResourceHandlePair Device::create_buffer(const std::string& name, const size_t size, void* data) {
@@ -603,8 +523,6 @@ namespace gfx {
 
         // Store the resource data in the device struct
         id.is_loaded = true;
-        m_resource_name_map[name] = id;
-        m_resources[id.id] = resource;
 
         return ResourceHandlePair{ id, resource };
     }
@@ -690,9 +608,6 @@ namespace gfx {
         rtv_id.is_loaded = true;
         resource->expect_texture().rtv_handle = rtv_id;
 
-        m_resource_name_map[name] = srv_id;
-        m_resources[srv_id.id] = resource;
-
         return ResourceHandlePair{ srv_id, resource };
     }
 
@@ -766,18 +681,12 @@ namespace gfx {
         dsv_id.is_loaded = true;
         resource->expect_texture().dsv_handle = dsv_id;
 
-        m_resource_name_map[name] = srv_id;
-        m_resources[srv_id.id] = resource;
-
         return ResourceHandlePair{ srv_id, resource };
     }
 
-    void Device::resize_texture(ResourceHandle& handle, const uint32_t width, const uint32_t height) {
-        // Schedule delayed unloading - once it's no longer used
-        unload_bindless_resource(handle);
-
+    void Device::resize_texture(ResourceHandlePair& handle, const uint32_t width, const uint32_t height) {
         // Get texture info (is it a render target, depth target, or a regular texture?)
-        auto& resource = m_resources.at(handle.id);
+        auto& resource = handle.resource;
         auto& texture = resource->expect_texture();
         assert(!((texture.rtv_handle.type != (uint32_t)ResourceType::none) && (texture.dsv_handle.type != (uint32_t)ResourceType::none)) && "Invalid texture: both rtv_handle and dsv_handle are set!");
         
@@ -786,13 +695,13 @@ namespace gfx {
 
         // If it's a render target, create a new render target
         if (texture.rtv_handle.type != (uint32_t)ResourceType::none) {
-            handle = create_render_target(resource->name, width, height, texture.pixel_format, texture.clear_color).handle;
+            handle = create_render_target(resource->name, width, height, texture.pixel_format, texture.clear_color);
             return;
         }
 
         // If it's a depth target, create a new depth target
         if (texture.dsv_handle.type != (uint32_t)ResourceType::none) {
-            handle = create_depth_target(resource->name, width, height, texture.pixel_format, texture.clear_color.r).handle;
+            handle = create_depth_target(resource->name, width, height, texture.pixel_format, texture.clear_color.r);
             return;
         }
 
@@ -800,35 +709,18 @@ namespace gfx {
         abort();
     }
 
-    void Device::unload_bindless_resource(ResourceHandle id) {
-        // Schedule unloading this resource after the GPU is done with this frame
-        ResourceHandlePair handle = {
-            .handle = id,
-            .resource = m_resources.at(id.id)
-        };
-        int fence_value = m_swapchain->current_frame_index() + 3;
-        m_resources_to_unload.push_back({ handle, fence_value });
+    void Device::update_buffer(const ResourceHandlePair& buffer, const uint32_t offset, const uint32_t size_bytes, const void* data) {
+        // todo: handle case for buffers that are not visible from cpu
+        char* mapped_buffer;
+        const D3D12_RANGE read_range = { 0, 0 };
+        validate(buffer.resource->handle->Map(0, &read_range, (void**)&mapped_buffer));
+        memcpy(mapped_buffer + offset, data, size_bytes);
+        buffer.resource->handle->Unmap(0, &read_range);
     }
 
-    std::pair<int, Material*> Device::allocate_material_slot() {
-        m_should_update_material_buffer = true;
-
-        // Reuse old unused material slot if one is available
-        if (!m_material_indices_to_reuse.empty()) {
-            const std::pair<int, Material*> return_value = {
-                m_material_indices_to_reuse[0],
-                &m_materials[m_material_indices_to_reuse[0]]
-            };
-            m_material_indices_to_reuse.pop_back();
-        }
-
-        // Otherwise create a new slot
-        const size_t slot_id = m_materials.size();
-        m_materials.push_back({});
-        return {
-            slot_id,
-            &m_materials[slot_id]
-        };
+    void Device::queue_unload_bindless_resource(ResourceHandlePair resource) {
+        int fence_value = m_swapchain->current_frame_index() + 3;
+        m_resources_to_unload.push_back({ resource, fence_value });
     }
 
     void Device::transition_resource(CommandBuffer* cmd, Resource* resource, D3D12_RESOURCE_STATES new_state) {
@@ -930,12 +822,24 @@ namespace gfx {
 
             // If it's still potentially being used, end the loop here, because all subsequent queue entries have
             // the equal or higher desired fence values
-            if ((int)m_swapchain->current_fence_completed_value() < desired_completed_fence_value) return;
+            if ((int)m_swapchain->current_fence_completed_value() < desired_completed_fence_value) break;
 
             // Destroy, Erase, Improve (memory usage) - good Meshuggah album btw, go listen to it
             assert(resource.resource->handle != nullptr && "Critical error! Somehow the handle became null. Check the other code, this is sus.");
-            m_resources.erase(resource.handle.id);
             m_resources_to_unload.pop_front();
+        }
+
+        while (!m_temp_upload_buffers.empty()) {
+            // Get the next entry in the unload queue
+            auto& upload_data = m_temp_upload_buffers.front();
+
+            // If it's still potentially being used, end the loop here, because all subsequent queue entries have
+            // the equal or higher desired fence values
+            if (m_upload_queue_completion_fence->reached_value(upload_data.upload_queue_fence_value) == false) break;
+
+            // Destroy, Erase, Improve (memory usage) - good Meshuggah album btw, go listen to it
+            assert(upload_data.upload_buffer->handle != nullptr && "Critical error! Somehow the handle became null. Check the other code, this is sus.");
+            m_temp_upload_buffers.pop_front();
         }
     }
 }
