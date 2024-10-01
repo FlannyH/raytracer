@@ -10,7 +10,7 @@
 #include "command_buffer.h"
 
 namespace gfx {
-    CommandQueue::CommandQueue(const Device& device, CommandBufferType type) {
+    CommandQueue::CommandQueue(const Device& device, CommandBufferType type, const std::wstring& name) {
         // Create command queue
         m_type = type;
         D3D12_COMMAND_QUEUE_DESC desc = {
@@ -28,6 +28,7 @@ namespace gfx {
         }
 
         validate(device.device->CreateCommandQueue(&desc, IID_PPV_ARGS(&command_queue)));
+        command_queue->SetName(name.c_str());
     }
 
     std::shared_ptr<CommandBuffer> CommandQueue::create_command_buffer(const Device& device, const Pipeline* pipeline, uint64_t frame_index) {
