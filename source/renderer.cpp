@@ -7,8 +7,8 @@
 #include <glm/trigonometric.hpp>
 
 namespace gfx {
-    #define MAX_MATERIAL_COUNT (1024)
-    #define DRAW_PACKET_BUFFER_SIZE (102400)
+    #define MAX_MATERIAL_COUNT 1024
+    #define DRAW_PACKET_BUFFER_SIZE 102400
     #define GPU_BUFFER_PREFERRED_ALIGNMENT 64
     #define MAX_LIGHTS_DIRECTIONAL 32
 
@@ -29,7 +29,7 @@ namespace gfx {
         }, m_depth_target);
         m_pipeline_brdf = m_device->create_compute_pipeline("assets/shaders/brdf.cs.hlsl");
         m_pipeline_final_blit = m_device->create_raster_pipeline("assets/shaders/fullscreen_tri.vs.hlsl", "assets/shaders/final_blit.ps.hlsl", {});
-        m_material_buffer = m_device->create_buffer("Material Descriptions", MAX_MATERIAL_COUNT * sizeof(Material), nullptr);
+        m_material_buffer = m_device->create_buffer("Material descriptions", MAX_MATERIAL_COUNT * sizeof(Material), nullptr);
         m_lights_buffer = m_device->create_buffer("Lights buffer", 3 * sizeof(uint32_t) + MAX_LIGHTS_DIRECTIONAL * sizeof(LightDirectional), nullptr);
 
         // Create triple buffered draw packet buffer
@@ -143,7 +143,7 @@ namespace gfx {
         m_device->set_graphics_root_constants({
             m_shaded_target.handle.as_u32(), // Texture to blit to screen
         });
-        m_device->draw_vertices(3); // 2 triangles making up a quad
+        m_device->draw_vertices(3); // Triangle covering entire screen
         m_device->end_raster_pass();
 
         // API specific end frame
