@@ -22,6 +22,7 @@ struct LightDirectional {
 
 #define MASK_ID ((1 << 27) - 1)
 #define PI 3.14159265358979f
+#define FULLBRIGHT_NITS 200.0f
 
 [numthreads(8, 8, 1)]
 void main(uint3 dispatch_thread_id : SV_DispatchThreadID) {
@@ -31,8 +32,10 @@ void main(uint3 dispatch_thread_id : SV_DispatchThreadID) {
     RWTexture2D<float3> output_texture = ResourceDescriptorHeap[NonUniformResourceIndex(root_constants.output_texture & MASK_ID)];
     Texture2D<float3> color_texture = ResourceDescriptorHeap[NonUniformResourceIndex(root_constants.color_texture & MASK_ID)];
     Texture2D<float3> normal_texture = ResourceDescriptorHeap[NonUniformResourceIndex(root_constants.normal_texture & MASK_ID)];
+    Texture2D<float3> emissive_texture = ResourceDescriptorHeap[NonUniformResourceIndex(root_constants.emissive_texture & MASK_ID)];
     float3 color = color_texture[dispatch_thread_id.xy];
     float3 normal = normal_texture[dispatch_thread_id.xy];
+    float3 emission = emissive_texture[dispatch_thread_id.xy];
     
     // Get light buffer
     ByteAddressBuffer packet_buffer = ResourceDescriptorHeap[NonUniformResourceIndex(root_constants.m_lights_buffer & MASK_ID)];
@@ -45,6 +48,10 @@ void main(uint3 dispatch_thread_id : SV_DispatchThreadID) {
         out_value += color * n_dot_l * light.intensity;
     }
     
-    output_texture[dispatch_thread_id.xy].rgb = pow(out_value / (200.0f * PI), 1.0/2.4f); // let's define 1.0 as 200 nits, and then apply a quick hacky sRGB gamma correction
+    // Add emission - The glTF spec has this to say about emissive textures:
+    // "Many rendering engines simplify this calculation by assuming that an emissive factor of 1.0 results in a fully exposed pixel."
+    out_value += emission * FULLBRIGHT_NITS;
+    
+    output_texture[dispatch_thread_id.xy].rgb = pow(out_value / (FULLBRIGHT_NITS * PI), 1.0 / 2.4f); // let's define 1.0 as 200 nits, and then apply a quick hacky sRGB gamma correction
 
 }
