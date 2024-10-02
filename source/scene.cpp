@@ -262,10 +262,20 @@ namespace gfx {
 
             // If it has a light, process it
             if (node.light != -1) {
-                auto& light = model.lights[node.light];
+                const auto& light = model.lights[node.light];
                 auto light_node = std::make_shared<SceneNode>();
                 light_node->type = SceneNodeType::Light;
                 light_node->name = light.name;
+                if (light.color.size() >= 3) {
+                    light_node->light.color.r = light.color[0];
+                    light_node->light.color.g = light.color[1];
+                    light_node->light.color.b = light.color[2];
+                }
+                light_node->light.intensity = light.intensity;
+                if (light.type == "directional") {
+                    light_node->light.type = LightType::Directional;
+                }
+                light_node->cached_global_transform = global_matrix;
                 scene_node->add_child_node(light_node);
             }
 

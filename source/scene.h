@@ -42,6 +42,11 @@ namespace gfx {
                 ResourceHandle vertex_buffer;
                 D3D12_RAYTRACING_GEOMETRY_TRIANGLES_DESC geometry;
             } mesh;
+            struct {
+                LightType type;
+                glm::vec3 color;
+                float intensity;
+            } light;
         };
 
         void add_child_node(std::shared_ptr<SceneNode> new_child);

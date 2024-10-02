@@ -190,6 +190,12 @@ namespace gfx {
         uint64_t reserved = 0; // This makes the struct size 64 bytes, perfect for cache lines
     };
 
+    enum class LightType {
+        Directional,
+        Point,
+        Spot
+    };
+
     struct LightDirectional {
         glm::vec3 color; // linear 0.0 - 1.0
         float intensity; // in lux (lm/m^2)
