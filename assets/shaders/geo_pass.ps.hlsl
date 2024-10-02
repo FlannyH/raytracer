@@ -78,6 +78,8 @@ PixelOut main(in float4 position : SV_Position, in VertexOut input) {
         if (material.color_texture.is_loaded != 0) {
             Texture2D<float4> tex = ResourceDescriptorHeap[NonUniformResourceIndex(material.color_texture.id)];
             float4 tex_color = tex.Sample(tex_sampler, input.texcoord0_materialid.xy);
+            if (tex_color.a < 0.01f)
+                discard;
             output.color *= tex_color;
         }
         output.color *= material.color_multiplier;
