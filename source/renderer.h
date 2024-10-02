@@ -51,6 +51,7 @@ namespace gfx {
         std::vector<ResourceHandlePair> render_queue_scenes;
         std::shared_ptr<Pipeline> m_pipeline_scene = nullptr;
         std::shared_ptr<Pipeline> m_pipeline_brdf = nullptr;
+        std::shared_ptr<Pipeline> m_pipeline_tonemapping = nullptr;
         std::shared_ptr<Pipeline> m_pipeline_final_blit = nullptr;
         std::vector<int> m_material_indices_to_reuse;
         std::vector<Material> m_materials; // Should be uploaded to the GPU after modifying

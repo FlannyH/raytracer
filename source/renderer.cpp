@@ -28,6 +28,7 @@ namespace gfx {
             m_emissive_target
         }, m_depth_target);
         m_pipeline_brdf = m_device->create_compute_pipeline("assets/shaders/brdf.cs.hlsl");
+        m_pipeline_tonemapping = m_device->create_compute_pipeline("assets/shaders/tonemapping.cs.hlsl");
         m_pipeline_final_blit = m_device->create_raster_pipeline("assets/shaders/fullscreen_tri.vs.hlsl", "assets/shaders/final_blit.ps.hlsl", {});
         m_material_buffer = m_device->create_buffer("Material descriptions", MAX_MATERIAL_COUNT * sizeof(Material), nullptr);
         m_lights_buffer = m_device->create_buffer("Lights buffer", 3 * sizeof(uint32_t) + MAX_LIGHTS_DIRECTIONAL * sizeof(LightDirectional), nullptr);
@@ -127,6 +128,18 @@ namespace gfx {
             m_roughness_metallic_target.handle.as_u32(),
             m_emissive_target.handle.as_u32(),
             m_lights_buffer.handle.as_u32(),
+        });
+        m_device->dispatch_threadgroups( // threadgroup size is 8x8
+            (uint32_t)(m_render_resolution.x / 8.0f),
+            (uint32_t)(m_render_resolution.y / 8.0f),
+            1
+        );
+        m_device->end_compute_pass();
+
+        // Tonemapping
+        m_device->begin_compute_pass(m_pipeline_tonemapping);
+        m_device->set_compute_root_constants({
+            m_shaded_target.handle.as_u32(),
         });
         m_device->dispatch_threadgroups( // threadgroup size is 8x8
             (uint32_t)(m_render_resolution.x / 8.0f),

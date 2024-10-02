@@ -52,6 +52,6 @@ void main(uint3 dispatch_thread_id : SV_DispatchThreadID) {
     // "Many rendering engines simplify this calculation by assuming that an emissive factor of 1.0 results in a fully exposed pixel."
     out_value += emission * FULLBRIGHT_NITS;
     
-    output_texture[dispatch_thread_id.xy].rgb = pow(out_value / (FULLBRIGHT_NITS * PI), 1.0 / 2.4f); // let's define 1.0 as 200 nits, and then apply a quick hacky sRGB gamma correction
+    output_texture[dispatch_thread_id.xy].rgb = out_value; // let's define 1.0 as 200 nits, and then apply a quick hacky sRGB gamma correction
 
 }
