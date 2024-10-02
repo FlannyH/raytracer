@@ -4,6 +4,7 @@ struct RootConstants {
     uint normal_texture;
     uint metal_roughness_texture;
     uint emissive_texture;
+    uint m_lights_buffer;
 };
 ConstantBuffer<RootConstants> root_constants : register(b0, space0);
 

@@ -56,6 +56,8 @@ namespace gfx {
         std::vector<Material> m_materials; // Should be uploaded to the GPU after modifying
         ResourceHandlePair m_material_buffer{}; // Buffer that contains all currently loaded materials
         bool m_should_update_material_buffer = false;
+        std::vector<LightDirectional> m_lights_directional; // All currently queued directional lights
+        ResourceHandlePair m_lights_buffer{}; // Buffer that contains all queued lights for this frame
         ResourceHandlePair m_draw_packets[backbuffer_count]; // Scratch buffer that is used to send draw info to the shader pipelines
         size_t m_draw_packet_cursor = 0; // Current allocation offset into the draw packet buffer
         size_t m_camera_matrices_offset = 0; // Where the camera matrices for this frame are stored

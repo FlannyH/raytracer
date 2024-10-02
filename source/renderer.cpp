@@ -10,6 +10,7 @@ namespace gfx {
     #define MAX_MATERIAL_COUNT (1024)
     #define DRAW_PACKET_BUFFER_SIZE (102400)
     #define GPU_BUFFER_PREFERRED_ALIGNMENT 64
+    #define MAX_LIGHTS_DIRECTIONAL 32
 
     // Initialisation and state
     Renderer::Renderer(int width, int height, bool debug_layer_enabled) {
@@ -29,6 +30,7 @@ namespace gfx {
         m_pipeline_brdf = m_device->create_compute_pipeline("assets/shaders/brdf.cs.hlsl");
         m_pipeline_final_blit = m_device->create_raster_pipeline("assets/shaders/fullscreen_tri.vs.hlsl", "assets/shaders/final_blit.ps.hlsl", {});
         m_material_buffer = m_device->create_buffer("Material Descriptions", MAX_MATERIAL_COUNT * sizeof(Material), nullptr);
+        m_lights_buffer = m_device->create_buffer("Lights buffer", 3 * sizeof(uint32_t) + MAX_LIGHTS_DIRECTIONAL * sizeof(LightDirectional), nullptr);
 
         // Create triple buffered draw packet buffer
         for (int i = 0; i < backbuffer_count; ++i) {
@@ -82,10 +84,11 @@ namespace gfx {
         m_device->begin_frame();
 
         render_queue_scenes.clear();
+        m_lights_directional.clear();
     }
 
     void Renderer::end_frame() {
-        // Render scene
+        // Queue rendering scenes
         m_device->begin_raster_pass(m_pipeline_scene, RasterPassInfo{
             .color_targets = {
                 m_color_target,
@@ -101,6 +104,20 @@ namespace gfx {
         }
         m_device->end_raster_pass();
 
+        // Upload light info to the GPU
+        const uint32_t light_count[3] = {
+            m_lights_directional.size(),
+            0, // todo: point lights
+            0, // todo: spot lights
+        };
+        m_device->update_buffer(m_lights_buffer, 0, sizeof(light_count), &light_count);
+        m_device->update_buffer(
+            m_lights_buffer,
+            sizeof(light_count),
+            sizeof(m_lights_directional[0]) * m_lights_directional.size(),
+            m_lights_directional.data()
+        );
+
         // BRDF
         m_device->begin_compute_pass(m_pipeline_brdf);
         m_device->set_compute_root_constants({
@@ -108,7 +125,8 @@ namespace gfx {
             m_color_target.handle.as_u32(),
             m_normal_target.handle.as_u32(),
             m_roughness_metallic_target.handle.as_u32(),
-            m_emissive_target.handle.as_u32()
+            m_emissive_target.handle.as_u32(),
+            m_lights_buffer.handle.as_u32(),
         });
         m_device->dispatch_threadgroups( // threadgroup size is 8x8
             (uint32_t)(m_render_resolution.x / 8.0f),
@@ -271,6 +289,13 @@ namespace gfx {
                 m_material_buffer.handle.as_u32()
                 });
             m_device->draw_vertices((uint32_t)n_vertices);
+        }
+        else if (node->type == SceneNodeType::Light) {
+            m_lights_directional.push_back(LightDirectional{
+                .color = node->light.color,
+                .intensity = node->light.intensity,
+                .direction = glm::normalize(glm::vec3(node->cached_global_transform * glm::vec4(0.0, 0.0, -1.0, 0.0))),
+            });
         }
         for (auto& node : node->children) {
             traverse_scene(node.get());
