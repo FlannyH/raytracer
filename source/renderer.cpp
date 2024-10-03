@@ -30,12 +30,12 @@ namespace gfx {
         m_pipeline_brdf = m_device->create_compute_pipeline("assets/shaders/brdf.cs.hlsl");
         m_pipeline_tonemapping = m_device->create_compute_pipeline("assets/shaders/tonemapping.cs.hlsl");
         m_pipeline_final_blit = m_device->create_raster_pipeline("assets/shaders/fullscreen_tri.vs.hlsl", "assets/shaders/final_blit.ps.hlsl", {});
-        m_material_buffer = m_device->create_buffer("Material descriptions", MAX_MATERIAL_COUNT * sizeof(Material), nullptr);
-        m_lights_buffer = m_device->create_buffer("Lights buffer", 3 * sizeof(uint32_t) + MAX_LIGHTS_DIRECTIONAL * sizeof(LightDirectional), nullptr);
+        m_material_buffer = m_device->create_buffer("Material descriptions", MAX_MATERIAL_COUNT * sizeof(Material), nullptr, true);
+        m_lights_buffer = m_device->create_buffer("Lights buffer", 3 * sizeof(uint32_t) + MAX_LIGHTS_DIRECTIONAL * sizeof(LightDirectional), nullptr, true);
 
         // Create triple buffered draw packet buffer
         for (int i = 0; i < backbuffer_count; ++i) {
-            m_draw_packets[i] = m_device->create_buffer("Draw Packets", DRAW_PACKET_BUFFER_SIZE, nullptr);
+            m_draw_packets[i] = m_device->create_buffer("Draw Packets", DRAW_PACKET_BUFFER_SIZE, nullptr, true);
         }
     }
 
@@ -217,8 +217,8 @@ namespace gfx {
         return texture;
     }
 
-    ResourceHandlePair Renderer::create_buffer(const std::string& name, size_t size, void* data) {
-        ResourceHandlePair buffer = m_device->create_buffer(name, size, data);
+    ResourceHandlePair Renderer::create_buffer(const std::string& name, size_t size, void* data, bool cpu_visible) {
+        ResourceHandlePair buffer = m_device->create_buffer(name, size, data, cpu_visible);
         m_resources[buffer.handle.id] = buffer.resource;
         return buffer;
     }

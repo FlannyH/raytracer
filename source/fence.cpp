@@ -5,11 +5,18 @@
 namespace gfx {
     Fence::Fence(const Device& device) {
         device.device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&fence));
+        event_handle = CreateEventEx(nullptr, nullptr, 0, EVENT_ALL_ACCESS);
+    }
+
+    Fence::~Fence() {
+        CloseHandle(event_handle);
     }
 
     void Fence::cpu_wait(const size_t value) {
-        // todo: maybe we can use an event for this?
-        while (fence->GetCompletedValue() < value) {};
+        if (fence->GetCompletedValue() < value) {
+            validate(fence->SetEventOnCompletion(value, event_handle));
+            WaitForSingleObject(event_handle, INFINITE);
+        };
     }
 
     void Fence::cpu_signal(const size_t value) const {

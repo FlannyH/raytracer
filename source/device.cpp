@@ -405,16 +405,10 @@ namespace gfx {
 
         // We need to copy the texture from an upload buffer
         if (data) {
-            const auto upload_buffer_id = create_buffer("Upload buffer", upload_size, data);
+            const auto upload_buffer_id = create_buffer("Upload buffer", upload_size, data, true);
             queue_unload_bindless_resource(upload_buffer_id);
 
             const auto& upload_buffer = upload_buffer_id.resource;
-
-            void* mapped_buffer;
-            const D3D12_RANGE upload_range = { 0, upload_size };
-            validate(upload_buffer->handle->Map(0, &upload_range, &mapped_buffer));
-            memcpy(mapped_buffer, data, upload_size);
-            upload_buffer->handle->Unmap(0, &upload_range);
 
             const auto texture_size_box = D3D12_BOX{
                 .left = 0,
@@ -461,7 +455,7 @@ namespace gfx {
     }
 
     ResourceHandlePair Device::load_mesh(const std::string& name, const uint64_t n_triangles, Triangle* tris) {
-        return create_buffer(name, n_triangles * sizeof(Triangle), tris);
+        return create_buffer(name, n_triangles * sizeof(Triangle), tris, false);
     }
 
     void debug_scene_graph_nodes(SceneNode* node, int depth = 0) {
@@ -482,7 +476,7 @@ namespace gfx {
         }
     }
 
-    ResourceHandlePair Device::create_buffer(const std::string& name, const size_t size, void* data) {
+    ResourceHandlePair Device::create_buffer(const std::string& name, const size_t size, void* data, bool cpu_visible) {
         // Create engine resource
         const auto resource = std::make_shared<Resource>();
         *resource = {
@@ -506,16 +500,15 @@ namespace gfx {
         resource_desc.Flags = D3D12_RESOURCE_FLAG_NONE;
         
         D3D12_HEAP_PROPERTIES heap_properties = {
-            D3D12_HEAP_TYPE_UPLOAD,
-            D3D12_CPU_PAGE_PROPERTY_UNKNOWN,
-            D3D12_MEMORY_POOL_UNKNOWN, 1, 1
+            .Type = (cpu_visible) ? (D3D12_HEAP_TYPE_UPLOAD) : (D3D12_HEAP_TYPE_DEFAULT),
         };
 
+        resource->current_state = D3D12_RESOURCE_STATE_COMMON;
         validate(device->CreateCommittedResource(
             &heap_properties,
             D3D12_HEAP_FLAG_NONE,
             &resource_desc,
-            D3D12_RESOURCE_STATE_COMMON,
+            resource->current_state,
             nullptr,
             IID_PPV_ARGS(&resource->handle)
         ));
@@ -537,13 +530,27 @@ namespace gfx {
         const auto handle = m_heap_bindless->fetch_cpu_handle(id);
         device->CreateShaderResourceView(resource->handle.Get(), &srv_desc, handle);
 
-        if (data) {
+        if (data && cpu_visible) {
             // Copy the buffer data to the GPU
             void* mapped_buffer = nullptr;
             D3D12_RANGE range = { 0, size };
             validate(resource->handle->Map(0, &range, &mapped_buffer));
             memcpy(mapped_buffer, data, size);
             resource->handle->Unmap(0, &range);
+        }
+        else if (data && !cpu_visible) {
+            // Create upload buffer containing the data
+            const auto upload_buffer_id = create_buffer("Upload buffer", size, data, true);
+            const auto& upload_buffer = upload_buffer_id.resource;
+            queue_unload_bindless_resource(upload_buffer_id);
+
+            // Upload the data to the destination buffer
+            ++m_upload_fence_value_when_done;
+            auto cmd = m_upload_queue->create_command_buffer(*this, nullptr, m_upload_fence_value_when_done);
+            transition_resource(cmd.get(), resource.get(), D3D12_RESOURCE_STATE_COPY_DEST);
+            cmd->get()->CopyBufferRegion(resource->handle.Get(), 0, upload_buffer->handle.Get(), 0, size);
+            transition_resource(cmd.get(), resource.get(), D3D12_RESOURCE_STATE_COMMON);
+            m_temp_upload_buffers.push_back(UploadQueueKeepAlive{ m_upload_fence_value_when_done, upload_buffer });
         }
 
         auto name_str = std::wstring(name.begin(), name.end());

@@ -68,7 +68,7 @@ namespace gfx {
         // Resource management
         ResourceHandlePair load_texture(const std::string& name, uint32_t width, uint32_t height, void* data, PixelFormat pixel_format); // Load a texture from memory
         ResourceHandlePair load_mesh(const std::string& name, uint64_t n_triangles, Triangle* tris);
-        ResourceHandlePair create_buffer(const std::string& name, size_t size, void* data);
+        ResourceHandlePair create_buffer(const std::string& name, size_t size, void* data, bool cpu_visible);
         ResourceHandlePair create_render_target(const std::string& name, uint32_t width, uint32_t height, PixelFormat pixel_format, glm::vec4 clear_color = { 0.0f, 0.0f, 0.0f, 1.0f });
         ResourceHandlePair create_depth_target(const std::string& name, uint32_t width, uint32_t height, PixelFormat pixel_format, float clear_value = 1.0f);
         void resize_texture(ResourceHandlePair& texture, const uint32_t width, const uint32_t height);
