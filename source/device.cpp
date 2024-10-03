@@ -35,6 +35,7 @@ namespace gfx {
             m_debug_layer->EnableDebugLayer();
             m_debug_layer->SetEnableGPUBasedValidation(true);
             m_debug_layer->Release();
+            m_debug_layer = nullptr;
         }
 
         // Create factory
@@ -84,6 +85,34 @@ namespace gfx {
         m_upload_queue_completion_fence = std::make_shared<Fence>(*this);
         input::init(m_window_glfw);
         get_window_size(m_width, m_height);
+    }
+
+    Device::~Device() {
+        // Finish any queued uploads
+        m_upload_queue_completion_fence->gpu_signal(m_upload_queue, m_upload_fence_value_when_done);
+        m_upload_queue->execute();
+        m_upload_queue_completion_fence->cpu_wait(m_upload_fence_value_when_done);
+
+        // Wait for GPU to finish
+        m_swapchain->flush(m_queue_gfx);
+
+        // Clean up in a certain order
+        clean_up_old_resources();
+        m_temp_upload_buffers.clear();
+        m_swapchain.reset();
+        m_curr_bound_pipeline.reset();
+        m_curr_pass_cmd.reset();
+        m_queue_gfx.reset();
+        m_upload_queue.reset();
+        m_upload_queue_completion_fence.reset();
+        m_curr_render_targets.clear();
+        m_curr_depth_target.reset();
+        m_heap_rtv.reset();
+        m_heap_dsv.reset();
+        m_heap_bindless.reset();
+        device->Release();
+        factory->Release();
+        glfwDestroyWindow(m_window_glfw);
     }
 
     void Device::resize_window(const int width, const int height) const {

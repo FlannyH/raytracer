@@ -38,6 +38,9 @@ namespace gfx {
     public:
         // Initialization
         Device(int width, int height, bool debug_layer_enabled);
+        ~Device();
+        Device(const Device&) = delete;
+        Device& operator=(const Device&) = delete;
         void resize_window(int width, int height) const;
         void get_window_size(int& width, int& height) const;
 

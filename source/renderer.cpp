@@ -39,6 +39,19 @@ namespace gfx {
         }
     }
 
+    Renderer::~Renderer() {
+        // Mark all resources for unloading
+        for (const auto [handle, resource] : m_resources) {
+            m_device->queue_unload_bindless_resource(ResourceHandlePair{
+                .handle = {.id = handle},
+                .resource = resource
+            });
+        }
+
+        // Destroy device, which will wait for the GPU to finish, then unload the above resources
+        m_device.reset();
+    }
+
     // Common rendering
     bool Renderer::should_stay_open() {
         return m_device->should_stay_open();

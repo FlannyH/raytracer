@@ -7,6 +7,9 @@ namespace gfx {
     public:
         // Initialisation and state
         Renderer(int width, int height, bool debug_layer_enabled);
+        ~Renderer();
+        Renderer(const Renderer&) = delete;
+        Renderer& operator=(const Renderer&) = delete;
 
         // Common rendering
         bool should_stay_open();

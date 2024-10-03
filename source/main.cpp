@@ -5,8 +5,8 @@
 #include "renderer.h"
 
 int main(int n_args, char** args) {
-    const auto renderer = std::make_unique<gfx::Renderer>(1280, 720, true);
-    auto scene = renderer->load_scene_gltf("assets/models/ABeautifulGame/ABeautifulGame.gltf");
+    const auto renderer = std::make_unique<gfx::Renderer>(1280, 720, false);
+    auto scene = renderer->load_scene_gltf("assets/models/helmet.glb");
     auto lights = renderer->load_scene_gltf("assets/models/lights_test.glb");
 
     gfx::Transform camera;
