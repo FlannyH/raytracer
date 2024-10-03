@@ -19,7 +19,7 @@ namespace gfx {
             },
             .BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT,
             .BufferCount = backbuffer_count,
-            .Scaling = DXGI_SCALING_STRETCH,
+            .Scaling = DXGI_SCALING_NONE,
             .SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD,
         };
 
