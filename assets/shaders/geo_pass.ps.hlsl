@@ -93,7 +93,7 @@ PixelOut main(in float4 position : SV_Position, in VertexOut input) {
             float3x3 tbn = transpose(float3x3(input.tangent.xyz, input.bitangent.xyz, input.normal.xyz));
             float3 normal = normalize(mul(tbn, interpolated_normal));
            
-            output.normal = (normal + 1.0f) * 0.5f;
+            output.normal = normal;
         }
 
         // Metal & roughness
