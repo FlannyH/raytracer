@@ -452,7 +452,6 @@ namespace gfx {
             cmd->CopyTextureRegion(&texture_copy_dest, 0, 0, 0, &texture_copy_source, &texture_size_box);
             transition_resource(upload_command_buffer.get(), resource.get(), D3D12_RESOURCE_STATE_COMMON);
             m_temp_upload_buffers.push_back(UploadQueueKeepAlive{ m_upload_fence_value_when_done, upload_buffer });
-            validate(cmd->Close());
         }
 
         id.is_loaded = true; // todo, only set this to true when the upload command buffer finished (when the fence value was reached)
