@@ -168,8 +168,8 @@ namespace gfx {
             m_width = width;
             m_height = height;
         }
-        m_upload_queue_completion_fence->gpu_signal(m_upload_queue, m_upload_fence_value_when_done);
         m_upload_queue->execute();
+        m_upload_queue_completion_fence->gpu_signal(m_upload_queue, m_upload_fence_value_when_done);
         m_upload_queue_completion_fence->cpu_wait(m_upload_fence_value_when_done);
         m_swapchain->next_framebuffer();
         m_queue_gfx->clean_up_old_command_buffers(m_swapchain->current_fence_completed_value());
