@@ -173,6 +173,7 @@ namespace gfx {
         m_upload_queue_completion_fence->cpu_wait(m_upload_fence_value_when_done);
         m_swapchain->next_framebuffer();
         m_queue_gfx->clean_up_old_command_buffers(m_swapchain->current_fence_completed_value());
+        m_upload_queue->clean_up_old_command_buffers(m_upload_fence_value_when_done);
         clean_up_old_resources();
     }
 
