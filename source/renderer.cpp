@@ -107,7 +107,7 @@ namespace gfx {
 
         // Upload light info to the GPU
         const uint32_t light_count[3] = {
-            m_lights_directional.size(),
+            (uint32_t)m_lights_directional.size(),
             0, // todo: point lights
             0, // todo: spot lights
         };
@@ -115,7 +115,7 @@ namespace gfx {
         m_device->update_buffer(
             m_lights_buffer,
             sizeof(light_count),
-            sizeof(m_lights_directional[0]) * m_lights_directional.size(),
+            sizeof(m_lights_directional[0]) * (uint32_t)m_lights_directional.size(),
             m_lights_directional.data()
         );
 
@@ -227,10 +227,11 @@ namespace gfx {
                 &m_materials[m_material_indices_to_reuse[0]]
             };
             m_material_indices_to_reuse.pop_back();
+            return return_value;
         }
 
         // Otherwise create a new slot
-        const size_t slot_id = m_materials.size();
+        const int slot_id = (int)m_materials.size();
         m_materials.push_back({});
         return {
             slot_id,
@@ -266,11 +267,11 @@ namespace gfx {
         return ResourceHandlePair{ handle, resource };
     }
 
-    size_t Renderer::create_draw_packet(const void* data, size_t size_bytes) {
+    uint32_t Renderer::create_draw_packet(const void* data, uint32_t size_bytes) {
         // Allocate data in the draw packets buffer
         assert(((m_draw_packet_cursor + size_bytes) < DRAW_PACKET_BUFFER_SIZE) && "Failed to allocate draw packet: buffer overflow!");
 
-        const size_t start = m_draw_packet_cursor;
+        const uint32_t start = m_draw_packet_cursor;
         m_device->update_buffer(
             m_draw_packets[m_device->frame_index() % backbuffer_count], 
             m_draw_packet_cursor,
@@ -279,7 +280,7 @@ namespace gfx {
         );
 
         // Return the byte offset of that draw packet, and update the cursor to the next entry, wrapping at the end
-        add_and_align(m_draw_packet_cursor, size_bytes, (size_t)GPU_BUFFER_PREFERRED_ALIGNMENT);
+        add_and_align(m_draw_packet_cursor, size_bytes, (uint32_t)GPU_BUFFER_PREFERRED_ALIGNMENT);
         return start;
     }
 

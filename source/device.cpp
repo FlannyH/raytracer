@@ -102,8 +102,7 @@ namespace gfx {
         for (auto& render_target : render_targets) {
             const auto& resource = render_target.resource;
             const auto& texture = resource->expect_texture();
-            const auto& pixel_format = pixel_format_to_dx12(texture.pixel_format);
-            render_target_formats.push_back(pixel_format);
+            render_target_formats.emplace_back(pixel_format_to_dx12(texture.pixel_format));
         }
 
         // Otherwise, assume swapchain target and get its format

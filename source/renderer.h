@@ -32,7 +32,7 @@ namespace gfx {
         void render_scene(ResourceHandle scene_handle);
         std::pair<int, Material*> allocate_material_slot();
         ResourceHandle allocate_non_gpu_resource_handle(ResourceType type);
-        size_t create_draw_packet(const void* data, const size_t size_bytes); // Returns the byte offset into the `m_draw_packets` buffer where this new draw packet was allocated
+        uint32_t create_draw_packet(const void* data, uint32_t size_bytes); // Returns the byte offset into the `m_draw_packets` buffer where this new draw packet was allocated
 
         std::unique_ptr<Device> m_device;
         std::unordered_map<uint32_t, std::shared_ptr<Resource>> m_resources; // Maps linking resource IDs and actual resource data
@@ -60,7 +60,7 @@ namespace gfx {
         std::vector<LightDirectional> m_lights_directional; // All currently queued directional lights
         ResourceHandlePair m_lights_buffer{}; // Buffer that contains all queued lights for this frame
         ResourceHandlePair m_draw_packets[backbuffer_count]; // Scratch buffer that is used to send draw info to the shader pipelines
-        size_t m_draw_packet_cursor = 0; // Current allocation offset into the draw packet buffer
-        size_t m_camera_matrices_offset = 0; // Where the camera matrices for this frame are stored
+        uint32_t m_draw_packet_cursor = 0; // Current allocation offset into the draw packet buffer
+        uint32_t m_camera_matrices_offset = 0; // Where the camera matrices for this frame are stored
     };
 }

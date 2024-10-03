@@ -75,7 +75,7 @@ namespace gfx {
         uint32_t offset;
     };
 
-    inline size_t size_per_pixel(const PixelFormat format) {
+    constexpr inline size_t size_per_pixel(const PixelFormat format) {
         switch (format)
         {
         case PixelFormat::none:
@@ -86,7 +86,7 @@ namespace gfx {
         return 0;
     }
 
-    inline size_t size_per_pixel(const uint32_t format) {
+    constexpr inline size_t size_per_pixel(const uint32_t format) {
         return size_per_pixel(static_cast<PixelFormat>(format));
     }
 
@@ -153,7 +153,7 @@ namespace gfx {
         Vertex verts[3];
     };
 
-    inline DXGI_FORMAT pixel_format_to_dx12(PixelFormat format) {
+    constexpr inline DXGI_FORMAT pixel_format_to_dx12(const PixelFormat format) {
         switch (format) {
         case PixelFormat::r8_unorm:         return DXGI_FORMAT_R8_UNORM;            break;
         case PixelFormat::rg8_unorm:        return DXGI_FORMAT_R8G8_UNORM;          break;

@@ -224,17 +224,17 @@ namespace gfx {
 
                     // Compress vertices for raster pipeline
                     for (const Vertex& vertex : vertices) {
-                        VertexCompressed compressed_vtx{};
-                        compressed_vtx.position = glm::u16vec3((vertex.position - offset) * (65535.0f / scale));    // remap from (min, max) to (0, 65535)
-                        compressed_vtx.position = glm::clamp(compressed_vtx.position, glm::u16vec3(0), glm::u16vec3(65535));
-                        compressed_vtx.material_id = (primitive.material == -1) ? 0xFFFF : material_mapping.at(primitive.material);
-                        compressed_vtx.normal = glm::u8vec3((vertex.normal + 1.0f) * 127.0f);                       // remap from (-1, +1) to (0, 254)
-                        compressed_vtx.flags1.tangent_sign = (vertex.tangent.w > 0.0f) ? 1 : 0;                     // convert tangent sign to a single bit
-                        compressed_vtx.tangent = glm::u8vec3((glm::vec3(vertex.tangent) + 1.0f) * 127.0f);          // remap from (-1, +1) to (0, 254)
-                        compressed_vtx.color = glm::u16vec4(vertex.color * 1023.0f);                                // remap from (0.0, 1.0) to (0, 1023). for RGB, higher values are valid too
-                        compressed_vtx.color.a = glm::clamp(compressed_vtx.color.a, glm::u16(0), glm::u16(1023));   // clamp alpha between 0, 1023, where 1023 = 1.0
-                        compressed_vtx.texcoord0 = vertex.texcoord0;                                                // keep this one the same
-                        compressed_vertices.push_back(compressed_vtx);
+                        compressed_vertices.emplace_back(VertexCompressed{
+                            .position = glm::clamp(glm::u16vec3((vertex.position - offset) * (65535.0f / scale)), glm::u16vec3(0), glm::u16vec3(65535)),    // remap from (min, max) to (0, 65535)
+                            .material_id = (uint16_t)((primitive.material == -1) ? 0xFFFF : material_mapping.at(primitive.material)),
+                            .normal = glm::u8vec3((vertex.normal + 1.0f) * 127.0f),                       // remap from (-1, +1) to (0, 254)
+                            .flags1 = {
+                                .tangent_sign = (uint8_t)((vertex.tangent.w > 0.0f) ? 1 : 0),             // convert tangent sign to a single bit
+                            },
+                            .tangent = glm::u8vec3((glm::vec3(vertex.tangent) + 1.0f) * 127.0f),          // remap from (-1, +1) to (0, 254)
+                            .color = glm::u16vec4(vertex.color * 1023.0f),                                // remap from (0.0, 1.0) to (0, 1023). for RGB, higher values are valid too
+                            .texcoord0 = vertex.texcoord0,                                                // keep this one the same
+                        });
                     }
 
                     // Generate index buffer
@@ -267,11 +267,11 @@ namespace gfx {
                 light_node->type = SceneNodeType::Light;
                 light_node->name = light.name;
                 if (light.color.size() >= 3) {
-                    light_node->light.color.r = light.color[0];
-                    light_node->light.color.g = light.color[1];
-                    light_node->light.color.b = light.color[2];
+                    light_node->light.color.r = (float)light.color[0];
+                    light_node->light.color.g = (float)light.color[1];
+                    light_node->light.color.b = (float)light.color[2];
                 }
-                light_node->light.intensity = light.intensity;
+                light_node->light.intensity = (float)light.intensity;
                 if (light.type == "directional") {
                     light_node->light.type = LightType::Directional;
                 }
@@ -293,6 +293,7 @@ namespace gfx {
         if (image.component == 4 && image.pixel_type == TINYGLTF_COMPONENT_TYPE_UNSIGNED_BYTE) return PixelFormat::rgba8_unorm;
         else {
             printf("[ERROR] Unknown/unsupported pixel type in glTF image!");
+            return PixelFormat::none;
         }
     }
 
@@ -358,15 +359,15 @@ namespace gfx {
 
             // Populate material struct
             if (model_material.pbrMetallicRoughness.baseColorFactor.size() == 4) {
-                alloc_mat_slot.second->color_multiplier.r = model_material.pbrMetallicRoughness.baseColorFactor[0];
-                alloc_mat_slot.second->color_multiplier.g = model_material.pbrMetallicRoughness.baseColorFactor[1];
-                alloc_mat_slot.second->color_multiplier.b = model_material.pbrMetallicRoughness.baseColorFactor[2];
-                alloc_mat_slot.second->color_multiplier.a = model_material.pbrMetallicRoughness.baseColorFactor[3];
+                alloc_mat_slot.second->color_multiplier.r = (float)model_material.pbrMetallicRoughness.baseColorFactor[0];
+                alloc_mat_slot.second->color_multiplier.g = (float)model_material.pbrMetallicRoughness.baseColorFactor[1];
+                alloc_mat_slot.second->color_multiplier.b = (float)model_material.pbrMetallicRoughness.baseColorFactor[2];
+                alloc_mat_slot.second->color_multiplier.a = (float)model_material.pbrMetallicRoughness.baseColorFactor[3];
             }
             if (model_material.emissiveFactor.size() == 3) {
-                alloc_mat_slot.second->emissive_multiplier.r = model_material.emissiveFactor[0];
-                alloc_mat_slot.second->emissive_multiplier.g = model_material.emissiveFactor[1];
-                alloc_mat_slot.second->emissive_multiplier.b = model_material.emissiveFactor[2];
+                alloc_mat_slot.second->emissive_multiplier.r = (float)model_material.emissiveFactor[0];
+                alloc_mat_slot.second->emissive_multiplier.g = (float)model_material.emissiveFactor[1];
+                alloc_mat_slot.second->emissive_multiplier.b = (float)model_material.emissiveFactor[2];
             }
             alloc_mat_slot.second->color_texture = color_texture.handle;
             alloc_mat_slot.second->normal_texture = normal_texture.handle;
@@ -525,7 +526,7 @@ namespace gfx {
 
         if (indices.empty()) {
             for (size_t i = 0; i < positions.size(); ++i) {
-                vertices.push_back(Vertex{
+                vertices.emplace_back(Vertex{
                     .position = positions[i],
                     .normal = normals[i],
                     .tangent = tangents[i],
@@ -537,7 +538,7 @@ namespace gfx {
         }
         else {
             for (uint32_t i : indices) {
-                vertices.push_back(Vertex{
+                vertices.emplace_back(Vertex{
                     .position = positions[i],
                     .normal = normals[i],
                     .tangent = tangents[i],
