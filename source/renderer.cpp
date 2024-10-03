@@ -202,12 +202,13 @@ namespace gfx {
         m_resources.erase(resource.handle.id);
     }
 
-    ResourceHandlePair Renderer::load_texture(const std::string& path) {
+    ResourceHandlePair Renderer::load_texture(const std::string& path, bool free_after_upload) {
         stbi__vertically_flip_on_load = 0;
         int width, height, channels;
         uint8_t* data = stbi_load(path.c_str(), &width, &height, &channels, 4);
-
-        return load_texture(path, width, height, data, PixelFormat::rgba8_unorm);
+        auto texture = load_texture(path, width, height, data, PixelFormat::rgba8_unorm);
+        stbi_image_free(data);
+        return texture;
     }
 
     ResourceHandlePair Renderer::load_texture(const std::string& name, uint32_t width, uint32_t height, void* data, PixelFormat pixel_format) {
@@ -281,6 +282,7 @@ namespace gfx {
     }
 
     uint32_t Renderer::create_draw_packet(const void* data, uint32_t size_bytes) {
+        auto reason = m_device->device->GetDeviceRemovedReason();
         // Allocate data in the draw packets buffer
         assert(((m_draw_packet_cursor + size_bytes) < DRAW_PACKET_BUFFER_SIZE) && "Failed to allocate draw packet: buffer overflow!");
 
