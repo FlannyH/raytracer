@@ -7,6 +7,7 @@
 #include <unordered_map>
 #include <array>
 #include <queue>
+#include <thread>
 
 #include "common.h"
 #include "glfw/glfw3.h"
@@ -92,6 +93,7 @@ namespace gfx {
         std::shared_ptr<DescriptorHeap> m_heap_dsv = nullptr;
         std::shared_ptr<DescriptorHeap> m_heap_bindless = nullptr;
         std::shared_ptr<CommandQueue> m_queue_gfx = nullptr;
+        std::thread device_lost_thread;
 
         // Swapchain
         std::shared_ptr<Swapchain> m_swapchain = nullptr;

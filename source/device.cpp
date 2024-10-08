@@ -17,6 +17,8 @@
 #include "fence.h"
 
 namespace gfx {
+    const char* breadcrumb_op_names[];
+
     Device::Device(const int width, const int height, const bool debug_layer_enabled) {
         // Create window
         glfwInit();
@@ -37,6 +39,13 @@ namespace gfx {
             m_debug_layer->Release();
             m_debug_layer = nullptr;
         }
+
+// #ifdef _DEBUG
+        ComPtr<ID3D12DeviceRemovedExtendedDataSettings1> dred_settings;
+        validate(D3D12GetDebugInterface(IID_PPV_ARGS(&dred_settings)));
+        dred_settings->SetAutoBreadcrumbsEnablement(D3D12_DRED_ENABLEMENT_FORCED_ON);
+        dred_settings->SetPageFaultEnablement(D3D12_DRED_ENABLEMENT_FORCED_ON);
+// #endif
 
         // Create factory
         validate(CreateDXGIFactory2(dxgi_factory_flags, IID_PPV_ARGS(&factory)));
@@ -83,6 +92,43 @@ namespace gfx {
         m_upload_queue = std::make_shared<CommandQueue>(*this, CommandBufferType::graphics, L"Upload command queue");
         m_swapchain = std::make_shared<Swapchain>(*this, *m_queue_gfx, *m_heap_rtv, m_framebuffer_format);
         m_upload_queue_completion_fence = std::make_shared<Fence>(*this);
+        auto device_lost_handler = [](Device* device) {
+            printf("Device lost handler thread created\n");
+
+            // Do nothing until device removal exists
+            auto device_lost_fence = std::make_shared<Fence>(*device);
+            device_lost_fence->cpu_wait(UINT64_MAX);
+            
+            // Debug printe
+            ComPtr<ID3D12DeviceRemovedExtendedData> pDred;
+            validate(device->device->QueryInterface(IID_PPV_ARGS(&pDred)));
+            D3D12_DRED_AUTO_BREADCRUMBS_OUTPUT DredAutoBreadcrumbsOutput;
+            D3D12_DRED_PAGE_FAULT_OUTPUT DredPageFaultOutput;
+            validate(pDred->GetAutoBreadcrumbsOutput(&DredAutoBreadcrumbsOutput));
+            validate(pDred->GetPageFaultAllocationOutput(&DredPageFaultOutput));
+            printf("Device removal detected! ");
+            printf("Breadcrumbs: \n");
+            auto* curr_node = DredAutoBreadcrumbsOutput.pHeadAutoBreadcrumbNode;
+            int node_index = 0;
+            while (curr_node) {
+                printf("    Node %i: \n", node_index++);
+                if (curr_node->pCommandListDebugNameA) printf("        pCommandListDebugNameA: %s\n", curr_node->pCommandListDebugNameA);
+                if (curr_node->pCommandListDebugNameW) printf("        pCommandListDebugNameW: %ws\n", curr_node->pCommandListDebugNameW);
+                if (curr_node->pCommandQueueDebugNameA) printf("        pCommandQueueDebugNameA: %s\n", curr_node->pCommandQueueDebugNameA);
+                if (curr_node->pCommandQueueDebugNameW) printf("        pCommandQueueDebugNameW: %ws\n", curr_node->pCommandQueueDebugNameW);
+                for (int i = 0; i < curr_node->BreadcrumbCount; ++i) {
+                    const char* command_history = breadcrumb_op_names[curr_node->pCommandHistory[i]];
+                    printf("        %i: command: %s", i, command_history);
+                    if (i < *curr_node->pLastBreadcrumbValue) printf(" (completed)");
+                    else if (i == *curr_node->pLastBreadcrumbValue) printf(" <-- last completed operation");
+                    printf("\n");
+                }
+                printf("\n");
+                curr_node = curr_node->pNext;
+            }
+        };
+        device_lost_thread = std::thread(device_lost_handler, this);
+        
         input::init(m_window_glfw);
         get_window_size(m_width, m_height);
     }
@@ -878,4 +924,56 @@ namespace gfx {
             m_temp_upload_buffers.pop_front();
         }
     }
+
+    const char* breadcrumb_op_names[] = {
+        "SETMARKER",
+        "BEGINEVENT",
+        "ENDEVENT",
+        "DRAWINSTANCED",
+        "DRAWINDEXEDINSTANCED",
+        "EXECUTEINDIRECT",
+        "DISPATCH",
+        "COPYBUFFERREGION",
+        "COPYTEXTUREREGION",
+        "COPYRESOURCE",
+        "COPYTILES",
+        "RESOLVESUBRESOURCE",
+        "CLEARRENDERTARGETVIEW",
+        "CLEARUNORDEREDACCESSVIEW",
+        "CLEARDEPTHSTENCILVIEW",
+        "RESOURCEBARRIER",
+        "EXECUTEBUNDLE",
+        "PRESENT",
+        "RESOLVEQUERYDATA",
+        "BEGINSUBMISSION",
+        "ENDSUBMISSION",
+        "DECODEFRAME",
+        "PROCESSFRAMES",
+        "ATOMICCOPYBUFFERUINT",
+        "ATOMICCOPYBUFFERUINT64",
+        "RESOLVESUBRESOURCEREGION",
+        "WRITEBUFFERIMMEDIATE",
+        "DECODEFRAME1",
+        "SETPROTECTEDRESOURCESESSION",
+        "DECODEFRAME2",
+        "PROCESSFRAMES1",
+        "BUILDRAYTRACINGACCELERATIONSTRUCTURE",
+        "EMITRAYTRACINGACCELERATIONSTRUCTUREPOSTBUILDINFO",
+        "COPYRAYTRACINGACCELERATIONSTRUCTURE",
+        "DISPATCHRAYS",
+        "INITIALIZEMETACOMMAND",
+        "EXECUTEMETACOMMAND",
+        "ESTIMATEMOTION",
+        "RESOLVEMOTIONVECTORHEAP",
+        "SETPIPELINESTATE1",
+        "INITIALIZEEXTENSIONCOMMAND",
+        "EXECUTEEXTENSIONCOMMAND",
+        "DISPATCHMESH",
+        "ENCODEFRAME",
+        "RESOLVEENCODEROUTPUTMETADATA",
+        "BARRIER",
+        "BEGIN_COMMAND_LIST",
+        "DISPATCHGRAPH",
+        "SETPROGRAM"
+    };
 }
