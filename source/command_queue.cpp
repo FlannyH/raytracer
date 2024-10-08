@@ -10,7 +10,7 @@
 #include "command_buffer.h"
 
 namespace gfx {
-    CommandQueue::CommandQueue(const Device& device, CommandBufferType type, const std::wstring& name) {
+    CommandQueue::CommandQueue(ID3D12Device* device, CommandBufferType type, const std::wstring& name) {
         // Create command queue
         m_type = type;
         D3D12_COMMAND_QUEUE_DESC desc = {
@@ -27,11 +27,11 @@ namespace gfx {
             break;
         }
 
-        validate(device.device->CreateCommandQueue(&desc, IID_PPV_ARGS(&command_queue)));
+        validate(device->CreateCommandQueue(&desc, IID_PPV_ARGS(&command_queue)));
         command_queue->SetName(name.c_str());
     }
 
-    std::shared_ptr<CommandBuffer> CommandQueue::create_command_buffer(const Device& device, const Pipeline* pipeline, uint64_t frame_index) {
+    std::shared_ptr<CommandBuffer> CommandQueue::create_command_buffer(const Pipeline* pipeline, uint64_t frame_index) {
         // Reuse if there's one available
         if (m_command_buffers_to_reuse.empty() == false) {
             size_t index_to_reuse = m_command_buffers_to_reuse.front();
@@ -49,16 +49,14 @@ namespace gfx {
         // Otherwise allocate a new one
         ID3D12PipelineState* pipeline_state = nullptr;
         if (pipeline != nullptr) pipeline_state = pipeline->pipeline_state.Get();
-        auto cmd = std::make_shared<CommandBuffer>(device, pipeline_state, m_type, frame_index);
+        ComPtr<ID3D12Device> device;
+        validate(command_queue->GetDevice(IID_PPV_ARGS(&device)));
+        auto cmd = std::make_shared<CommandBuffer>(device.Get(), pipeline_state, m_type, frame_index);
          
         m_in_flight_command_buffers.push_back(m_command_buffer_pool.size());
         m_command_buffer_pool.push_back(cmd);
         m_command_lists_to_execute.push_back(cmd);
         return cmd;
-    }
-
-    std::shared_ptr<CommandBuffer> CommandQueue::get_last_command_buffer() {
-        return m_command_lists_to_execute.back();
     }
 
     void CommandQueue::execute() {

@@ -13,7 +13,7 @@ namespace gfx {
     struct Device;
 
     struct CommandBuffer {
-        CommandBuffer(const Device& device, ID3D12PipelineState* pipeline_state, CommandBufferType type, uint64_t fence_value_when_done);
+        CommandBuffer(ID3D12Device* device, ID3D12PipelineState* pipeline_state, CommandBufferType type, uint64_t fence_value_when_done);
 
         ID3D12GraphicsCommandList* get() {
             return m_command_list.Get();

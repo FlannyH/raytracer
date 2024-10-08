@@ -88,8 +88,8 @@ namespace gfx {
         m_heap_bindless = std::make_shared<DescriptorHeap>(*this, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE, D3D12_MAX_SHADER_VISIBLE_DESCRIPTOR_HEAP_SIZE_TIER_1 / 2);
 
         // Init context
-        m_queue_gfx = std::make_shared<CommandQueue>(*this, CommandBufferType::graphics, L"Graphics command queue");
-        m_upload_queue = std::make_shared<CommandQueue>(*this, CommandBufferType::graphics, L"Upload command queue");
+        m_queue_gfx = std::make_shared<CommandQueue>(device.Get(), CommandBufferType::graphics, L"Graphics command queue");
+        m_upload_queue = std::make_shared<CommandQueue>(device.Get(), CommandBufferType::graphics, L"Upload command queue");
         m_swapchain = std::make_shared<Swapchain>(*this, *m_queue_gfx, *m_heap_rtv, m_framebuffer_format);
         m_upload_queue_completion_fence = std::make_shared<Fence>(*this);
         auto device_lost_handler = [](Device* device) {
@@ -254,7 +254,7 @@ namespace gfx {
 
     void Device::begin_raster_pass(std::shared_ptr<Pipeline> pipeline, RasterPassInfo&& render_pass_info) {
         // Create command buffer for this pass
-        m_curr_pass_cmd = m_queue_gfx->create_command_buffer(*this, pipeline.get(), m_swapchain->current_frame_index());
+        m_curr_pass_cmd = m_queue_gfx->create_command_buffer(pipeline.get(), m_swapchain->current_frame_index());
 
         // Set up pipeline
         m_curr_bound_pipeline = pipeline;
@@ -364,7 +364,7 @@ namespace gfx {
 
     void Device::begin_compute_pass(std::shared_ptr<Pipeline> pipeline) {
         // Create command buffer for this pass
-        m_curr_pass_cmd = m_queue_gfx->create_command_buffer(*this, pipeline.get(), m_swapchain->current_frame_index());
+        m_curr_pass_cmd = m_queue_gfx->create_command_buffer(pipeline.get(), m_swapchain->current_frame_index());
 
         // Set up pipeline
         m_curr_bound_pipeline = pipeline;
@@ -488,7 +488,7 @@ namespace gfx {
 
             // todo: determine whether i want this to be in a separate update_texture() function
             ++m_upload_fence_value_when_done;
-            const auto upload_command_buffer = m_upload_queue->create_command_buffer(*this, nullptr, m_upload_fence_value_when_done);
+            const auto upload_command_buffer = m_upload_queue->create_command_buffer(nullptr, m_upload_fence_value_when_done);
             const auto cmd = upload_command_buffer->get();
             cmd->CopyTextureRegion(&texture_copy_dest, 0, 0, 0, &texture_copy_source, &texture_size_box);
             transition_resource(upload_command_buffer.get(), resource.get(), D3D12_RESOURCE_STATE_COMMON);
@@ -592,7 +592,7 @@ namespace gfx {
 
             // Upload the data to the destination buffer
             ++m_upload_fence_value_when_done;
-            auto cmd = m_upload_queue->create_command_buffer(*this, nullptr, m_upload_fence_value_when_done);
+            auto cmd = m_upload_queue->create_command_buffer(nullptr, m_upload_fence_value_when_done);
             transition_resource(cmd.get(), resource.get(), D3D12_RESOURCE_STATE_COPY_DEST);
             cmd->get()->CopyBufferRegion(resource->handle.Get(), 0, upload_buffer->handle.Get(), 0, size);
             transition_resource(cmd.get(), resource.get(), D3D12_RESOURCE_STATE_COMMON);
