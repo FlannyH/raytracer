@@ -18,6 +18,7 @@ namespace gfx {
         ComPtr<ID3D12DescriptorHeap> heap = nullptr;
 
     private:
+        uint32_t m_capacity = 0;
         uint32_t m_alloc_index = 0;
         size_t m_descriptor_size = 0;
         D3D12_CPU_DESCRIPTOR_HANDLE m_start_cpu = {};

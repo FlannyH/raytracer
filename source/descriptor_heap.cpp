@@ -18,6 +18,7 @@ namespace gfx {
 
         m_descriptor_size = device.device->GetDescriptorHandleIncrementSize(type);
         m_start_cpu = heap->GetCPUDescriptorHandleForHeapStart(); 
+        m_capacity = n_descriptors * 2;
     }
     
     // Returns the CPU descriptor handle as a size_t
@@ -33,7 +34,7 @@ namespace gfx {
         }
         assert(index % 2 == 0);
         assert(m_alloc_index % 2 == 0);
-
+        assert(index < m_capacity);
 
         return ResourceHandle {
             .id = index,
