@@ -284,6 +284,54 @@ namespace gfx {
         return ResourceHandlePair{ handle, resource };
     }
 
+    Cubemap Renderer::load_environment_map(const std::string& path, const int resolution) {
+        // Load HDRI from file
+        stbi__vertically_flip_on_load = 0;
+        int width, height, channels;
+        glm::vec4* data = (glm::vec4*)stbi_loadf(path.c_str(), &width, &height, &channels, 4);
+
+        // todo: maybe do this on the gpu?
+        // todo: enforce dx12 padding rules
+        std::vector<glm::vec4> cubemap_faces((size_t)(resolution * resolution * 6));
+
+        for (int face = 0; face < 6; ++face){
+            for (int y = 0; y < resolution; ++y) {
+                for (int x = 0; x < resolution; ++x) {
+                    // Get UV coordinates for this face
+                    const float u = ((float)x / (float)resolution) * 2.0f - 1.0f;
+                    const float v = ((float)y / (float)resolution) * 2.0f - 1.0f;
+
+                    // Convert to vector and normalize it
+                    glm::vec3 dir(0.0f);
+                    switch (face) {
+                    case 0: dir = glm::normalize(glm::vec3(1.0f, v, u));   break;
+                    case 1: dir = glm::normalize(glm::vec3(-1.0f, v, -u));  break;
+                    case 2: dir = glm::normalize(glm::vec3(u, -1.0f, -v));   break;
+                    case 3: dir = glm::normalize(glm::vec3(u, 1.0f, v));   break;
+                    case 4: dir = glm::normalize(glm::vec3(u, v, -1.0f));    break;
+                    case 5: dir = glm::normalize(glm::vec3(-u, v, 1.0f));   break;
+                    }
+
+                    // Convert to spherical coordinates
+                    const float spherical_u = atan2f(dir.z, dir.x) / (2.0f * glm::pi<float>()) + 0.5f;
+                    const float spherical_v = asin(dir.y) / (glm::pi<float>())+0.5f;
+
+                    // Fetch pixel from texture and store in cubemap
+                    const glm::vec4 pixel = data[(size_t)(spherical_v * (height-1)) * width + (size_t)(spherical_u * (width-1))];
+                    cubemap_faces.at((size_t)(x + (y * resolution) + (face * resolution * resolution))) = pixel;
+                }
+            }
+        }
+
+        // We won't need the original image data anymore
+        stbi_image_free(data);
+
+        // Now upload this texture as a cubemap
+        return {
+            .base = load_texture(path + "::(base cubemap)", resolution, resolution, 6, cubemap_faces.data(), PixelFormat::rgba32_float, TextureType::tex_cube),
+        };
+    }
+
     uint32_t Renderer::create_draw_packet(const void* data, uint32_t size_bytes) {
         auto reason = m_device->device->GetDeviceRemovedReason();
         // Allocate data in the draw packets buffer
