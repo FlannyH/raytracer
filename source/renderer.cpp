@@ -62,6 +62,21 @@ namespace gfx {
     }
 
     void Renderer::begin_frame() {
+
+        if (m_should_update_material_buffer) {
+            m_should_update_material_buffer = false;
+            char* mapped_material_buffer = nullptr;
+            const D3D12_RANGE read_range = { 0, 0 };
+            validate(m_material_buffer.resource->handle->Map(0, &read_range, (void**)&mapped_material_buffer));
+            memcpy(mapped_material_buffer, m_materials.data(), m_materials.size() * sizeof(Material));
+            m_material_buffer.resource->handle->Unmap(0, &read_range);
+        }
+        m_draw_packet_cursor = 0;
+
+        // Begin frame handles swapchain resizes, which makes sure all the GPU operations finish first
+        // This means we can be sure that resizing the render target textures is safe
+        m_device->begin_frame();
+
         // Fetch window content size
         int x = 0;
         int y = 0;
@@ -84,18 +99,6 @@ namespace gfx {
             resize_texture(m_shaded_target, (uint32_t)m_render_resolution.x, (uint32_t)m_render_resolution.y);
             resize_texture(m_depth_target, (uint32_t)m_render_resolution.x, (uint32_t)m_render_resolution.y);
         }
-
-        if (m_should_update_material_buffer) {
-            m_should_update_material_buffer = false;
-            char* mapped_material_buffer = nullptr;
-            const D3D12_RANGE read_range = { 0, 0 };
-            validate(m_material_buffer.resource->handle->Map(0, &read_range, (void**)&mapped_material_buffer));
-            memcpy(mapped_material_buffer, m_materials.data(), m_materials.size() * sizeof(Material));
-            m_material_buffer.resource->handle->Unmap(0, &read_range);
-        }
-        m_draw_packet_cursor = 0;
-
-        m_device->begin_frame();
 
         render_queue_scenes.clear();
         m_lights_directional.clear();
