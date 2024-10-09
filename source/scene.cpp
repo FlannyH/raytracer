@@ -315,8 +315,10 @@ namespace gfx {
                 texture_path,
                 (uint32_t)image_gltf->width,
                 (uint32_t)image_gltf->height,
+                1,
                 (void*)image_gltf->image.data(),
-                pixel_format_from_gltf_image(*image_gltf)
+                pixel_format_from_gltf_image(*image_gltf),
+                TextureType::tex_2d
             );
         }
         

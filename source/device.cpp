@@ -398,7 +398,7 @@ namespace gfx {
         gfx_cmd->DrawInstanced(n_vertices, 1, 0, 0);
     }
 
-    ResourceHandlePair Device::load_texture(const std::string& name, uint32_t width, uint32_t height, void* data, PixelFormat pixel_format) {
+    ResourceHandlePair Device::load_texture(const std::string& name, uint32_t width, uint32_t height, uint32_t depth, void* data, PixelFormat pixel_format, TextureType type) {
         // Make texture resource
         const auto resource = std::make_shared<Resource>();
         *resource = {
@@ -407,16 +407,17 @@ namespace gfx {
                 .data = static_cast<uint8_t*>(data),
                 .width = width,
                 .height = height,
+                .depth = depth,
                 .pixel_format = pixel_format,
             }
         };
 
         // Create a d3d12 resource for the texture
         D3D12_RESOURCE_DESC resource_desc = {};
-        resource_desc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+        resource_desc.Dimension = texture_type_to_dx12_resource_dimension(type);
         resource_desc.Width = resource->expect_texture().width;
         resource_desc.Height = resource->expect_texture().height;
-        resource_desc.DepthOrArraySize = 1;
+        resource_desc.DepthOrArraySize = resource->expect_texture().depth;
         resource_desc.MipLevels = 1;
         resource_desc.Format = pixel_format_to_dx12(pixel_format);
         resource_desc.SampleDesc.Count = 1;
@@ -426,8 +427,8 @@ namespace gfx {
         D3D12_HEAP_PROPERTIES heap_properties = {};
         heap_properties.Type = D3D12_HEAP_TYPE_DEFAULT;
 
-        const auto upload_size = width * height * size_per_pixel(pixel_format);
-        auto id = m_heap_bindless->alloc_descriptor(ResourceType::buffer);
+        const auto upload_size = width * height * depth * size_per_pixel(pixel_format);
+        auto id = m_heap_bindless->alloc_descriptor(ResourceType::texture);
         auto descriptor = m_heap_bindless->fetch_cpu_handle(id);
         validate(device->CreateCommittedResource(
             &heap_properties,
@@ -440,7 +441,7 @@ namespace gfx {
         resource->current_state = D3D12_RESOURCE_STATE_COPY_DEST;
         D3D12_SHADER_RESOURCE_VIEW_DESC srv_desc = {
             .Format = resource_desc.Format,
-            .ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D,
+            .ViewDimension = texture_type_to_dx12_srv_dimension(type),
             .Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING,
             .Texture2D = {
                 .MostDetailedMip = 0,
@@ -458,16 +459,16 @@ namespace gfx {
 
             const auto& upload_buffer = upload_buffer_id.resource;
 
-            const auto texture_size_box = D3D12_BOX{
+            auto texture_size_box = D3D12_BOX{
                 .left = 0,
                 .top = 0,
                 .front = 0,
                 .right = width,
                 .bottom = height,
-                .back = 1,
+                .back = depth,
             };
 
-            const auto texture_copy_source = D3D12_TEXTURE_COPY_LOCATION{
+            auto texture_copy_source = D3D12_TEXTURE_COPY_LOCATION{
                 .pResource = upload_buffer->handle.Get(),
                 .Type = D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT,
                 .PlacedFootprint = {
@@ -476,13 +477,13 @@ namespace gfx {
                         .Format = pixel_format_to_dx12(resource->expect_texture().pixel_format),
                         .Width = resource->expect_texture().width,
                         .Height = resource->expect_texture().height,
-                        .Depth = 1,
+                        .Depth = resource->expect_texture().depth,
                         .RowPitch = resource->expect_texture().width * static_cast<uint32_t>(size_per_pixel(pixel_format)),
                     }
                 }
             };
 
-            const auto texture_copy_dest = D3D12_TEXTURE_COPY_LOCATION{
+            auto texture_copy_dest = D3D12_TEXTURE_COPY_LOCATION{
                 .pResource = resource->handle.Get(),
                 .Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX,
                 .SubresourceIndex = 0,
@@ -492,7 +493,23 @@ namespace gfx {
             ++m_upload_fence_value_when_done;
             const auto upload_command_buffer = m_upload_queue->create_command_buffer(nullptr, m_upload_fence_value_when_done);
             const auto cmd = upload_command_buffer->get();
-            cmd->CopyTextureRegion(&texture_copy_dest, 0, 0, 0, &texture_copy_source, &texture_size_box);
+
+            switch (type) {
+            case TextureType::tex_2d:
+            case TextureType::tex_3d:
+                cmd->CopyTextureRegion(&texture_copy_dest, 0, 0, 0, &texture_copy_source, &texture_size_box);
+                break;
+            case TextureType::tex_cube:
+                texture_copy_source.PlacedFootprint.Footprint.Depth = 1;
+                texture_size_box.back = 1;
+                for (uint32_t i = 0; i < 6; ++i) {
+                    texture_copy_dest.SubresourceIndex = i;
+                    texture_copy_source.PlacedFootprint.Offset = i * height * texture_copy_source.PlacedFootprint.Footprint.RowPitch;
+                    cmd->CopyTextureRegion(&texture_copy_dest, 0, 0, 0, &texture_copy_source, &texture_size_box);
+                }
+                break;
+            }
+
             transition_resource(upload_command_buffer.get(), resource.get(), D3D12_RESOURCE_STATE_COMMON);
             m_temp_upload_buffers.push_back(UploadQueueKeepAlive{ m_upload_fence_value_when_done, upload_buffer });
         }
