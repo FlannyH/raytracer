@@ -59,12 +59,14 @@ namespace gfx {
 
             // Ignore software renderer
             if (desc.Flags & DXGI_ADAPTER_FLAG_SOFTWARE) {
+                printf("[INFO] Ignoring device \"%ws\"\n", desc.Description);
                 continue;
             }
 
             // Does this adapter support Direct3D 12.0?
             if (SUCCEEDED(D3D12CreateDevice(adapter.Get(), D3D_FEATURE_LEVEL_12_0, IID_PPV_ARGS(&device)))) {
                 // Yes it does! We use this one.
+                printf("[INFO] Using device \"%ws\"\n", desc.Description);
                 break;
             }
 
