@@ -779,12 +779,14 @@ namespace gfx {
 
         // If it's a render target, create a new render target
         if (texture.rtv_handle.type != (uint32_t)ResourceType::none) {
+            m_heap_rtv->free_descriptor(resource->expect_texture().rtv_handle);
             handle = create_render_target(resource->name, width, height, texture.pixel_format, texture.clear_color);
             return;
         }
 
         // If it's a depth target, create a new depth target
         if (texture.dsv_handle.type != (uint32_t)ResourceType::none) {
+            m_heap_dsv->free_descriptor(resource->expect_texture().dsv_handle);
             handle = create_depth_target(resource->name, width, height, texture.pixel_format, texture.clear_color.r);
             return;
         }
