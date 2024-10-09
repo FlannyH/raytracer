@@ -254,4 +254,10 @@ namespace gfx {
         float inner_cone_angle; // radians
         float outer_cone_angle; // radians
     };
+
+    struct Cubemap {
+        ResourceHandlePair base{};
+        ResourceHandlePair ibl_diffuse{};
+        ResourceHandlePair ibl_specular{};
+    };
 }
