@@ -81,7 +81,19 @@ namespace gfx {
         {
         case PixelFormat::none:
             return 0;
+        case PixelFormat::r8_unorm:
+            return 1;
+        case PixelFormat::rg8_unorm:
+            return 2;
         case PixelFormat::rgba8_unorm:
+            return 4;
+        case PixelFormat::rg11_b10_float:
+            return 4;
+        case PixelFormat::rgba16_float:
+            return 8;
+        case PixelFormat::rgba32_float:
+            return 16;
+        case PixelFormat::depth32_float:
             return 4;
         }
         return 0;
