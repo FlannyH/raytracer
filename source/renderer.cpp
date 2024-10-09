@@ -209,13 +209,13 @@ namespace gfx {
         stbi__vertically_flip_on_load = 0;
         int width, height, channels;
         uint8_t* data = stbi_load(path.c_str(), &width, &height, &channels, 4);
-        auto texture = load_texture(path, width, height, data, PixelFormat::rgba8_unorm);
+        auto texture = load_texture(path, width, height, 1, data, PixelFormat::rgba8_unorm, TextureType::tex_2d);
         stbi_image_free(data);
         return texture;
     }
 
-    ResourceHandlePair Renderer::load_texture(const std::string& name, uint32_t width, uint32_t height, void* data, PixelFormat pixel_format) {
-        ResourceHandlePair texture = m_device->load_texture(name, width, height, data, pixel_format);
+    ResourceHandlePair Renderer::load_texture(const std::string& name, uint32_t width, uint32_t height, uint32_t depth, void* data, PixelFormat pixel_format, TextureType type) {
+        ResourceHandlePair texture = m_device->load_texture(name, width, height, depth, data, pixel_format, type);
         m_resources[texture.handle.id] = texture.resource;
         return texture;
     }

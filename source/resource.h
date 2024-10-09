@@ -21,6 +21,12 @@ namespace gfx {
         depth32_float,
     };
 
+    enum class TextureType {
+        tex_2d,
+        tex_3d,
+        tex_cube
+    };
+
     // General
     enum class ResourceType {
         none = 0,
@@ -54,7 +60,7 @@ namespace gfx {
 
     struct TextureResource {
         void* data;
-        uint32_t width, height;
+        uint32_t width, height, depth;
         PixelFormat pixel_format;
         // Extra optional handles for render targets
         glm::vec4 clear_color;
@@ -177,6 +183,24 @@ namespace gfx {
         case PixelFormat::depth32_float:     return DXGI_FORMAT_D32_FLOAT;           break;
         }
         return DXGI_FORMAT_UNKNOWN;
+    }
+
+    constexpr inline D3D12_RESOURCE_DIMENSION texture_type_to_dx12_resource_dimension(const TextureType type) {
+        switch (type) {
+        case TextureType::tex_2d:   return D3D12_RESOURCE_DIMENSION_TEXTURE2D;  break;
+        case TextureType::tex_3d:   return D3D12_RESOURCE_DIMENSION_TEXTURE3D;  break;
+        case TextureType::tex_cube: return D3D12_RESOURCE_DIMENSION_TEXTURE2D;  break;
+        }
+        return D3D12_RESOURCE_DIMENSION_UNKNOWN;
+    }
+
+    constexpr inline D3D12_SRV_DIMENSION texture_type_to_dx12_srv_dimension(const TextureType type) {
+        switch (type) {
+        case TextureType::tex_2d:   return D3D12_SRV_DIMENSION_TEXTURE2D;  break;
+        case TextureType::tex_3d:   return D3D12_SRV_DIMENSION_TEXTURE3D;  break;
+        case TextureType::tex_cube: return D3D12_SRV_DIMENSION_TEXTURECUBE;  break;
+        }
+        return D3D12_SRV_DIMENSION_UNKNOWN;
     }
 
     struct PacketDrawMesh {

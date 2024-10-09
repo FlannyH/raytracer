@@ -67,7 +67,7 @@ namespace gfx {
         void dispatch_threadgroups(uint32_t x, uint32_t y, uint32_t z);
 
         // Resource management
-        ResourceHandlePair load_texture(const std::string& name, uint32_t width, uint32_t height, void* data, PixelFormat pixel_format); // Load a texture from memory
+        ResourceHandlePair load_texture(const std::string& name, uint32_t width, uint32_t height, uint32_t depth, void* data, PixelFormat pixel_format, TextureType type); // Load a texture from memory
         ResourceHandlePair load_mesh(const std::string& name, uint64_t n_triangles, Triangle* tris);
         ResourceHandlePair create_buffer(const std::string& name, size_t size, void* data, bool cpu_visible);
         ResourceHandlePair create_render_target(const std::string& name, uint32_t width, uint32_t height, PixelFormat pixel_format, glm::vec4 clear_color = { 0.0f, 0.0f, 0.0f, 1.0f });
