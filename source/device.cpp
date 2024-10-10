@@ -15,9 +15,17 @@
 #include "scene.h"
 #include "input.h"
 #include "fence.h"
+#include <mutex>
 
 namespace gfx {
     const char* breadcrumb_op_names[];
+
+    struct ThreadSharedGlobals {
+        bool should_shut_down = false;
+        std::shared_ptr<Fence> device_lost_fence = nullptr;
+    } thread_shared_globals;
+
+    std::mutex mutex_thread_shared_globals;
 
     Device::Device(const int width, const int height, const bool debug_layer_enabled) {
         // Create window
@@ -94,12 +102,37 @@ namespace gfx {
         m_upload_queue = std::make_shared<CommandQueue>(device.Get(), CommandBufferType::graphics, L"Upload command queue");
         m_swapchain = std::make_shared<Swapchain>(*this, *m_queue_gfx, *m_heap_rtv, m_framebuffer_format);
         m_upload_queue_completion_fence = std::make_shared<Fence>(*this);
-        auto device_lost_handler = [](Device* device) {
-            printf("Device lost handler thread created\n");
 
-            // Do nothing until device removal exists
-            auto device_lost_fence = std::make_shared<Fence>(*device);
-            device_lost_fence->cpu_wait(UINT64_MAX);
+        {
+            std::lock_guard<std::mutex> lock(mutex_thread_shared_globals);
+            thread_shared_globals.device_lost_fence = std::make_shared<Fence>(*this);
+        }
+        auto device_lost_handler = [](Device* device) {
+            printf("Device removal handler thread created\n");
+
+            // Do nothing until device removal or shutdown exists
+            HANDLE device_lost_fence = nullptr;
+            {
+                std::lock_guard<std::mutex> lock(mutex_thread_shared_globals);
+                auto& fence = thread_shared_globals.device_lost_fence->fence;
+                auto value = UINT64_MAX;
+                if (fence->GetCompletedValue() < value) {
+                    device_lost_fence = thread_shared_globals.device_lost_fence->event_handle;
+                    validate(fence->SetEventOnCompletion(value, device_lost_fence));
+                };                
+            }
+            if (device_lost_fence) {
+                WaitForSingleObject(device_lost_fence, INFINITE);
+            }
+
+            // If the renderer shut down, it will have set the thread_shared_globals.should_shut_down flag
+            {
+                std::lock_guard<std::mutex> lock(mutex_thread_shared_globals);
+                if (thread_shared_globals.should_shut_down) {
+                    printf("Device removal thread shutting down\n");
+                    return;
+                }
+            }
             
             // Debug printe
             ComPtr<ID3D12DeviceRemovedExtendedData> pDred;
@@ -128,6 +161,8 @@ namespace gfx {
                 printf("\n");
                 curr_node = curr_node->pNext;
             }
+
+            printf("Device removal thread shutting down\n");
         };
         device_lost_thread = std::thread(device_lost_handler, this);
         
@@ -136,6 +171,13 @@ namespace gfx {
     }
 
     Device::~Device() {
+        // Kill the breadcrumb thread
+        {
+            std::lock_guard<std::mutex> lock = std::lock_guard(mutex_thread_shared_globals);
+            thread_shared_globals.should_shut_down = true;
+            thread_shared_globals.device_lost_fence->cpu_signal(UINT64_MAX);
+        }
+
         // Finish any queued uploads
         m_upload_queue_completion_fence->gpu_signal(m_upload_queue, m_upload_fence_value_when_done);
         m_upload_queue->execute();
@@ -161,6 +203,9 @@ namespace gfx {
         device->Release();
         factory->Release();
         glfwDestroyWindow(m_window_glfw);
+
+        // Wait for device removal thread to return
+        device_lost_thread.join();
     }
 
     void Device::resize_window(const int width, const int height) const {
