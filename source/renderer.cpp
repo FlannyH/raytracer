@@ -11,6 +11,7 @@ namespace gfx {
     #define DRAW_PACKET_BUFFER_SIZE 102400
     #define GPU_BUFFER_PREFERRED_ALIGNMENT 64
     #define MAX_LIGHTS_DIRECTIONAL 32
+    #define FOV (glm::radians(70.f))
 
     // Initialisation and state
     Renderer::Renderer(int width, int height, bool debug_layer_enabled) {
@@ -62,7 +63,15 @@ namespace gfx {
     }
 
     void Renderer::begin_frame() {
+        // Set normal map clear color to the current viewport data
+        m_color_target.resource->expect_texture().clear_color = {
+            tan(FOV * 0.5f) * (m_resolution.x / m_resolution.y), // viewport width
+            tan(FOV * 0.5f), // viewport height
+            -1.0f, // viewport depth
+            -1.0f, // if this value is negative, it clearly doesn't come from the geo pass, so it means nothing was rendered there
+        };
 
+        // Update materials
         if (m_should_update_material_buffer) {
             m_should_update_material_buffer = false;
             char* mapped_material_buffer = nullptr;
@@ -144,6 +153,7 @@ namespace gfx {
             m_roughness_metallic_target.handle.as_u32(),
             m_emissive_target.handle.as_u32(),
             m_lights_buffer.handle.as_u32(),
+            m_curr_sky_cube.base.handle.as_u32()
         });
         m_device->dispatch_threadgroups( // threadgroup size is 8x8
             (uint32_t)(m_render_resolution.x / 8.0f),
@@ -186,7 +196,12 @@ namespace gfx {
             .projection_matrix = glm::perspectiveFov(glm::radians(70.f), m_resolution.x, m_resolution.y, 0.0001f, 1000.0f),
         };
 
+        m_normal_target.resource->expect_texture().clear_color = { transform.rotation.x, transform.rotation.y, transform.rotation.z, transform.rotation.w };
         m_camera_matrices_offset = create_draw_packet(&camera_matrices, sizeof(camera_matrices));
+    }
+
+    void Renderer::set_skybox(Cubemap& sky) {
+        m_curr_sky_cube = sky;
     }
 
     void Renderer::draw_scene(ResourceHandlePair scene_handle) {
