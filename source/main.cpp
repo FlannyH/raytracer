@@ -8,7 +8,9 @@
 int main(int n_args, char** args) {
     const auto renderer = std::make_unique<gfx::Renderer>(1280, 720, false);
     auto scene = renderer->load_scene_gltf("assets/models/helmet.glb");
+    auto cubemap = renderer->load_environment_map("assets/textures/resting_place_2_4k.hdr");
     auto lights = renderer->load_scene_gltf("assets/models/lights_test.glb");
+    renderer->set_skybox(cubemap);
 
     gfx::Transform camera;
     glm::vec3 camera_euler_angles(0.0f);
