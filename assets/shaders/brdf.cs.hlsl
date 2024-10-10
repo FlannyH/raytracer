@@ -36,6 +36,7 @@ float3 rotate_vector_by_quaternion(float3 vec, float4 quat) {
 }
 
 sampler tex_sampler : register(s0);
+sampler cube_sampler : register(s1);
 
 [numthreads(8, 8, 1)]
 void main(uint3 dispatch_thread_id : SV_DispatchThreadID) {
@@ -69,7 +70,7 @@ void main(uint3 dispatch_thread_id : SV_DispatchThreadID) {
         
         // Fetch texture and output
         TextureCube<float3> sky_texture = ResourceDescriptorHeap[NonUniformResourceIndex(root_constants.curr_sky_cube & MASK_ID)];
-        output_texture[dispatch_thread_id.xy].rgb = sky_texture.Sample(tex_sampler, view_direction) * FULLBRIGHT_NITS;
+        output_texture[dispatch_thread_id.xy].rgb = sky_texture.Sample(cube_sampler, view_direction) * FULLBRIGHT_NITS;
         
         return;
     }
@@ -91,6 +92,6 @@ void main(uint3 dispatch_thread_id : SV_DispatchThreadID) {
     // "Many rendering engines simplify this calculation by assuming that an emissive factor of 1.0 results in a fully exposed pixel."
     out_value += emission * FULLBRIGHT_NITS;
     
-    output_texture[dispatch_thread_id.xy].rgb = out_value; // let's define 1.0 as 200 nits, and then apply a quick hacky sRGB gamma correction
+    output_texture[dispatch_thread_id.xy].rgb = normal.xyz * FULLBRIGHT_NITS; // let's define 1.0 as 200 nits, and then apply a quick hacky sRGB gamma correction
 
 }
