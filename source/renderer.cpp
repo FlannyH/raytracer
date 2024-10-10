@@ -307,14 +307,17 @@ namespace gfx {
 
         // todo: maybe do this on the gpu?
         // todo: enforce dx12 padding rules
+#define DIFFUSE_IRRADIANCE_RESOLUTION 8
         std::vector<glm::vec4> cubemap_faces((size_t)(resolution * resolution * 6));
+        std::vector<glm::vec4> ibl_diffuse_cubemap_faces((size_t)(DIFFUSE_IRRADIANCE_RESOLUTION * DIFFUSE_IRRADIANCE_RESOLUTION * 6));
 
+        // Convert HDRI to cubemap
         for (int face = 0; face < 6; ++face){
-            for (int y = 0; y < resolution; ++y) {
-                for (int x = 0; x < resolution; ++x) {
+            for (int dst_y = 0; dst_y < resolution; ++dst_y) {
+                for (int dst_x = 0; dst_x < resolution; ++dst_x) {
                     // Get UV coordinates for this face
-                    const float u = ((float)x / (float)resolution) * 2.0f - 1.0f;
-                    const float v = ((float)y / (float)resolution) * 2.0f - 1.0f;
+                    const float u = ((float)dst_x / (float)resolution) * 2.0f - 1.0f;
+                    const float v = ((float)dst_y / (float)resolution) * 2.0f - 1.0f;
 
                     // Convert to vector and normalize it
                     glm::vec3 dir(0.0f);
@@ -332,8 +335,81 @@ namespace gfx {
                     const float spherical_v = asin(dir.y) / (glm::pi<float>())+0.5f;
 
                     // Fetch pixel from texture and store in cubemap
-                    const glm::vec4 pixel = data[(size_t)(spherical_v * (height-1)) * width + (size_t)(spherical_u * (width-1))];
-                    cubemap_faces.at((size_t)(x + (y * resolution) + (face * resolution * resolution))) = pixel;
+                    glm::vec4 pixel = data[(size_t)(spherical_v * (height-1)) * width + (size_t)(spherical_u * (width-1))];
+                    pixel.r = glm::min(pixel.r, 2000.0f); // some of these HDRIs get very very bright
+                    pixel.g = glm::min(pixel.g, 2000.0f); // to avoid blowing out the entire equation
+                    pixel.b = glm::min(pixel.b, 2000.0f); // let's cap them to a reasonable limit
+                    pixel.a = glm::min(pixel.a, 2000.0f);
+                    cubemap_faces.at((size_t)(dst_x + (dst_y * resolution) + (face * resolution * resolution))) = pixel;
+
+                    // Get normal vector for this destination pixel
+                    glm::vec3 dst_normal = glm::normalize(dir);
+                }
+            }
+        }
+
+        for (int dst_face = 0; dst_face < 6; ++dst_face) {
+            for (int dst_y = 0; dst_y < DIFFUSE_IRRADIANCE_RESOLUTION; ++dst_y) {
+                for (int dst_x = 0; dst_x < DIFFUSE_IRRADIANCE_RESOLUTION; ++dst_x) {
+                    // Get UV coordinates for this face
+                    const float u = (((float)dst_x + 0.5f) / (float)DIFFUSE_IRRADIANCE_RESOLUTION) * 2.0f - 1.0f;
+                    const float v = (((float)dst_y + 0.5f) / (float)DIFFUSE_IRRADIANCE_RESOLUTION) * 2.0f - 1.0f;
+
+                    // Convert to vector and normalize it
+                    glm::vec3 dir(0.0f);
+                    switch (dst_face) {
+                    case 0: dir = glm::vec3(1.0f, v, u);   break;
+                    case 1: dir = glm::vec3(-1.0f, v, -u);  break;
+                    case 2: dir = glm::vec3(u, -1.0f, -v);   break;
+                    case 3: dir = glm::vec3(u, 1.0f, v);   break;
+                    case 4: dir = glm::vec3(u, v, -1.0f);    break;
+                    case 5: dir = glm::vec3(-u, v, 1.0f);   break;
+                    }
+
+                    // Get normal vector for this destination pixel
+                    glm::vec3 dst_normal = glm::normalize(dir);
+
+                    // Pre-compute diffuse irradiance
+                    float n_samples = 0.0;
+                    glm::vec4 sum(0.0f);
+
+                    // Sum hemisphere
+                    for (int src_face = 0; src_face < 6; ++src_face) {
+                        for (int src_y = 0; src_y < resolution; ++src_y) {
+                            for (int src_x = 0; src_x < resolution; ++src_x) {
+                                // Get UV coordinates for this sample
+                                const float su = (((float)src_x + 0.5f) / (float)resolution) * 2.0f - 1.0f;
+                                const float sv = (((float)src_y + 0.5f) / (float)resolution) * 2.0f - 1.0f;
+
+                                // Convert to vector and normalize it
+                                glm::vec3 src_dir(0.0f);
+                                switch (src_face) {
+                                case 0: src_dir = glm::vec3(1.0f, sv, su);   break;
+                                case 1: src_dir = glm::vec3(-1.0f, sv, -su);  break;
+                                case 2: src_dir = glm::vec3(su, -1.0f, -sv);   break;
+                                case 3: src_dir = glm::vec3(su, 1.0f, sv);   break;
+                                case 4: src_dir = glm::vec3(su, sv, -1.0f);    break;
+                                case 5: src_dir = glm::vec3(-su, sv, 1.0f);   break;
+                                }
+
+                                // Get normal vector for this sample
+                                glm::vec3 src_normal = glm::normalize(src_dir);
+
+                                // Ignore samples outside the hemisphere
+                                float contribution = glm::dot(src_normal, dst_normal);
+                                if (contribution <= 0.0f) continue;
+
+                                // Sample texture
+                                glm::vec4 sample = cubemap_faces.at((size_t)(src_x + (src_y * resolution) + (src_face * resolution * resolution)));
+                                sum += sample * contribution;
+                                n_samples += contribution;
+                            }
+                        }
+                    }
+                    sum /= glm::vec4(n_samples);
+
+                    // Store in texture
+                    ibl_diffuse_cubemap_faces.at((size_t)(dst_x + (dst_y * DIFFUSE_IRRADIANCE_RESOLUTION) + (dst_face * DIFFUSE_IRRADIANCE_RESOLUTION * DIFFUSE_IRRADIANCE_RESOLUTION))) = glm::clamp(sum, glm::vec4(0.0f), glm::vec4(1.0f));
                 }
             }
         }
@@ -344,6 +420,7 @@ namespace gfx {
         // Now upload this texture as a cubemap
         return {
             .base = load_texture(path + "::(base cubemap)", resolution, resolution, 6, cubemap_faces.data(), PixelFormat::rgba32_float, TextureType::tex_cube),
+            .ibl_diffuse = load_texture(path + "::(ibl diffuse cubemap)", DIFFUSE_IRRADIANCE_RESOLUTION, DIFFUSE_IRRADIANCE_RESOLUTION, 6, ibl_diffuse_cubemap_faces.data(), PixelFormat::rgba32_float, TextureType::tex_cube),
         };
     }
 
