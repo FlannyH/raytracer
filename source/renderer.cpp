@@ -153,7 +153,8 @@ namespace gfx {
             m_roughness_metallic_target.handle.as_u32(),
             m_emissive_target.handle.as_u32(),
             m_lights_buffer.handle.as_u32(),
-            m_curr_sky_cube.base.handle.as_u32()
+            m_curr_sky_cube.base.handle.as_u32(),
+            m_curr_sky_cube.ibl_diffuse.handle.as_u32()
         });
         m_device->dispatch_threadgroups( // threadgroup size is 8x8
             (uint32_t)(m_render_resolution.x / 8.0f),

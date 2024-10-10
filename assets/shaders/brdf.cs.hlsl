@@ -6,6 +6,7 @@ struct RootConstants {
     uint emissive_texture;
     uint lights_buffer;
     uint curr_sky_cube;
+    uint curr_ibl_diffuse_cube;
 };
 ConstantBuffer<RootConstants> root_constants : register(b0, space0);
 
@@ -92,6 +93,10 @@ void main(uint3 dispatch_thread_id : SV_DispatchThreadID) {
     // "Many rendering engines simplify this calculation by assuming that an emissive factor of 1.0 results in a fully exposed pixel."
     out_value += emission * FULLBRIGHT_NITS;
     
-    output_texture[dispatch_thread_id.xy].rgb = normal.xyz * FULLBRIGHT_NITS; // let's define 1.0 as 200 nits, and then apply a quick hacky sRGB gamma correction
+    // Add indirect diffuse sampled from the precomputed diffuse irradiance map
+    TextureCube<float3> ibl_diffuse_texture = ResourceDescriptorHeap[NonUniformResourceIndex(root_constants.curr_ibl_diffuse_cube & MASK_ID)];
+    out_value += color.xyz * ibl_diffuse_texture.Sample(cube_sampler, normal.xyz) * FULLBRIGHT_NITS;
+    
+    output_texture[dispatch_thread_id.xy].rgb = out_value;
 
 }
