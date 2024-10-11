@@ -66,7 +66,7 @@ PixelOut main(in float4 position : SV_Position, in VertexOut input) {
     // Fill default values
     output.color = input.color;
     output.normal.xyz = input.normal;
-    output.normal = 0.0f;
+    output.normal.w = 0.0f;
     output.metal_roughness = float2(0.0f, 0.0f);
     output.emissive = float3(0.0f, 0.0f, 0.0f);
     
