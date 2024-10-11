@@ -306,6 +306,11 @@ namespace gfx {
         int width, height, channels;
         glm::vec4* data = (glm::vec4*)stbi_loadf(path.c_str(), &width, &height, &channels, 4);
 
+        if (!data) {
+            printf("[ERROR] Failed to load environment map \"%s\"\n", path.c_str());
+            return {};
+        }
+
         // todo: maybe do this on the gpu?
         // todo: enforce dx12 padding rules
 #define DIFFUSE_IRRADIANCE_RESOLUTION 8
