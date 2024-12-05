@@ -20,10 +20,20 @@ float3 rgb_linear_to_srgb(float3 input) {
     return float3(linear_to_srgb(input.x), linear_to_srgb(input.y), linear_to_srgb(input.z));
 }
 
+float3 ACESFilm(float3 x)
+{
+    float a = 2.51f;
+    float b = 0.03f;
+    float c = 2.43f;
+    float d = 0.59f;
+    float e = 0.14f;
+    return saturate((x * (a * x + b)) / (x * (c * x + d) + e));
+}
+
 [numthreads(8, 8, 1)]
 void main(uint3 dispatch_thread_id : SV_DispatchThreadID) {
     RWTexture2D<float3> output_texture = ResourceDescriptorHeap[NonUniformResourceIndex(root_constants.output_texture & MASK_ID)];
     output_texture[dispatch_thread_id.xy].rgb /= FULLBRIGHT_NITS; // map from 0.0 - FULLBRIGHT_NITS to 0.0 - 1.0
-    output_texture[dispatch_thread_id.xy].rgb = rgb_linear_to_srgb(output_texture[dispatch_thread_id.xy].rgb);
+    output_texture[dispatch_thread_id.xy].rgb = ACESFilm(output_texture[dispatch_thread_id.xy].rgb);
 
 }
