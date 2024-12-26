@@ -63,7 +63,7 @@ void main(uint3 dispatch_thread_id : SV_DispatchThreadID) {
     // - color buffer: {viewport_width, viewport_height, viewport_depth}
     // which will facilitate skybox rendering. The alpha channel would otherwise be unused, so might as well.
     if (color.a < -0.0001f) {
-        if ((root_constants.curr_sky_cube && MASK_IS_LOADED) == false) {
+        if ((root_constants.curr_sky_cube & MASK_IS_LOADED) == false) {
             output_texture[dispatch_thread_id.xy].rgb = 0.0f;
             return;
         }
@@ -105,9 +105,9 @@ void main(uint3 dispatch_thread_id : SV_DispatchThreadID) {
         ByteAddressBuffer sh_buffer = ResourceDescriptorHeap[NonUniformResourceIndex(root_constants.spherical_harmonics_buffer & MASK_ID)];
         SphericalHarmonicsMatrices sh_matrices = sh_buffer.Load<SphericalHarmonicsMatrices>(root_constants.curr_ibl_diffuse_sh_offset);
         float4 n_t = float4(normalize(normal.xyz), 1.0);
-        float e_r = dot(mul(sh_matrices.r, n_t), n_t);
-        float e_g = dot(mul(sh_matrices.g, n_t), n_t);
-        float e_b = dot(mul(sh_matrices.b, n_t), n_t);
+        float e_r = max(0.0, dot(mul(sh_matrices.r, n_t), n_t));
+        float e_g = max(0.0, dot(mul(sh_matrices.g, n_t), n_t));
+        float e_b = max(0.0, dot(mul(sh_matrices.b, n_t), n_t));
         float3 indirect_diffuse = float3(e_r, e_g, e_b);
         out_value += color.xyz * indirect_diffuse * FULLBRIGHT_NITS;
     }
