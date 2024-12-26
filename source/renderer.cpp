@@ -355,16 +355,16 @@ namespace gfx {
         }
 
         // Pre-compute diffuse irradiance
-        for (int dst_face = 0; dst_face < 6; ++dst_face) {
-            for (int dst_y = 0; dst_y < DIFFUSE_IRRADIANCE_RESOLUTION; ++dst_y) {
-                for (int dst_x = 0; dst_x < DIFFUSE_IRRADIANCE_RESOLUTION; ++dst_x) {
+        for (int face = 0; face < 6; ++face) {
+            for (int y = 0; y < DIFFUSE_IRRADIANCE_RESOLUTION; ++y) {
+                for (int x = 0; x < DIFFUSE_IRRADIANCE_RESOLUTION; ++x) {
                     // Get UV coordinates for this face
-                    const float u = (((float)dst_x + 0.5f) / (float)DIFFUSE_IRRADIANCE_RESOLUTION) * 2.0f - 1.0f;
-                    const float v = (((float)dst_y + 0.5f) / (float)DIFFUSE_IRRADIANCE_RESOLUTION) * 2.0f - 1.0f;
+                    const float u = (((float)x + 0.5f) / (float)DIFFUSE_IRRADIANCE_RESOLUTION) * 2.0f - 1.0f;
+                    const float v = (((float)y + 0.5f) / (float)DIFFUSE_IRRADIANCE_RESOLUTION) * 2.0f - 1.0f;
 
                     // Convert to vector and normalize it
                     glm::vec3 dir(0.0f);
-                    switch (dst_face) {
+                    switch (face) {
                     case 0: dir = glm::vec3(1.0f, v, u);   break;
                     case 1: dir = glm::vec3(-1.0f, v, -u);  break;
                     case 2: dir = glm::vec3(u, -1.0f, -v);   break;
@@ -374,49 +374,10 @@ namespace gfx {
                     }
 
                     // Get normal vector for this destination pixel
-                    glm::vec3 dst_normal = glm::normalize(dir);
+                    glm::vec3 normal = glm::normalize(dir);
 
-                    // Pre-compute diffuse irradiance
-                    float n_samples = 0.0;
-                    glm::vec4 sum(0.0f);
+                    
 
-                    // Sum hemisphere
-                    for (int src_face = 0; src_face < 6; ++src_face) {
-                        for (int src_y = 0; src_y < resolution; ++src_y) {
-                            for (int src_x = 0; src_x < resolution; ++src_x) {
-                                // Get UV coordinates for this sample
-                                const float su = (((float)src_x + 0.5f) / (float)resolution) * 2.0f - 1.0f;
-                                const float sv = (((float)src_y + 0.5f) / (float)resolution) * 2.0f - 1.0f;
-
-                                // Convert to vector and normalize it
-                                glm::vec3 src_dir(0.0f);
-                                switch (src_face) {
-                                case 0: src_dir = glm::vec3(1.0f, sv, su);   break;
-                                case 1: src_dir = glm::vec3(-1.0f, sv, -su);  break;
-                                case 2: src_dir = glm::vec3(su, -1.0f, -sv);   break;
-                                case 3: src_dir = glm::vec3(su, 1.0f, sv);   break;
-                                case 4: src_dir = glm::vec3(su, sv, -1.0f);    break;
-                                case 5: src_dir = glm::vec3(-su, sv, 1.0f);   break;
-                                }
-
-                                // Get normal vector for this sample
-                                glm::vec3 src_normal = glm::normalize(src_dir);
-
-                                // Ignore samples outside the hemisphere
-                                float contribution = glm::dot(src_normal, dst_normal);
-                                if (contribution <= 0.0f) continue;
-
-                                // Sample texture
-                                glm::vec4 sample = cubemap_faces.at((size_t)(src_x + (src_y * resolution) + (src_face * resolution * resolution)));
-                                sum += sample * contribution;
-                                n_samples += contribution;
-                            }
-                        }
-                    }
-                    sum /= glm::vec4(n_samples);
-
-                    // Store in texture
-                    ibl_diffuse_cubemap_faces.at((size_t)(dst_x + (dst_y * DIFFUSE_IRRADIANCE_RESOLUTION) + (dst_face * DIFFUSE_IRRADIANCE_RESOLUTION * DIFFUSE_IRRADIANCE_RESOLUTION))) = glm::clamp(sum, glm::vec4(0.0f), glm::vec4(1.0f));
                 }
             }
         }
