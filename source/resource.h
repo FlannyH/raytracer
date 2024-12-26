@@ -127,8 +127,8 @@ namespace gfx {
         ComPtr<ID3D12Resource> handle;
         D3D12_RESOURCE_STATES current_state = D3D12_RESOURCE_STATE_COMMON;
         std::string name;
+     private:
         union {
-            // Please use expect_x() wherever you can instead of accessing this directly
             TextureResource texture_resource;
             BufferResource buffer_resource;
             SceneResource scene_resource;

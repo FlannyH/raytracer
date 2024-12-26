@@ -473,15 +473,13 @@ namespace gfx {
     ResourceHandlePair Device::load_texture(const std::string& name, uint32_t width, uint32_t height, uint32_t depth, void* data, PixelFormat pixel_format, TextureType type) {
         // Make texture resource
         const auto resource = std::make_shared<Resource>();
-        *resource = {
-            .type = ResourceType::texture,
-            .texture_resource = {
-                .data = static_cast<uint8_t*>(data),
-                .width = width,
-                .height = height,
-                .depth = depth,
-                .pixel_format = pixel_format,
-            }
+        resource->type = ResourceType::texture,
+        resource->expect_texture() = {
+            .data = static_cast<uint8_t*>(data),
+            .width = width,
+            .height = height,
+            .depth = depth,
+            .pixel_format = pixel_format,
         };
 
         // Create a d3d12 resource for the texture
@@ -616,12 +614,10 @@ namespace gfx {
     ResourceHandlePair Device::create_buffer(const std::string& name, const size_t size, void* data, bool cpu_visible) {
         // Create engine resource
         const auto resource = std::make_shared<Resource>();
-        *resource = {
-            .type = ResourceType::buffer,
-            .buffer_resource = {
-                .data = data,
-                .size = size,
-            }
+        resource->type = ResourceType::buffer,
+        resource->expect_buffer() = {
+            .data = data,
+            .size = size,
         };
 
         // Create Dx12 resource
@@ -703,17 +699,15 @@ namespace gfx {
     ResourceHandlePair Device::create_render_target(const std::string& name, uint32_t width, uint32_t height, PixelFormat pixel_format, glm::vec4 clear_color) {
         // Make texture resource
         const auto resource = std::make_shared<Resource>();
-        *resource = {
-            .type = ResourceType::texture,
-            .texture_resource = {
-                .data = nullptr,
-                .width = width,
-                .height = height,
-                .pixel_format = pixel_format,
-                .clear_color = clear_color,
-                .rtv_handle = ResourceHandle::none(),
-                .dsv_handle = ResourceHandle::none(),
-            }
+        resource->type = ResourceType::texture,
+        resource->expect_texture() = {
+            .data = nullptr,
+            .width = width,
+            .height = height,
+            .pixel_format = pixel_format,
+            .clear_color = clear_color,
+            .rtv_handle = ResourceHandle::none(),
+            .dsv_handle = ResourceHandle::none(),
         };
 
         // Create a d3d12 resource for the texture
@@ -787,17 +781,15 @@ namespace gfx {
     ResourceHandlePair Device::create_depth_target(const std::string& name, uint32_t width, uint32_t height, PixelFormat pixel_format, float clear_depth) {
         // Make texture resource
         const auto resource = std::make_shared<Resource>();
-        *resource = {
-            .type = ResourceType::texture,
-            .texture_resource = {
-                .data = nullptr,
-                .width = width,
-                .height = height,
-                .pixel_format = pixel_format,
-                .clear_color = glm::vec4(clear_depth, 0.0f, 0.0f, 1.0f),
-                .rtv_handle = ResourceHandle::none(),
-                .dsv_handle = ResourceHandle::none(),
-            }
+        resource->type = ResourceType::texture,
+        resource->expect_texture() = {
+            .data = nullptr,
+            .width = width,
+            .height = height,
+            .pixel_format = pixel_format,
+            .clear_color = glm::vec4(clear_depth, 0.0f, 0.0f, 1.0f),
+            .rtv_handle = ResourceHandle::none(),
+            .dsv_handle = ResourceHandle::none(),
         };
 
         // Create a d3d12 resource for the texture
