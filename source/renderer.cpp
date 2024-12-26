@@ -373,8 +373,8 @@ namespace gfx {
                     switch (face) {
                     case 0: dir = glm::vec3(1.0f, v, u);   break;
                     case 1: dir = glm::vec3(-1.0f, v, -u);  break;
-                    case 2: dir = glm::vec3(u, -1.0f, -v);   break;
-                    case 3: dir = glm::vec3(u, 1.0f, v);   break;
+                    case 2: dir = glm::vec3(u, 1.0f, -v);   break;
+                    case 3: dir = glm::vec3(u, -1.0f, v);   break;
                     case 4: dir = glm::vec3(u, v, -1.0f);    break;
                     case 5: dir = glm::vec3(-u, v, 1.0f);   break;
                     }

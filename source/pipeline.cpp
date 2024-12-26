@@ -172,7 +172,7 @@ namespace gfx {
                 .Constants = {
                     .ShaderRegister = 0,
                     .RegisterSpace = 0,
-                    .Num32BitValues = 8,
+                    .Num32BitValues = 9,
                 },
                 .ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL,
             },

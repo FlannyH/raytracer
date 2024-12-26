@@ -5,8 +5,9 @@ struct RootConstants {
     uint metal_roughness_texture;
     uint emissive_texture;
     uint lights_buffer;
+    uint spherical_harmonics_buffer;
     uint curr_sky_cube;
-    uint curr_ibl_diffuse_cube;
+    uint curr_ibl_diffuse_sh_offset;
 };
 ConstantBuffer<RootConstants> root_constants : register(b0, space0);
 
@@ -20,6 +21,12 @@ struct LightDirectional {
     float3 color; // linear 0.0 - 1.0
     float intensity; // in lux (lm/m^2)
     float3 direction;
+};
+
+struct SphericalHarmonicsMatrices {
+    float4x4 r;
+    float4x4 g;
+    float4x4 b;
 };
 
 #define MASK_ID ((1 << 27) - 1)
@@ -93,9 +100,18 @@ void main(uint3 dispatch_thread_id : SV_DispatchThreadID) {
     // "Many rendering engines simplify this calculation by assuming that an emissive factor of 1.0 results in a fully exposed pixel."
     out_value += emission * FULLBRIGHT_NITS;
     
-    // Add indirect diffuse sampled from the precomputed diffuse irradiance map
-    TextureCube<float3> ibl_diffuse_texture = ResourceDescriptorHeap[NonUniformResourceIndex(root_constants.curr_ibl_diffuse_cube & MASK_ID)];
-    out_value += color.xyz * ibl_diffuse_texture.Sample(cube_sampler, normal.xyz) * FULLBRIGHT_NITS;
+    // Add indirect diffuse computed from spherical harmonics
+    if (root_constants.spherical_harmonics_buffer & MASK_IS_LOADED) {
+        ByteAddressBuffer sh_buffer = ResourceDescriptorHeap[NonUniformResourceIndex(root_constants.spherical_harmonics_buffer & MASK_ID)];
+        SphericalHarmonicsMatrices sh_matrices = sh_buffer.Load<SphericalHarmonicsMatrices>(root_constants.curr_ibl_diffuse_sh_offset);
+        float4 n_t = float4(normalize(normal.xyz), 1.0);
+        float e_r = dot(mul(sh_matrices.r, n_t), n_t);
+        float e_g = dot(mul(sh_matrices.g, n_t), n_t);
+        float e_b = dot(mul(sh_matrices.b, n_t), n_t);
+        float3 indirect_diffuse = float3(e_r, e_g, e_b);
+        out_value += color.xyz * indirect_diffuse * FULLBRIGHT_NITS;
+    }
+    
     
     output_texture[dispatch_thread_id.xy].rgb = out_value;
 
