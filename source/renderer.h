@@ -50,7 +50,7 @@ namespace gfx {
         ResourceHandlePair m_emissive_target = { ResourceHandle::none(), nullptr };
         ResourceHandlePair m_shaded_target = { ResourceHandle::none(), nullptr };
         ResourceHandlePair m_depth_target = { ResourceHandle::none(), nullptr };
-        Cubemap m_curr_sky_cube = { ResourceHandle::none(), nullptr };
+        Cubemap m_curr_sky_cube = {};
         glm::vec2 m_resolution = { 0.0f, 0.0f };
         glm::vec2 m_render_resolution = { 0.0f, 0.0f };
         glm::vec2 resolution_scale = { 1.0f, 1.0f };
