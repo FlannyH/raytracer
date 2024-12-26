@@ -359,7 +359,15 @@ namespace gfx {
 
         // Pre-compute diffuse irradiance based on this paper: https://graphics.stanford.edu/papers/envmap/envmap.pdf
         // todo: put this in a buffer or texture on the gpu
-        glm::vec3 l00, l11, l10, l1_1, l21, l2_1, l2_2, l20, l22;
+        glm::vec3 l00(0.0f);
+        glm::vec3 l11(0.0f);
+        glm::vec3 l10(0.0f);
+        glm::vec3 l1_1(0.0f); 
+        glm::vec3 l21(0.0f);
+        glm::vec3 l2_1(0.0f); 
+        glm::vec3 l2_2(0.0f); 
+        glm::vec3 l20(0.0f);
+        glm::vec3 l22(0.0f);
 
         for (int face = 0; face < 6; ++face) {
             for (int y = 0; y < resolution; ++y) {
