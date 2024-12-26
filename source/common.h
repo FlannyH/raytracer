@@ -3,6 +3,7 @@
 #include <exception>
 #include <fstream>
 #include <vector>
+#include <cstdint>
 using Microsoft::WRL::ComPtr;
 
 constexpr UINT backbuffer_count = 3;
