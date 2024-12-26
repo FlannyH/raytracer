@@ -354,7 +354,7 @@ namespace gfx {
             }
         }
 
-        // Pre-compute diffuse irradiance
+        // Pre-compute diffuse irradiance based on this paper: https://graphics.stanford.edu/papers/envmap/envmap.pdf
         for (int face = 0; face < 6; ++face) {
             for (int y = 0; y < DIFFUSE_IRRADIANCE_RESOLUTION; ++y) {
                 for (int x = 0; x < DIFFUSE_IRRADIANCE_RESOLUTION; ++x) {
