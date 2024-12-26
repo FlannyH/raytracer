@@ -354,6 +354,7 @@ namespace gfx {
             }
         }
 
+        // Pre-compute diffuse irradiance
         for (int dst_face = 0; dst_face < 6; ++dst_face) {
             for (int dst_y = 0; dst_y < DIFFUSE_IRRADIANCE_RESOLUTION; ++dst_y) {
                 for (int dst_x = 0; dst_x < DIFFUSE_IRRADIANCE_RESOLUTION; ++dst_x) {
