@@ -11,6 +11,7 @@ namespace gfx {
     #define DRAW_PACKET_BUFFER_SIZE 102400
     #define GPU_BUFFER_PREFERRED_ALIGNMENT 64
     #define MAX_LIGHTS_DIRECTIONAL 32
+    #define MAX_CUBEMAP_SH 128
     #define FOV (glm::radians(70.f))
 
     // Initialisation and state
@@ -33,6 +34,7 @@ namespace gfx {
         m_pipeline_final_blit = m_device->create_raster_pipeline("assets/shaders/fullscreen_tri.vs.hlsl", "assets/shaders/final_blit.ps.hlsl", {});
         m_material_buffer = m_device->create_buffer("Material descriptions", MAX_MATERIAL_COUNT * sizeof(Material), nullptr, true);
         m_lights_buffer = m_device->create_buffer("Lights buffer", 3 * sizeof(uint32_t) + MAX_LIGHTS_DIRECTIONAL * sizeof(LightDirectional), nullptr, true);
+        m_spherical_harmonics_buffer = m_device->create_buffer("Spherical harmonics coefficients buffer", MAX_CUBEMAP_SH * sizeof(SphericalHarmonicsDiffuse), nullptr, true);
 
         // Create triple buffered draw packet buffer
         for (int i = 0; i < backbuffer_count; ++i) {
@@ -153,8 +155,9 @@ namespace gfx {
             m_roughness_metallic_target.handle.as_u32(),
             m_emissive_target.handle.as_u32(),
             m_lights_buffer.handle.as_u32(),
+            m_spherical_harmonics_buffer.handle.as_u32(),
             m_curr_sky_cube.base.handle.as_u32(),
-            m_curr_sky_cube.ibl_diffuse.handle.as_u32()
+            m_curr_sky_cube.offset_diffuse_sh
         });
         m_device->dispatch_threadgroups( // threadgroup size is 8x8
             (uint32_t)(m_render_resolution.x / 8.0f),
@@ -407,10 +410,14 @@ namespace gfx {
         // We won't need the original image data anymore
         stbi_image_free(data);
 
+        const uint32_t offset = m_spherical_harmonics_buffer_cursor;
+        m_device->update_buffer(m_spherical_harmonics_buffer, m_spherical_harmonics_buffer_cursor, sizeof(SphericalHarmonicsDiffuse), &sh);
+        m_spherical_harmonics_buffer_cursor += sizeof(SphericalHarmonicsDiffuse);
+
         // Now upload this texture as a cubemap
         return {
-            .ibl_diffuse = sh,
             .base = load_texture(path + "::(base cubemap)", resolution, resolution, 6, cubemap_faces.data(), PixelFormat::rgba32_float, TextureType::tex_cube),
+            .offset_diffuse_sh = offset
         };
     }
 
