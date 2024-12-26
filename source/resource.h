@@ -256,12 +256,13 @@ namespace gfx {
     };
 
     struct SphericalHarmonicsDiffuse {
-        glm::vec3 l00, l11, l10, l1_1, l21, l2_1, l2_2, l20, l22;
+        glm::vec3 l00, l11, l10, l1_1, l21, l2_1, l2_2, l20, l22; // 108 bytes
+        char padding[4]; // pad to 112 bytes, multiple of 16
     };
 
     struct Cubemap {
-        SphericalHarmonicsDiffuse ibl_diffuse{};
         ResourceHandlePair base{};
         ResourceHandlePair ibl_specular{};
+        uint32_t offset_diffuse_sh = 0;
     };
 }
