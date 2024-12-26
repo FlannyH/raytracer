@@ -4,7 +4,9 @@
 #include <glfw/glfw3native.h>
 #include <d3d12sdklayers.h>
 
+#include <algorithm>
 #include <utility>
+#include <mutex>
 
 #include "buffer.h"
 #include "command_buffer.h"
@@ -15,7 +17,6 @@
 #include "scene.h"
 #include "input.h"
 #include "fence.h"
-#include <mutex>
 
 namespace gfx {
     const char* breadcrumb_op_names[];
