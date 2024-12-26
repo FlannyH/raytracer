@@ -34,7 +34,7 @@ namespace gfx {
         m_pipeline_final_blit = m_device->create_raster_pipeline("assets/shaders/fullscreen_tri.vs.hlsl", "assets/shaders/final_blit.ps.hlsl", {});
         m_material_buffer = m_device->create_buffer("Material descriptions", MAX_MATERIAL_COUNT * sizeof(Material), nullptr, true);
         m_lights_buffer = m_device->create_buffer("Lights buffer", 3 * sizeof(uint32_t) + MAX_LIGHTS_DIRECTIONAL * sizeof(LightDirectional), nullptr, true);
-        m_spherical_harmonics_buffer = m_device->create_buffer("Spherical harmonics coefficients buffer", MAX_CUBEMAP_SH * sizeof(glm::mat4), nullptr, true);
+        m_spherical_harmonics_buffer = m_device->create_buffer("Spherical harmonics coefficients buffer", MAX_CUBEMAP_SH * 3*sizeof(glm::mat4), nullptr, true);
 
         // Create triple buffered draw packet buffer
         for (int i = 0; i < backbuffer_count; ++i) {
@@ -407,12 +407,40 @@ namespace gfx {
         l20 /= (float)(resolution * resolution * 6);
         l22 /= (float)(resolution * resolution * 6);
 
+        // Construct matrix
+        constexpr float c1 = 0.429043f;
+        constexpr float c2 = 0.511664f;
+        constexpr float c3 = 0.743125f;
+        constexpr float c4 = 0.886227f;
+        constexpr float c5 = 0.247708f;
+        // todo: verify row order
+        const glm::mat4 sh_matrices[3] = {
+            glm::mat4(
+                c1*l22.r,   c1*l2_2.r, c1*l21.r,  c2*l11.r,
+                c1*l2_2.r, -c1*l22.r,  c1*l2_1.r, c2*l1_1.r,
+                c1*l21.r,   c1*l2_1.r, c3*l20.r,  c2*l10.r,
+                c2*l11.r,   c2*l1_1.r, c2*l10.r,  c4*l00.r - c5*l20.r
+            ),
+            glm::mat4(
+                c1*l22.g,   c1*l2_2.g, c1*l21.g,  c2*l11.g,
+                c1*l2_2.g, -c1*l22.g,  c1*l2_1.g, c2*l1_1.g,
+                c1*l21.g,   c1*l2_1.g, c3*l20.g,  c2*l10.g,
+                c2*l11.g,   c2*l1_1.g, c2*l10.g,  c4*l00.g - c5*l20.g
+            ),
+            glm::mat4(
+                c1*l22.b,   c1*l2_2.b, c1*l21.b,  c2*l11.b,
+                c1*l2_2.b, -c1*l22.b,  c1*l2_1.b, c2*l1_1.b,
+                c1*l21.b,   c1*l2_1.b, c3*l20.b,  c2*l10.b,
+                c2*l11.b,   c2*l1_1.b, c2*l10.b,  c4*l00.b - c5*l20.b
+            )
+        };
+
         // We won't need the original image data anymore
         stbi_image_free(data);
 
         const uint32_t offset = m_spherical_harmonics_buffer_cursor;
-        m_device->update_buffer(m_spherical_harmonics_buffer, m_spherical_harmonics_buffer_cursor, sizeof(SphericalHarmonicsDiffuse), &sh);
-        m_spherical_harmonics_buffer_cursor += sizeof(SphericalHarmonicsDiffuse);
+        m_device->update_buffer(m_spherical_harmonics_buffer, m_spherical_harmonics_buffer_cursor, sizeof(sh_matrices), &sh_matrices);
+        m_spherical_harmonics_buffer_cursor += sizeof(sh_matrices);
 
         // Now upload this texture as a cubemap
         return {
