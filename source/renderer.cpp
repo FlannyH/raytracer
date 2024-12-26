@@ -376,7 +376,16 @@ namespace gfx {
                     // Get normal vector for this destination pixel
                     glm::vec3 normal = glm::normalize(dir);
 
-                    
+                    // Compute spherical harmonics coefficients
+                    const float y00 = 0.282095f;
+                    const float y11 = 0.488603f * normal.x;
+                    const float y10 = 0.488603f * normal.z;
+                    const float y1_1 = 0.488603f * normal.y;
+                    const float y21 = 1.092548f * normal.x * normal.z;
+                    const float y2_1 = 1.092548f * normal.y * normal.z;
+                    const float y2_2 = 1.092548f * normal.x * normal.y;
+                    const float y20 = 0.315392f * (3.0f * normal.z * normal.z - 1.0f);
+                    const float y22 = 0.546274f * (normal.x * normal.x - normal.y * normal.y);
 
                 }
             }
