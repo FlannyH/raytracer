@@ -19,7 +19,33 @@
 #include "fence.h"
 
 namespace gfx {
-    const char* breadcrumb_op_names[];
+    const char* breadcrumb_op_names[49] = {
+        "SETMARKER",                                        "BEGINEVENT",
+        "ENDEVENT",                                         "DRAWINSTANCED",
+        "DRAWINDEXEDINSTANCED",                             "EXECUTEINDIRECT",
+        "DISPATCH",                                         "COPYBUFFERREGION",
+        "COPYTEXTUREREGION",                                "COPYRESOURCE",
+        "COPYTILES",                                        "RESOLVESUBRESOURCE",
+        "CLEARRENDERTARGETVIEW",                            "CLEARUNORDEREDACCESSVIEW",
+        "CLEARDEPTHSTENCILVIEW",                            "RESOURCEBARRIER",
+        "EXECUTEBUNDLE",                                    "PRESENT",
+        "RESOLVEQUERYDATA",                                 "BEGINSUBMISSION",
+        "ENDSUBMISSION",                                    "DECODEFRAME",
+        "PROCESSFRAMES",                                    "ATOMICCOPYBUFFERUINT",
+        "ATOMICCOPYBUFFERUINT64",                           "RESOLVESUBRESOURCEREGION",
+        "WRITEBUFFERIMMEDIATE",                             "DECODEFRAME1",
+        "SETPROTECTEDRESOURCESESSION",                      "DECODEFRAME2",
+        "PROCESSFRAMES1",                                   "BUILDRAYTRACINGACCELERATIONSTRUCTURE",
+        "EMITRAYTRACINGACCELERATIONSTRUCTUREPOSTBUILDINFO", "COPYRAYTRACINGACCELERATIONSTRUCTURE",
+        "DISPATCHRAYS",                                     "INITIALIZEMETACOMMAND",
+        "EXECUTEMETACOMMAND",                               "ESTIMATEMOTION",
+        "RESOLVEMOTIONVECTORHEAP",                          "SETPIPELINESTATE1",
+        "INITIALIZEEXTENSIONCOMMAND",                       "EXECUTEEXTENSIONCOMMAND",
+        "DISPATCHMESH",                                     "ENCODEFRAME",
+        "RESOLVEENCODEROUTPUTMETADATA",                     "BARRIER",
+        "BEGIN_COMMAND_LIST",                               "DISPATCHGRAPH",
+        "SETPROGRAM"
+    };
 
     struct ThreadSharedGlobals {
         bool should_shut_down = false;
@@ -152,7 +178,7 @@ namespace gfx {
                 if (curr_node->pCommandListDebugNameW) printf("        pCommandListDebugNameW: %ws\n", curr_node->pCommandListDebugNameW);
                 if (curr_node->pCommandQueueDebugNameA) printf("        pCommandQueueDebugNameA: %s\n", curr_node->pCommandQueueDebugNameA);
                 if (curr_node->pCommandQueueDebugNameW) printf("        pCommandQueueDebugNameW: %ws\n", curr_node->pCommandQueueDebugNameW);
-                for (int i = 0; i < curr_node->BreadcrumbCount; ++i) {
+                for (uint32_t i = 0; i < curr_node->BreadcrumbCount; ++i) {
                     const char* command_history = breadcrumb_op_names[curr_node->pCommandHistory[i]];
                     printf("        %i: command: %s", i, command_history);
                     if (i < *curr_node->pLastBreadcrumbValue) printf(" (completed)");
@@ -991,56 +1017,4 @@ namespace gfx {
             m_temp_upload_buffers.pop_front();
         }
     }
-
-    const char* breadcrumb_op_names[] = {
-        "SETMARKER",
-        "BEGINEVENT",
-        "ENDEVENT",
-        "DRAWINSTANCED",
-        "DRAWINDEXEDINSTANCED",
-        "EXECUTEINDIRECT",
-        "DISPATCH",
-        "COPYBUFFERREGION",
-        "COPYTEXTUREREGION",
-        "COPYRESOURCE",
-        "COPYTILES",
-        "RESOLVESUBRESOURCE",
-        "CLEARRENDERTARGETVIEW",
-        "CLEARUNORDEREDACCESSVIEW",
-        "CLEARDEPTHSTENCILVIEW",
-        "RESOURCEBARRIER",
-        "EXECUTEBUNDLE",
-        "PRESENT",
-        "RESOLVEQUERYDATA",
-        "BEGINSUBMISSION",
-        "ENDSUBMISSION",
-        "DECODEFRAME",
-        "PROCESSFRAMES",
-        "ATOMICCOPYBUFFERUINT",
-        "ATOMICCOPYBUFFERUINT64",
-        "RESOLVESUBRESOURCEREGION",
-        "WRITEBUFFERIMMEDIATE",
-        "DECODEFRAME1",
-        "SETPROTECTEDRESOURCESESSION",
-        "DECODEFRAME2",
-        "PROCESSFRAMES1",
-        "BUILDRAYTRACINGACCELERATIONSTRUCTURE",
-        "EMITRAYTRACINGACCELERATIONSTRUCTUREPOSTBUILDINFO",
-        "COPYRAYTRACINGACCELERATIONSTRUCTURE",
-        "DISPATCHRAYS",
-        "INITIALIZEMETACOMMAND",
-        "EXECUTEMETACOMMAND",
-        "ESTIMATEMOTION",
-        "RESOLVEMOTIONVECTORHEAP",
-        "SETPIPELINESTATE1",
-        "INITIALIZEEXTENSIONCOMMAND",
-        "EXECUTEEXTENSIONCOMMAND",
-        "DISPATCHMESH",
-        "ENCODEFRAME",
-        "RESOLVEENCODEROUTPUTMETADATA",
-        "BARRIER",
-        "BEGIN_COMMAND_LIST",
-        "DISPATCHGRAPH",
-        "SETPROGRAM"
-    };
 }
