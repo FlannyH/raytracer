@@ -34,7 +34,7 @@ namespace gfx {
         m_pipeline_final_blit = m_device->create_raster_pipeline("assets/shaders/fullscreen_tri.vs.hlsl", "assets/shaders/final_blit.ps.hlsl", {});
         m_material_buffer = m_device->create_buffer("Material descriptions", MAX_MATERIAL_COUNT * sizeof(Material), nullptr, true);
         m_lights_buffer = m_device->create_buffer("Lights buffer", 3 * sizeof(uint32_t) + MAX_LIGHTS_DIRECTIONAL * sizeof(LightDirectional), nullptr, true);
-        m_spherical_harmonics_buffer = m_device->create_buffer("Spherical harmonics coefficients buffer", MAX_CUBEMAP_SH * sizeof(SphericalHarmonicsDiffuse), nullptr, true);
+        m_spherical_harmonics_buffer = m_device->create_buffer("Spherical harmonics coefficients buffer", MAX_CUBEMAP_SH * sizeof(glm::mat4), nullptr, true);
 
         // Create triple buffered draw packet buffer
         for (int i = 0; i < backbuffer_count; ++i) {
@@ -359,7 +359,7 @@ namespace gfx {
 
         // Pre-compute diffuse irradiance based on this paper: https://graphics.stanford.edu/papers/envmap/envmap.pdf
         // todo: put this in a buffer or texture on the gpu
-        SphericalHarmonicsDiffuse sh{};
+        glm::vec3 l00, l11, l10, l1_1, l21, l2_1, l2_2, l20, l22;
 
         for (int face = 0; face < 6; ++face) {
             for (int y = 0; y < resolution; ++y) {
@@ -384,28 +384,28 @@ namespace gfx {
 
                     // Compute spherical harmonics coefficients
                     const glm::vec3 sample = cubemap_faces.at((size_t)(x + (y * resolution) + (face * resolution * resolution)));
-                    sh.l00 += sample * (0.282095f);
-                    sh.l11 += sample * (0.488603f * normal.x);
-                    sh.l10 += sample * (0.488603f * normal.z);
-                    sh.l1_1 += sample * (0.488603f * normal.y);
-                    sh.l21 += sample * (1.092548f * normal.x * normal.z);
-                    sh.l2_1 += sample * (1.092548f * normal.y * normal.z);
-                    sh.l2_2 += sample * (1.092548f * normal.x * normal.y);
-                    sh.l20 += sample * (0.315392f * (3.0f * normal.z * normal.z - 1.0f));
-                    sh.l22 += sample * (0.546274f * (normal.x * normal.x - normal.y * normal.y));
+                    l00 += sample * (0.282095f);
+                    l11 += sample * (0.488603f * normal.x);
+                    l10 += sample * (0.488603f * normal.z);
+                    l1_1 += sample * (0.488603f * normal.y);
+                    l21 += sample * (1.092548f * normal.x * normal.z);
+                    l2_1 += sample * (1.092548f * normal.y * normal.z);
+                    l2_2 += sample * (1.092548f * normal.x * normal.y);
+                    l20 += sample * (0.315392f * (3.0f * normal.z * normal.z - 1.0f));
+                    l22 += sample * (0.546274f * (normal.x * normal.x - normal.y * normal.y));
                 }
             }
         }
 
-        sh.l00 /= (float)(resolution * resolution * 6);
-        sh.l11 /= (float)(resolution * resolution * 6);
-        sh.l10 /= (float)(resolution * resolution * 6);
-        sh.l1_1 /= (float)(resolution * resolution * 6);
-        sh.l21 /= (float)(resolution * resolution * 6);
-        sh.l2_1 /= (float)(resolution * resolution * 6);
-        sh.l2_2 /= (float)(resolution * resolution * 6);
-        sh.l20 /= (float)(resolution * resolution * 6);
-        sh.l22 /= (float)(resolution * resolution * 6);
+        l00 /= (float)(resolution * resolution * 6);
+        l11 /= (float)(resolution * resolution * 6);
+        l10 /= (float)(resolution * resolution * 6);
+        l1_1 /= (float)(resolution * resolution * 6);
+        l21 /= (float)(resolution * resolution * 6);
+        l2_1 /= (float)(resolution * resolution * 6);
+        l2_2 /= (float)(resolution * resolution * 6);
+        l20 /= (float)(resolution * resolution * 6);
+        l22 /= (float)(resolution * resolution * 6);
 
         // We won't need the original image data anymore
         stbi_image_free(data);

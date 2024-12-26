@@ -255,11 +255,6 @@ namespace gfx {
         float outer_cone_angle; // radians
     };
 
-    struct SphericalHarmonicsDiffuse {
-        glm::vec3 l00, l11, l10, l1_1, l21, l2_1, l2_2, l20, l22; // 108 bytes
-        char padding[4]; // pad to 112 bytes, multiple of 16
-    };
-
     struct Cubemap {
         ResourceHandlePair base{};
         ResourceHandlePair ibl_specular{};
