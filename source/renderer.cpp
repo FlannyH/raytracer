@@ -355,12 +355,15 @@ namespace gfx {
         }
 
         // Pre-compute diffuse irradiance based on this paper: https://graphics.stanford.edu/papers/envmap/envmap.pdf
+        // todo: put this in a buffer or texture on the gpu
+        SphericalHarmonicsDiffuse sh{};
+
         for (int face = 0; face < 6; ++face) {
-            for (int y = 0; y < DIFFUSE_IRRADIANCE_RESOLUTION; ++y) {
-                for (int x = 0; x < DIFFUSE_IRRADIANCE_RESOLUTION; ++x) {
+            for (int y = 0; y < resolution; ++y) {
+                for (int x = 0; x < resolution; ++x) {
                     // Get UV coordinates for this face
-                    const float u = (((float)x + 0.5f) / (float)DIFFUSE_IRRADIANCE_RESOLUTION) * 2.0f - 1.0f;
-                    const float v = (((float)y + 0.5f) / (float)DIFFUSE_IRRADIANCE_RESOLUTION) * 2.0f - 1.0f;
+                    const float u = (((float)x + 0.5f) / (float)resolution) * 2.0f - 1.0f;
+                    const float v = (((float)y + 0.5f) / (float)resolution) * 2.0f - 1.0f;
 
                     // Convert to vector and normalize it
                     glm::vec3 dir(0.0f);
@@ -377,27 +380,37 @@ namespace gfx {
                     glm::vec3 normal = glm::normalize(dir);
 
                     // Compute spherical harmonics coefficients
-                    const float y00 = 0.282095f;
-                    const float y11 = 0.488603f * normal.x;
-                    const float y10 = 0.488603f * normal.z;
-                    const float y1_1 = 0.488603f * normal.y;
-                    const float y21 = 1.092548f * normal.x * normal.z;
-                    const float y2_1 = 1.092548f * normal.y * normal.z;
-                    const float y2_2 = 1.092548f * normal.x * normal.y;
-                    const float y20 = 0.315392f * (3.0f * normal.z * normal.z - 1.0f);
-                    const float y22 = 0.546274f * (normal.x * normal.x - normal.y * normal.y);
-
+                    const glm::vec3 sample = cubemap_faces.at((size_t)(x + (y * resolution) + (face * resolution * resolution)));
+                    sh.l00 += sample * (0.282095f);
+                    sh.l11 += sample * (0.488603f * normal.x);
+                    sh.l10 += sample * (0.488603f * normal.z);
+                    sh.l1_1 += sample * (0.488603f * normal.y);
+                    sh.l21 += sample * (1.092548f * normal.x * normal.z);
+                    sh.l2_1 += sample * (1.092548f * normal.y * normal.z);
+                    sh.l2_2 += sample * (1.092548f * normal.x * normal.y);
+                    sh.l20 += sample * (0.315392f * (3.0f * normal.z * normal.z - 1.0f));
+                    sh.l22 += sample * (0.546274f * (normal.x * normal.x - normal.y * normal.y));
                 }
             }
         }
+
+        sh.l00 /= (float)(resolution * resolution * 6);
+        sh.l11 /= (float)(resolution * resolution * 6);
+        sh.l10 /= (float)(resolution * resolution * 6);
+        sh.l1_1 /= (float)(resolution * resolution * 6);
+        sh.l21 /= (float)(resolution * resolution * 6);
+        sh.l2_1 /= (float)(resolution * resolution * 6);
+        sh.l2_2 /= (float)(resolution * resolution * 6);
+        sh.l20 /= (float)(resolution * resolution * 6);
+        sh.l22 /= (float)(resolution * resolution * 6);
 
         // We won't need the original image data anymore
         stbi_image_free(data);
 
         // Now upload this texture as a cubemap
         return {
+            .ibl_diffuse = sh,
             .base = load_texture(path + "::(base cubemap)", resolution, resolution, 6, cubemap_faces.data(), PixelFormat::rgba32_float, TextureType::tex_cube),
-            .ibl_diffuse = load_texture(path + "::(ibl diffuse cubemap)", DIFFUSE_IRRADIANCE_RESOLUTION, DIFFUSE_IRRADIANCE_RESOLUTION, 6, ibl_diffuse_cubemap_faces.data(), PixelFormat::rgba32_float, TextureType::tex_cube),
         };
     }
 
