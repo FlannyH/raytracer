@@ -379,12 +379,12 @@ namespace gfx {
                     // Convert to vector and normalize it
                     glm::vec3 dir(0.0f);
                     switch (face) {
-                    case 0: dir = glm::vec3(1.0f, v, u);   break;
-                    case 1: dir = glm::vec3(-1.0f, v, -u);  break;
-                    case 2: dir = glm::vec3(u, 1.0f, -v);   break;
-                    case 3: dir = glm::vec3(u, -1.0f, v);   break;
-                    case 4: dir = glm::vec3(u, v, -1.0f);    break;
-                    case 5: dir = glm::vec3(-u, v, 1.0f);   break;
+                    case 0: dir = glm::vec3(1.0f, -v, -u);   break;
+                    case 1: dir = glm::vec3(-1.0f, -v, u);  break;
+                    case 2: dir = glm::vec3(u, 1.0f, v);   break;
+                    case 3: dir = glm::vec3(u, -1.0f, -v);   break;
+                    case 4: dir = glm::vec3(u, -v, 1.0f);    break;
+                    case 5: dir = glm::vec3(-u, -v, -1.0f);   break;
                     }
 
                     // Get normal vector for this destination pixel
