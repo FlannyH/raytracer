@@ -35,17 +35,11 @@ target_link_directories(raytracer PUBLIC "external/libraries")
 target_link_libraries(raytracer PUBLIC "glfw3.lib" "dxgi.lib" "D3d12.lib" "D3DCompiler.lib" "dxcompiler.lib")
 set_property(TARGET raytracer PROPERTY CXX_STANDARD 20)
 
-add_custom_command(
-    TARGET raytracer POST_BUILD
-    COMMAND robocopy /e /xx /njs /njh
-            ${CMAKE_CURRENT_SOURCE_DIR}/assets/
-            ${CMAKE_CURRENT_BINARY_DIR}/assets/
-            || (exit 0)
+add_custom_target(copy_assets
+    COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_LIST_DIR}/assets ${CMAKE_CURRENT_BINARY_DIR}/assets
 )
-add_custom_command(
-    TARGET raytracer POST_BUILD
-    COMMAND robocopy /e /xx /njs /njh
-            ${CMAKE_CURRENT_SOURCE_DIR}/external/dll/
-            ${CMAKE_CURRENT_BINARY_DIR}/
-            || (exit 0)
+add_custom_target(copy_dll
+COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_LIST_DIR}/external/dll ${CMAKE_CURRENT_BINARY_DIR}
 )
+add_dependencies(raytracer copy_assets)
+add_dependencies(raytracer copy_dll)
