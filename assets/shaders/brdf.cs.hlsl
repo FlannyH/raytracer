@@ -51,7 +51,7 @@ void main(uint3 dispatch_thread_id : SV_DispatchThreadID) {
     float3 out_value = float3(0.0, 0.0, 0.0);
     
     // Fetch textures
-    RWTexture2D<float3> output_texture = ResourceDescriptorHeap[NonUniformResourceIndex(root_constants.output_texture & MASK_ID)];
+    RWTexture2D<float4> output_texture = ResourceDescriptorHeap[NonUniformResourceIndex(root_constants.output_texture & MASK_ID)];
     Texture2D<float4> color_texture = ResourceDescriptorHeap[NonUniformResourceIndex(root_constants.color_texture & MASK_ID)];
     Texture2D<float4> normal_texture = ResourceDescriptorHeap[NonUniformResourceIndex(root_constants.normal_texture & MASK_ID)];
     Texture2D<float3> emissive_texture = ResourceDescriptorHeap[NonUniformResourceIndex(root_constants.emissive_texture & MASK_ID)];
@@ -77,8 +77,9 @@ void main(uint3 dispatch_thread_id : SV_DispatchThreadID) {
         view_direction = rotate_vector_by_quaternion(view_direction, normal.xyzw);
         
         // Fetch texture and output
-        TextureCube<float3> sky_texture = ResourceDescriptorHeap[NonUniformResourceIndex(root_constants.curr_sky_cube & MASK_ID)];
-        output_texture[dispatch_thread_id.xy].rgb = sky_texture.Sample(cube_sampler, view_direction) * FULLBRIGHT_NITS;
+        TextureCube<float4> sky_texture = ResourceDescriptorHeap[NonUniformResourceIndex(root_constants.curr_sky_cube & MASK_ID)];
+        float3 pixel = sky_texture.Sample(cube_sampler, normalize(view_direction)).rgb * FULLBRIGHT_NITS;
+        output_texture[dispatch_thread_id.xy] = float4(pixel, 1.0f);
         
         return;
     }
@@ -113,4 +114,5 @@ void main(uint3 dispatch_thread_id : SV_DispatchThreadID) {
     }
     
     output_texture[dispatch_thread_id.xy].rgb = out_value;
+    output_texture[dispatch_thread_id.xy].a = 1.0f;
 }

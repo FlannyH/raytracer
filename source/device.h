@@ -62,7 +62,7 @@ namespace gfx {
 
         // Compute
         std::shared_ptr<Pipeline> create_compute_pipeline(const std::string& compute_shader_path);
-        void begin_compute_pass(std::shared_ptr<Pipeline> pipeline);
+        void begin_compute_pass(std::shared_ptr<Pipeline> pipeline, bool async = false);
         void end_compute_pass();
         void dispatch_threadgroups(uint32_t x, uint32_t y, uint32_t z);
 
@@ -117,8 +117,10 @@ namespace gfx {
         // Rendering context
         std::shared_ptr<Pipeline> m_curr_bound_pipeline = nullptr; // Will point to a valid pipeline after calling begin_render_pass(), and will be null after calling end_render_pass()
         std::shared_ptr<CommandBuffer> m_curr_pass_cmd; // The command buffer used for this pass
+        std::shared_ptr<CommandBuffer> m_queue_async; // The command queue used for async compute passes
         std::vector<std::shared_ptr<Resource>> m_curr_render_targets; // Currently bound render targets - keeping track of them for proper resource transitions at the end of a render pass
         std::shared_ptr<Resource> m_curr_depth_target = nullptr; // Currently bound depth target - keeping track of them for proper resource transitions at the end of a render pass
         std::vector<std::shared_ptr<Resource>> m_pass_resources; // Resources used in the current pass, which we will need to transition back to a common state at the end of the pass
+        bool m_curr_pipeline_is_async = false; // If the current pipeline is async, we need to keep track of resources differently 
     };
 };

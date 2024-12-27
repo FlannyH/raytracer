@@ -32,6 +32,7 @@ namespace gfx {
         m_pipeline_brdf = m_device->create_compute_pipeline("assets/shaders/brdf.cs.hlsl");
         m_pipeline_tonemapping = m_device->create_compute_pipeline("assets/shaders/tonemapping.cs.hlsl");
         m_pipeline_final_blit = m_device->create_raster_pipeline("assets/shaders/fullscreen_tri.vs.hlsl", "assets/shaders/final_blit.ps.hlsl", {});
+        m_pipeline_hdri_to_cubemap = m_device->create_compute_pipeline("assets/shaders/hdri_to_cubemap.cs.hlsl");
         m_material_buffer = m_device->create_buffer("Material descriptions", MAX_MATERIAL_COUNT * sizeof(Material), nullptr, true);
         m_lights_buffer = m_device->create_buffer("Lights buffer", 3 * sizeof(uint32_t) + MAX_LIGHTS_DIRECTIONAL * sizeof(LightDirectional), nullptr, true);
         m_spherical_harmonics_buffer = m_device->create_buffer("Spherical harmonics coefficients buffer", MAX_CUBEMAP_SH * 3*sizeof(glm::mat4), nullptr, true);
@@ -326,45 +327,24 @@ namespace gfx {
             return {};
         }
 
-        // todo: maybe do this on the gpu?
-        // todo: enforce dx12 padding rules
-#define DIFFUSE_IRRADIANCE_RESOLUTION 8
         std::vector<glm::vec4> cubemap_faces((size_t)(resolution * resolution * 6));
-        std::vector<glm::vec4> ibl_diffuse_cubemap_faces((size_t)(DIFFUSE_IRRADIANCE_RESOLUTION * DIFFUSE_IRRADIANCE_RESOLUTION * 6));
 
         // Convert HDRI to cubemap
-        for (int face = 0; face < 6; ++face){
-            for (int dst_y = 0; dst_y < resolution; ++dst_y) {
-                for (int dst_x = 0; dst_x < resolution; ++dst_x) {
-                    // Get UV coordinates for this face
-                    const float u = ((float)dst_x / (float)resolution) * 2.0f - 1.0f;
-                    const float v = ((float)dst_y / (float)resolution) * 2.0f - 1.0f;
-
-                    // Convert to vector and normalize it
-                    glm::vec3 dir(0.0f);
-                    switch (face) {
-                    case 0: dir = glm::normalize(glm::vec3(1.0f, v, u));   break;
-                    case 1: dir = glm::normalize(glm::vec3(-1.0f, v, -u));  break;
-                    case 2: dir = glm::normalize(glm::vec3(u, -1.0f, -v));   break;
-                    case 3: dir = glm::normalize(glm::vec3(u, 1.0f, v));   break;
-                    case 4: dir = glm::normalize(glm::vec3(u, v, -1.0f));    break;
-                    case 5: dir = glm::normalize(glm::vec3(-u, v, 1.0f));   break;
-                    }
-
-                    // Convert to spherical coordinates
-                    const float spherical_u = atan2f(dir.z, dir.x) / (2.0f * glm::pi<float>()) + 0.5f;
-                    const float spherical_v = asin(dir.y) / (glm::pi<float>())+0.5f;
-
-                    // Fetch pixel from texture and store in cubemap
-                    glm::vec4 pixel = data[(size_t)(spherical_v * (height-1)) * width + (size_t)(spherical_u * (width-1))];
-                    pixel.r = glm::min(pixel.r, 8000.0f); // some of these HDRIs get very very bright
-                    pixel.g = glm::min(pixel.g, 8000.0f); // to avoid blowing out the entire equation
-                    pixel.b = glm::min(pixel.b, 8000.0f); // let's cap them to a reasonable limit
-                    pixel.a = glm::min(pixel.a, 8000.0f);
-                    cubemap_faces.at((size_t)(dst_x + (dst_y * resolution) + (face * resolution * resolution))) = pixel;
-                }
-            }
-        }
+        auto hdri = m_device->load_texture(path + "::(source hdri)", width, height, 1, data, PixelFormat::rgba32_float, TextureType::tex_2d); // uncommenting crashes
+        auto cubemap = m_device->load_texture(path + "::(base cubemap)", resolution, resolution, 6, nullptr, PixelFormat::rgba32_float, TextureType::tex_cube, ResourceUsage::compute_write);
+        m_device->begin_compute_pass(m_pipeline_hdri_to_cubemap, true);
+        m_device->use_resource(hdri);
+        m_device->use_resource(cubemap, ResourceUsage::compute_write);
+        m_device->set_compute_root_constants({
+           hdri.handle.as_u32(),
+           cubemap.handle.as_u32(),
+        });
+        m_device->dispatch_threadgroups( // threadgroup size is 8x8x1
+           (uint32_t)(resolution / 8),
+           (uint32_t)(resolution / 8),
+           6 // faces
+        );
+        m_device->end_compute_pass();
 
         // Pre-compute diffuse irradiance based on this paper: https://graphics.stanford.edu/papers/envmap/envmap.pdf
         // todo: put this in a buffer or texture on the gpu
@@ -452,16 +432,18 @@ namespace gfx {
             )
         };
 
-        // We won't need the original image data anymore
-        stbi_image_free(data);
 
         const uint32_t offset = m_spherical_harmonics_buffer_cursor;
         m_device->update_buffer(m_spherical_harmonics_buffer, m_spherical_harmonics_buffer_cursor, sizeof(sh_matrices), &sh_matrices);
         m_spherical_harmonics_buffer_cursor += sizeof(sh_matrices);
-
+        
+        // We won't need the original image data anymore
+        stbi_image_free(data);
+        
         // Now upload this texture as a cubemap
         return {
-            .base = load_texture(path + "::(base cubemap)", resolution, resolution, 6, cubemap_faces.data(), PixelFormat::rgba32_float, TextureType::tex_cube),
+            .hdri = hdri,
+            .base = cubemap,
             .offset_diffuse_sh = offset
         };
     }
