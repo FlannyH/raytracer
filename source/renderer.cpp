@@ -352,9 +352,6 @@ namespace gfx {
                     pixel.b = glm::min(pixel.b, 8000.0f); // let's cap them to a reasonable limit
                     pixel.a = glm::min(pixel.a, 8000.0f);
                     cubemap_faces.at((size_t)(dst_x + (dst_y * resolution) + (face * resolution * resolution))) = pixel;
-
-                    // Get normal vector for this destination pixel
-                    glm::vec3 dst_normal = glm::normalize(dir);
                 }
             }
         }
