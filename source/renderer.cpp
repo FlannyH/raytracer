@@ -345,10 +345,10 @@ namespace gfx {
 
                     // Fetch pixel from texture and store in cubemap
                     glm::vec4 pixel = data[(size_t)(spherical_v * (height-1)) * width + (size_t)(spherical_u * (width-1))];
-                    pixel.r = glm::min(pixel.r, 2000.0f); // some of these HDRIs get very very bright
-                    pixel.g = glm::min(pixel.g, 2000.0f); // to avoid blowing out the entire equation
-                    pixel.b = glm::min(pixel.b, 2000.0f); // let's cap them to a reasonable limit
-                    pixel.a = glm::min(pixel.a, 2000.0f);
+                    pixel.r = glm::min(pixel.r, 8000.0f); // some of these HDRIs get very very bright
+                    pixel.g = glm::min(pixel.g, 8000.0f); // to avoid blowing out the entire equation
+                    pixel.b = glm::min(pixel.b, 8000.0f); // let's cap them to a reasonable limit
+                    pixel.a = glm::min(pixel.a, 8000.0f);
                     cubemap_faces.at((size_t)(dst_x + (dst_y * resolution) + (face * resolution * resolution))) = pixel;
 
                     // Get normal vector for this destination pixel
