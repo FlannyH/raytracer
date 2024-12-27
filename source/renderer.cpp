@@ -152,13 +152,13 @@ namespace gfx {
         // BRDF
         m_device->begin_compute_pass(m_pipeline_brdf);
         m_device->use_resource(m_shaded_target, ResourceUsage::compute_write);
-        m_device->use_resource(m_color_target, ResourceUsage::read);
-        m_device->use_resource(m_normal_target, ResourceUsage::read);
-        m_device->use_resource(m_roughness_metallic_target, ResourceUsage::read);
-        m_device->use_resource(m_emissive_target, ResourceUsage::read);
-        m_device->use_resource(m_lights_buffer, ResourceUsage::read);
-        m_device->use_resource(m_spherical_harmonics_buffer, ResourceUsage::read);
-        m_device->use_resource(m_curr_sky_cube.base, ResourceUsage::read);
+        m_device->use_resource(m_color_target, ResourceUsage::non_pixel_shader_read);
+        m_device->use_resource(m_normal_target, ResourceUsage::non_pixel_shader_read);
+        m_device->use_resource(m_roughness_metallic_target, ResourceUsage::non_pixel_shader_read);
+        m_device->use_resource(m_emissive_target, ResourceUsage::non_pixel_shader_read);
+        m_device->use_resource(m_lights_buffer, ResourceUsage::non_pixel_shader_read);
+        m_device->use_resource(m_spherical_harmonics_buffer, ResourceUsage::non_pixel_shader_read);
+        m_device->use_resource(m_curr_sky_cube.base, ResourceUsage::non_pixel_shader_read);
         m_device->set_compute_root_constants({
             m_shaded_target.handle.as_u32_uav(),
             m_color_target.handle.as_u32(),
@@ -195,7 +195,7 @@ namespace gfx {
             .color_targets = {}, // render to swapchain
             .clear_on_begin = false, // We're blitting to the entire buffer, no need to clear first
         });
-        m_device->use_resource(m_shaded_target, ResourceUsage::read);
+        m_device->use_resource(m_shaded_target, ResourceUsage::pixel_shader_read);
         m_device->set_graphics_root_constants({
             m_shaded_target.handle.as_u32(), // Texture to blit to screen
         });
