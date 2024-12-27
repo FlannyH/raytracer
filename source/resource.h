@@ -43,6 +43,8 @@ namespace gfx {
         render_target,
         depth_target,
         compute_write,
+        pixel_shader_read,
+        non_pixel_shader_read,
     };
 
     struct ResourceHandle {
