@@ -6,6 +6,7 @@
 #include <glm/vec3.hpp>
 #include <glm/vec2.hpp>
 #include <glm/matrix.hpp>
+#include <optional>
 
 namespace gfx {
     struct SceneNode;
@@ -277,6 +278,7 @@ namespace gfx {
     };
 
     struct Cubemap {
+        std::optional<ResourceHandlePair> hdri{};
         ResourceHandlePair base{};
         ResourceHandlePair ibl_specular{};
         uint32_t offset_diffuse_sh = 0;

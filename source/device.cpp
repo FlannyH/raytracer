@@ -441,9 +441,15 @@ namespace gfx {
         m_pass_resources.clear();
     }
 
-    void Device::begin_compute_pass(std::shared_ptr<Pipeline> pipeline) {
+    void Device::begin_compute_pass(std::shared_ptr<Pipeline> pipeline, bool async) {
         // Create command buffer for this pass
-        m_curr_pass_cmd = m_queue_gfx->create_command_buffer(pipeline.get(), m_swapchain->current_frame_index());
+        if (async) {
+            m_curr_pass_cmd = m_upload_queue->create_command_buffer(pipeline.get(), ++m_upload_fence_value_when_done);
+            m_curr_pipeline_is_async = true;
+        }
+        else {
+            m_curr_pass_cmd = m_queue_gfx->create_command_buffer(pipeline.get(), m_swapchain->current_frame_index());
+        }
 
         // Set up pipeline
         m_curr_bound_pipeline = pipeline;
@@ -453,6 +459,7 @@ namespace gfx {
         m_curr_pass_cmd->get()->SetDescriptorHeaps(1, heaps);
         m_curr_pass_cmd->get()->SetPipelineState(m_curr_bound_pipeline->pipeline_state.Get());
         m_curr_pass_cmd->get()->SetComputeRootSignature(m_curr_bound_pipeline->root_signature.Get());
+        m_curr_pass_cmd->get()->SetName(async ? L"Async compute pass" : L"Compute pass");	
     }
 
     void Device::end_compute_pass() {
@@ -523,26 +530,61 @@ namespace gfx {
         resource->current_state = D3D12_RESOURCE_STATE_COPY_DEST;
         D3D12_SHADER_RESOURCE_VIEW_DESC srv_desc = {
             .Format = resource_desc.Format,
-            .ViewDimension = texture_type_to_dx12_srv_dimension(type),
             .Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING,
-            .Texture2D = {
-                .MostDetailedMip = 0,
-                .MipLevels = 1,
-                .PlaneSlice = 0,
-                .ResourceMinLODClamp = 0.0f
-            }
         };
+        switch (type) {
+        case TextureType::tex_2d:
+            srv_desc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+            srv_desc.Texture2D.MostDetailedMip = 0;
+            srv_desc.Texture2D.MipLevels = 1;
+            srv_desc.Texture2D.PlaneSlice = 0;
+            break;
+        case TextureType::tex_3d:
+            srv_desc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE3D;
+            srv_desc.Texture3D.MostDetailedMip = 0;
+            srv_desc.Texture3D.MipLevels = 1;
+            srv_desc.Texture3D.ResourceMinLODClamp = 0.0f;
+            break;
+        case TextureType::tex_cube:
+            srv_desc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURECUBE;
+            srv_desc.TextureCube.MostDetailedMip = 0;
+            srv_desc.TextureCube.MipLevels = 1;
+            srv_desc.TextureCube.ResourceMinLODClamp = 0.0f;
+            break;
+        default:
+            LOG(Error, "Unknown texture type %i", (int)type);
+            break;
+        }
         device->CreateShaderResourceView(resource->handle.Get(), &srv_desc, descriptor);
 
         if (usage == ResourceUsage::compute_write) {
             D3D12_UNORDERED_ACCESS_VIEW_DESC uav_desc = {
                 .Format = resource_desc.Format,
-                .ViewDimension = texture_type_to_dx12_uav_dimension(type),
-                .Texture2D = {
-                    .MipSlice = 0,
-                    .PlaneSlice = 0,
-                }
             };
+
+            switch (type) {
+            case TextureType::tex_2d:
+                uav_desc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D;
+                uav_desc.Texture2D.MipSlice = 0;
+                uav_desc.Texture2D.PlaneSlice = 0;
+                break;
+            case TextureType::tex_3d:
+                uav_desc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE3D;
+                uav_desc.Texture3D.MipSlice = 0;
+                uav_desc.Texture3D.FirstWSlice = 0;
+                uav_desc.Texture3D.WSize = resource->expect_texture().depth;
+                break;
+            case TextureType::tex_cube:
+                uav_desc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2DARRAY;
+                uav_desc.Texture2DArray.MipSlice = 0;
+                uav_desc.Texture2DArray.FirstArraySlice = 0;
+                uav_desc.Texture2DArray.ArraySize = 6;
+                break;
+            default:
+                LOG(Error, "Unknown texture type %i", (int)type);
+                break;
+            }
+
             auto uav_descriptor = m_heap_bindless->fetch_cpu_handle(id);
             device->CreateUnorderedAccessView(resource->handle.Get(), nullptr, &uav_desc, uav_descriptor);
         }
@@ -610,6 +652,8 @@ namespace gfx {
         }
 
         id.is_loaded = true; // todo, only set this to true when the upload command buffer finished (when the fence value was reached)
+        resource->name = name;
+        resource->handle->SetName(std::wstring(name.begin(), name.end()).c_str());
 
         return ResourceHandlePair{ id, resource };
     }
@@ -942,7 +986,7 @@ namespace gfx {
         switch (usage) {
             case ResourceUsage::none: transition_resource(m_curr_pass_cmd.get(), resource.resource.get(), D3D12_RESOURCE_STATE_COMMON); break;
             case ResourceUsage::read: transition_resource(m_curr_pass_cmd.get(), resource.resource.get(), D3D12_RESOURCE_STATE_GENERIC_READ); break;
-            case ResourceUsage::compute_write: transition_resource(m_curr_pass_cmd.get(), resource.resource.get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS); break; // todo: figure out why UNORDERED_ACCESS doesn't work
+            case ResourceUsage::compute_write: transition_resource(m_curr_pass_cmd.get(), resource.resource.get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS); break;
             case ResourceUsage::render_target: transition_resource(m_curr_pass_cmd.get(), resource.resource.get(), D3D12_RESOURCE_STATE_RENDER_TARGET); break;
             case ResourceUsage::depth_target: transition_resource(m_curr_pass_cmd.get(), resource.resource.get(), D3D12_RESOURCE_STATE_DEPTH_WRITE); break;
         }
