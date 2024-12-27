@@ -8,11 +8,11 @@ using Microsoft::WRL::ComPtr;
 
 constexpr UINT backbuffer_count = 3;
 
-inline void validate(const HRESULT hr) {
-    if (FAILED(hr)) {
-        throw std::exception();
+#define validate(hr) \
+    if (FAILED(hr)) { \
+        printf("[ERROR] %s:%i: HRESULT 0x%08X\n", __FILE__, __LINE__, hr); \
+        throw std::exception(); \
     }
-}
 
 inline void read_file(const std::string& path, size_t& size_bytes, char*& data, const bool silent) {
     // Open file
