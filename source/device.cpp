@@ -75,12 +75,12 @@ namespace gfx {
             m_debug_layer = nullptr;
         }
 
-// #ifdef _DEBUG
+#ifdef _DEBUG
         ComPtr<ID3D12DeviceRemovedExtendedDataSettings1> dred_settings;
         validate(D3D12GetDebugInterface(IID_PPV_ARGS(&dred_settings)));
         dred_settings->SetAutoBreadcrumbsEnablement(D3D12_DRED_ENABLEMENT_FORCED_ON);
         dred_settings->SetPageFaultEnablement(D3D12_DRED_ENABLEMENT_FORCED_ON);
-// #endif
+#endif
 
         // Create factory
         validate(CreateDXGIFactory2(dxgi_factory_flags, IID_PPV_ARGS(&factory)));
