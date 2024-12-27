@@ -109,10 +109,8 @@ void main(uint3 dispatch_thread_id : SV_DispatchThreadID) {
         float e_g = max(0.0, dot(mul(sh_matrices.g, n_t), n_t));
         float e_b = max(0.0, dot(mul(sh_matrices.b, n_t), n_t));
         float3 indirect_diffuse = float3(e_r, e_g, e_b);
-        out_value += color.xyz * indirect_diffuse * FULLBRIGHT_NITS;
+        out_value += color.xyz * indirect_diffuse * FULLBRIGHT_NITS * PI;
     }
     
-    
     output_texture[dispatch_thread_id.xy].rgb = out_value;
-
 }
