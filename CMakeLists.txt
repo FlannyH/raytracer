@@ -27,6 +27,7 @@ add_executable (raytracer
     "source/input.cpp"              "source/input.h"
     "source/tangent.cpp"            "source/tangent.h"
     "source/renderer.cpp"           "source/renderer.h"
+    "source/log.cpp"                "source/log.h"
     "external/include/mikktspace/mikktspace.c")
     
 target_compile_definitions(raytracer PRIVATE _CRT_SECURE_NO_WARNINGS)

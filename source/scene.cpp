@@ -292,7 +292,7 @@ namespace gfx {
         if (image.component == 2 && image.pixel_type == TINYGLTF_COMPONENT_TYPE_UNSIGNED_BYTE) return PixelFormat::rg8_unorm;
         if (image.component == 4 && image.pixel_type == TINYGLTF_COMPONENT_TYPE_UNSIGNED_BYTE) return PixelFormat::rgba8_unorm;
         else {
-            printf("[ERROR] Unknown/unsupported pixel type in glTF image!");
+            LOG(Error, "Unknown/unsupported pixel type in glTF image!");
             return PixelFormat::none;
         }
     }
@@ -310,7 +310,7 @@ namespace gfx {
         // If the image is embedded, `uri` is empty and `image` is populated, so create a file name and use the `image` data
         else if (image_gltf->uri.empty()) {
             const std::string texture_path = model_path + "::" + image_gltf->name;
-            printf("Loading image: %s\n", texture_path.c_str());
+            LOG(Debug, "Loading embedded image: %s", texture_path.c_str());
             return renderer.load_texture(
                 texture_path,
                 (uint32_t)image_gltf->width,
@@ -323,7 +323,7 @@ namespace gfx {
         }
         
         // If the image is external, `uri` is populated and `image` is empty, so load the image from disk
-        printf("Loading image: %s\n", image_gltf->uri.c_str());
+        LOG(Debug, "Loading external image: %s", image_gltf->uri.c_str());
         const std::string texture_path = model_path.substr(0, model_path.find_last_of('/') + 1) + image_gltf->uri;
         return renderer.load_texture(texture_path);
     }
@@ -342,7 +342,7 @@ namespace gfx {
         }
 
         if (model.scenes.empty()) {
-            printf("[WARNING] Empty model or failed to load file '%s'!", path.c_str());
+            LOG(Warning, "Empty model or failed to load file '%s'!", path.c_str());
             return nullptr;
         }
 
@@ -383,7 +383,7 @@ namespace gfx {
         // Find default scene and create a scene graph from it
         auto scene_to_load = (model.defaultScene != -1) ? model.defaultScene : 0;
         auto& scene = model.scenes[model.defaultScene];
-        printf("[INFO]  Loading scene \"%s\"\n", scene.name.c_str());
+        LOG(Info, "Loading scene \"%s\" from file \"%s\"", scene.name.c_str(), path.c_str());
 
         auto scene_node = new SceneNode();
         traverse_nodes(renderer, scene.nodes, model, glm::mat4(1.0f), scene_node, path, material_mapping);
@@ -429,7 +429,7 @@ namespace gfx {
         auto attributes_to_check = { "POSITION" };
         for (auto& attr : attributes_to_check) {
             if (!primitive.attributes.contains(attr)) {
-                printf("[ERR/GLTF] Failed to parse file \"%s\": missing attribute \"%s\"\n", path.c_str(), attr);
+                LOG(Error, "Failed to parse glTF file \"%s\": missing attribute \"%s\"", path.c_str(), attr);
             }
         }
 

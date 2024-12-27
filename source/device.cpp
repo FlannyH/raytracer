@@ -94,14 +94,14 @@ namespace gfx {
 
             // Ignore software renderer
             if (desc.Flags & DXGI_ADAPTER_FLAG_SOFTWARE) {
-                printf("[INFO] Ignoring device \"%ws\"\n", desc.Description);
+                LOG(Info, "Ignoring device \"%ws\"", desc.Description);
                 continue;
             }
 
             // Does this adapter support Direct3D 12.0?
             if (SUCCEEDED(D3D12CreateDevice(adapter.Get(), D3D_FEATURE_LEVEL_12_0, IID_PPV_ARGS(&device)))) {
                 // Yes it does! We use this one.
-                printf("[INFO] Using device \"%ws\"\n", desc.Description);
+                LOG(Info, "Using device \"%ws\"", desc.Description);
                 break;
             }
 
@@ -135,7 +135,7 @@ namespace gfx {
             thread_shared_globals.device_lost_fence = std::make_shared<Fence>(*this);
         }
         auto device_lost_handler = [](Device* device) {
-            printf("Device removal handler thread created\n");
+            LOG(Debug, "Device removal handler thread created");
 
             // Do nothing until device removal or shutdown exists
             HANDLE device_lost_fence = nullptr;
@@ -156,7 +156,7 @@ namespace gfx {
             {
                 std::lock_guard<std::mutex> lock(mutex_thread_shared_globals);
                 if (thread_shared_globals.should_shut_down) {
-                    printf("Device removal thread shutting down\n");
+                    LOG(Debug, "Device removal thread shutting down");
                     return;
                 }
             }
@@ -168,7 +168,7 @@ namespace gfx {
             D3D12_DRED_PAGE_FAULT_OUTPUT DredPageFaultOutput;
             validate(pDred->GetAutoBreadcrumbsOutput(&DredAutoBreadcrumbsOutput));
             validate(pDred->GetPageFaultAllocationOutput(&DredPageFaultOutput));
-            printf("Device removal detected! ");
+            LOG(Fatal, "Device removal detected! ");
             printf("Breadcrumbs: \n");
             auto* curr_node = DredAutoBreadcrumbsOutput.pHeadAutoBreadcrumbNode;
             int node_index = 0;
@@ -189,7 +189,7 @@ namespace gfx {
                 curr_node = curr_node->pNext;
             }
 
-            printf("Device removal thread shutting down\n");
+            LOG(Debug, "Device removal thread shutting down");
         };
         device_lost_thread = std::thread(device_lost_handler, this);
         
@@ -458,7 +458,7 @@ namespace gfx {
 
     void Device::draw_vertices(uint32_t n_vertices) {
         if (!m_curr_bound_pipeline) {
-            printf("[ERROR] Attempt to record draw call without a pipeline set! Did you forget to call `begin_raster_pass()`?\n");
+            LOG(Error, "Attempt to record draw call without a pipeline set! Did you forget to call `begin_raster_pass()`?");
             return;
         }
 
@@ -594,16 +594,16 @@ namespace gfx {
     }
 
     void debug_scene_graph_nodes(SceneNode* node, int depth = 0) {
-        for (int i = 0; i < depth; ++i) printf("    ");
+        for (int i = 0; i < depth; ++i) LOG(Debug, "    ");
         switch (node->type) {
             case gfx::SceneNodeType::Empty:
-                printf("Node: %s\n", node->name.c_str());
+                LOG(Debug, "Node: %s", node->name.c_str());
                 break;
             case gfx::SceneNodeType::Mesh:
-                printf("Mesh: (Vertex buffer: %i) %s\n", node->mesh.vertex_buffer.id, node->name.c_str());
+                LOG(Debug, "Mesh: (Vertex buffer: %i) %s", node->mesh.vertex_buffer.id, node->name.c_str());
                 break;
             case gfx::SceneNodeType::Light:
-                printf("Light: %s\n", node->name.c_str());
+                LOG(Debug, "Light: %s", node->name.c_str());
                 break;
         }
         for (auto& child : node->children) {
@@ -926,7 +926,7 @@ namespace gfx {
             glfwGetMonitorPos(monitor, &x, &y);
             w = mode->width;
             h = mode->height;
-            printf("Display %i: %ix%i @ %ix%i\n", 0, w, h, x, y);
+            LOG(Debug, "Display %i: %ix%i @ %ix%i", 0, w, h, x, y);
             glfwWindowHint(GLFW_DECORATED, GLFW_FALSE);
             glfwSetWindowSizeLimits(m_window_glfw, 256, 256, w, h);
             glfwSetWindowPos(m_window_glfw, x, y);

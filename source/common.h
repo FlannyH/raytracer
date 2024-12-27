@@ -4,13 +4,14 @@
 #include <fstream>
 #include <vector>
 #include <cstdint>
+#include "log.h"
 using Microsoft::WRL::ComPtr;
 
 constexpr UINT backbuffer_count = 3;
 
 #define validate(hr) \
     if (FAILED(hr)) { \
-        printf("[ERROR] %s:%i: HRESULT 0x%08X\n", __FILE__, __LINE__, hr); \
+        LOG(Error, "%s:%i: HRESULT 0x%08X", __FILE__, __LINE__, hr); \
         throw std::exception(); \
     }
 
@@ -22,7 +23,7 @@ inline void read_file(const std::string& path, size_t& size_bytes, char*& data, 
     if (file_stream.is_open() == false)
     {
         if (!silent)
-            printf("[ERROR] Failed to open file '%s'!\n", path.c_str());
+            LOG(Error, "Failed to open file '%s'!", path.c_str());
         size_bytes = 0;
         data = nullptr;
         return;
@@ -46,7 +47,7 @@ inline void read_file(const std::string& path, size_t& size_bytes, char*& data, 
     if (buffer.empty())
     {
         if (!silent)
-            printf("[ERROR] Failed to open file '%s'!\n", path.c_str());
+            LOG(Error, "Failed to open file '%s'!", path.c_str());
         free(data);
         size_bytes = 0;
         data = nullptr;

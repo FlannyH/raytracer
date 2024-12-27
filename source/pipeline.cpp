@@ -12,11 +12,11 @@ namespace gfx {
 
         // Make sure it worked
         if (vs.shader_blob.Get() == nullptr) {
-            printf("[ERROR] Failed to create render pipeline: vertex shader compilation failed\n");
+            LOG(Error, "Failed to create render pipeline: vertex shader compilation failed");
             return;
         }
         if (ps.shader_blob.Get() == nullptr) {
-            printf("[ERROR] Failed to create render pipeline: pixel shader compilation failed\n");
+            LOG(Error, "Failed to create render pipeline: pixel shader compilation failed");
             return;
         }
 
@@ -87,7 +87,7 @@ namespace gfx {
         }
         catch ([[maybe_unused]] std::exception& e) {
             const auto err_str = static_cast<const char*>(error->GetBufferPointer());
-            printf("[ERROR] Error creating root signature: %s\n", err_str);
+            LOG(Error, "Error creating root signature: %s", err_str);
             error->Release();
             error = nullptr;
         }
@@ -161,7 +161,7 @@ namespace gfx {
 
         // Make sure it worked
         if (cs.shader_blob.Get() == nullptr) {
-            printf("[ERROR] Failed to create compute pipeline: shader compilation failed\n");
+            LOG(Error, "Failed to create compute pipeline: shader compilation failed");
             return;
         }
 
@@ -232,7 +232,7 @@ namespace gfx {
         }
         catch ([[maybe_unused]] std::exception& e) {
             const auto err_str = static_cast<const char*>(error->GetBufferPointer());
-            printf("[ERROR] Error creating root signature: %s\n", err_str);
+            LOG(Error, "Error creating root signature: %s", err_str);
             error->Release();
             error = nullptr;
         }

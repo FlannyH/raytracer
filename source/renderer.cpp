@@ -40,6 +40,8 @@ namespace gfx {
         for (int i = 0; i < backbuffer_count; ++i) {
             m_draw_packets[i] = m_device->create_buffer("Draw Packets", DRAW_PACKET_BUFFER_SIZE, nullptr, true);
         }
+
+        LOG(Info, "Renderer initialized (DirectX 12)");
     }
 
     Renderer::~Renderer() {
@@ -310,7 +312,7 @@ namespace gfx {
         glm::vec4* data = (glm::vec4*)stbi_loadf(path.c_str(), &width, &height, &channels, 4);
 
         if (!data) {
-            printf("[ERROR] Failed to load environment map \"%s\"\n", path.c_str());
+            LOG(Error, "Failed to load environment map \"%s\"", path.c_str());
             return {};
         }
 

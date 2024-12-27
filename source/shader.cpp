@@ -52,7 +52,7 @@ namespace gfx {
         _dxc_utils->LoadFile(to_wstring(path).c_str(), nullptr, &source_blob);
 
         if (source_blob.Get() == nullptr) {
-            printf("[ERROR] Could not load file '%s'! Does the file exist?\n", path.c_str());
+            LOG(Error, "Could not load file '%s'! Does the file exist?", path.c_str());
             return;
         }
 
@@ -96,7 +96,7 @@ namespace gfx {
         validate(result->GetOutput(DXC_OUT_ERRORS, IID_PPV_ARGS(&errors), nullptr));
          
         if (errors != nullptr && errors->GetStringLength() > 0) {
-            printf("[ERROR] Error compiling shader '%s':\n\t%s\n", path.c_str(), errors->GetStringPointer());
+            LOG(Error, "Error compiling shader '%s':\n\t%s", path.c_str(), errors->GetStringPointer());
         }
 
         // Get PDB file

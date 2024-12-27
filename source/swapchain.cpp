@@ -135,7 +135,7 @@ namespace gfx {
     }
 
     void Swapchain::resize(Device& device, std::shared_ptr<CommandQueue> queue, DescriptorHeap& rtv_heap, uint32_t width, uint32_t height, PixelFormat format) {
-        printf("Resizing swapchain: %ix%i -> %ix%i\n", m_width, m_height, width, height);
+        LOG(Debug, "Resizing swapchain: %ix%i -> %ix%i", m_width, m_height, width, height);
         m_width = width;
         m_height = height;
         flush(queue);
