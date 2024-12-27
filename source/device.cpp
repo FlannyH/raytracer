@@ -76,10 +76,10 @@ namespace gfx {
         }
 
 #ifdef _DEBUG
-        ComPtr<ID3D12DeviceRemovedExtendedDataSettings1> dred_settings;
-        validate(D3D12GetDebugInterface(IID_PPV_ARGS(&dred_settings)));
-        dred_settings->SetAutoBreadcrumbsEnablement(D3D12_DRED_ENABLEMENT_FORCED_ON);
-        dred_settings->SetPageFaultEnablement(D3D12_DRED_ENABLEMENT_FORCED_ON);
+        // ComPtr<ID3D12DeviceRemovedExtendedDataSettings1> dred_settings;
+        // validate(D3D12GetDebugInterface(IID_PPV_ARGS(&dred_settings)));
+        // dred_settings->SetAutoBreadcrumbsEnablement(D3D12_DRED_ENABLEMENT_FORCED_ON);
+        // dred_settings->SetPageFaultEnablement(D3D12_DRED_ENABLEMENT_FORCED_ON);
 #endif
 
         // Create factory
@@ -584,8 +584,10 @@ namespace gfx {
                 LOG(Error, "Unknown texture type %i", (int)type);
                 break;
             }
-
-            auto uav_descriptor = m_heap_bindless->fetch_cpu_handle(id);
+            
+            auto uav_id = id;
+            uav_id.id += 1;
+            auto uav_descriptor = m_heap_bindless->fetch_cpu_handle(uav_id);
             device->CreateUnorderedAccessView(resource->handle.Get(), nullptr, &uav_desc, uav_descriptor);
         }
 
@@ -989,12 +991,26 @@ namespace gfx {
             case ResourceUsage::compute_write: transition_resource(m_curr_pass_cmd.get(), resource.resource.get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS); break;
             case ResourceUsage::render_target: transition_resource(m_curr_pass_cmd.get(), resource.resource.get(), D3D12_RESOURCE_STATE_RENDER_TARGET); break;
             case ResourceUsage::depth_target: transition_resource(m_curr_pass_cmd.get(), resource.resource.get(), D3D12_RESOURCE_STATE_DEPTH_WRITE); break;
+            case ResourceUsage::pixel_shader_read: transition_resource(m_curr_pass_cmd.get(), resource.resource.get(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE); break;
+            case ResourceUsage::non_pixel_shader_read: transition_resource(m_curr_pass_cmd.get(), resource.resource.get(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE); break;
         }
         m_pass_resources.push_back(resource.resource);
     }
 
     void Device::transition_resource(CommandBuffer* cmd, Resource* resource, D3D12_RESOURCE_STATES new_state) {
         if (resource->current_state == new_state) return;
+
+        if (resource->current_state == D3D12_RESOURCE_STATE_UNORDERED_ACCESS) {
+            // If the resource is currently in an unordered access state, we need to add a UAV barrier before transitioning it to a different state
+            D3D12_RESOURCE_BARRIER barrier = {
+                .Type = D3D12_RESOURCE_BARRIER_TYPE_UAV,
+                .Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE,
+                .UAV = {
+                    .pResource = resource->handle.Get(),
+                },
+            };
+            cmd->get()->ResourceBarrier(1, &barrier);
+        }
 
         const D3D12_RESOURCE_BARRIER barrier = {
             .Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION,
@@ -1007,6 +1023,18 @@ namespace gfx {
             },
         };
         cmd->get()->ResourceBarrier(1, &barrier);
+
+        if (new_state == D3D12_RESOURCE_STATE_UNORDERED_ACCESS) {
+            D3D12_RESOURCE_BARRIER barrier = {
+                .Type = D3D12_RESOURCE_BARRIER_TYPE_UAV,
+                .Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE,
+                .UAV = {
+                    .pResource = resource->handle.Get(),
+                },
+            };
+            cmd->get()->ResourceBarrier(1, &barrier);
+        }
+        
         resource->current_state = new_state;
     }
 

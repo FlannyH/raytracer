@@ -337,7 +337,7 @@ namespace gfx {
         m_device->use_resource(cubemap, ResourceUsage::compute_write);
         m_device->set_compute_root_constants({
            hdri.handle.as_u32(),
-           cubemap.handle.as_u32(),
+           cubemap.handle.as_u32_uav(),
         });
         m_device->dispatch_threadgroups( // threadgroup size is 8x8x1
            (uint32_t)(resolution / 8),
