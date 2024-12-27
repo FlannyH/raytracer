@@ -434,6 +434,11 @@ namespace gfx {
             transition_resource(m_curr_pass_cmd.get(), m_curr_depth_target.get(), D3D12_RESOURCE_STATE_COMMON);
             m_curr_depth_target = nullptr;
         }
+
+        for (auto& resource : m_pass_resources) {
+            transition_resource(m_curr_pass_cmd.get(), resource.get(), D3D12_RESOURCE_STATE_COMMON);
+        }
+        m_pass_resources.clear();
     }
 
     void Device::begin_compute_pass(std::shared_ptr<Pipeline> pipeline) {
@@ -450,7 +455,12 @@ namespace gfx {
         m_curr_pass_cmd->get()->SetComputeRootSignature(m_curr_bound_pipeline->root_signature.Get());
     }
 
-    void Device::end_compute_pass() {}
+    void Device::end_compute_pass() {
+        for (auto& resource : m_pass_resources) {
+            transition_resource(m_curr_pass_cmd.get(), resource.get(), D3D12_RESOURCE_STATE_COMMON);
+        }
+        m_pass_resources.clear();
+    }
 
     void Device::dispatch_threadgroups(uint32_t x, uint32_t y, uint32_t z) {
         m_curr_pass_cmd->get()->Dispatch(x, y, z);
@@ -470,10 +480,11 @@ namespace gfx {
         gfx_cmd->DrawInstanced(n_vertices, 1, 0, 0);
     }
 
-    ResourceHandlePair Device::load_texture(const std::string& name, uint32_t width, uint32_t height, uint32_t depth, void* data, PixelFormat pixel_format, TextureType type) {
+    ResourceHandlePair Device::load_texture(const std::string& name, uint32_t width, uint32_t height, uint32_t depth, void* data, PixelFormat pixel_format, TextureType type, ResourceUsage usage) {
         // Make texture resource
         const auto resource = std::make_shared<Resource>();
-        resource->type = ResourceType::texture,
+        resource->type = ResourceType::texture;
+        resource->usage = usage;
         resource->expect_texture() = {
             .data = static_cast<uint8_t*>(data),
             .width = width,
@@ -492,6 +503,7 @@ namespace gfx {
         resource_desc.Format = pixel_format_to_dx12(pixel_format);
         resource_desc.SampleDesc.Count = 1;
         resource_desc.Flags = D3D12_RESOURCE_FLAG_NONE;
+        resource_desc.Flags |= (usage == ResourceUsage::compute_write) ? D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS : D3D12_RESOURCE_FLAG_NONE;
         resource_desc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
 
         D3D12_HEAP_PROPERTIES heap_properties = {};
@@ -521,6 +533,19 @@ namespace gfx {
             }
         };
         device->CreateShaderResourceView(resource->handle.Get(), &srv_desc, descriptor);
+
+        if (usage == ResourceUsage::compute_write) {
+            D3D12_UNORDERED_ACCESS_VIEW_DESC uav_desc = {
+                .Format = resource_desc.Format,
+                .ViewDimension = texture_type_to_dx12_uav_dimension(type),
+                .Texture2D = {
+                    .MipSlice = 0,
+                    .PlaneSlice = 0,
+                }
+            };
+            auto uav_descriptor = m_heap_bindless->fetch_cpu_handle(id);
+            device->CreateUnorderedAccessView(resource->handle.Get(), nullptr, &uav_desc, uav_descriptor);
+        }
 
         // We need to copy the texture from an upload buffer
         if (data) {
@@ -611,10 +636,11 @@ namespace gfx {
         }
     }
 
-    ResourceHandlePair Device::create_buffer(const std::string& name, const size_t size, void* data, bool cpu_visible) {
+    ResourceHandlePair Device::create_buffer(const std::string& name, const size_t size, void* data, bool cpu_visible, ResourceUsage usage) {
         // Create engine resource
         const auto resource = std::make_shared<Resource>();
-        resource->type = ResourceType::buffer,
+        resource->type = ResourceType::buffer;
+        resource->usage = usage;
         resource->expect_buffer() = {
             .data = data,
             .size = size,
@@ -631,6 +657,7 @@ namespace gfx {
         resource_desc.SampleDesc.Count = 1;
         resource_desc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
         resource_desc.Flags = D3D12_RESOURCE_FLAG_NONE;
+        resource_desc.Flags |= (usage == ResourceUsage::compute_write) ? D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS : D3D12_RESOURCE_FLAG_NONE;
         
         D3D12_HEAP_PROPERTIES heap_properties = {
             .Type = (cpu_visible) ? (D3D12_HEAP_TYPE_UPLOAD) : (D3D12_HEAP_TYPE_DEFAULT),
@@ -696,10 +723,11 @@ namespace gfx {
         return ResourceHandlePair{ id, resource };
     }
 
-    ResourceHandlePair Device::create_render_target(const std::string& name, uint32_t width, uint32_t height, PixelFormat pixel_format, glm::vec4 clear_color) {
+    ResourceHandlePair Device::create_render_target(const std::string& name, uint32_t width, uint32_t height, PixelFormat pixel_format, glm::vec4 clear_color, ResourceUsage extra_usage) {
         // Make texture resource
         const auto resource = std::make_shared<Resource>();
-        resource->type = ResourceType::texture,
+        resource->type = ResourceType::texture;
+        resource->usage = extra_usage;
         resource->expect_texture() = {
             .data = nullptr,
             .width = width,
@@ -720,6 +748,7 @@ namespace gfx {
         resource_desc.Format = pixel_format_to_dx12(pixel_format);
         resource_desc.SampleDesc.Count = 1;
         resource_desc.Flags = D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
+        resource_desc.Flags |= (extra_usage == ResourceUsage::compute_write) ? D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS : D3D12_RESOURCE_FLAG_NONE;
         resource_desc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
         D3D12_CLEAR_VALUE clear_value = {
             .Format = resource_desc.Format,
@@ -759,6 +788,22 @@ namespace gfx {
         auto srv_descriptor = m_heap_bindless->fetch_cpu_handle(srv_id);
         device->CreateShaderResourceView(resource->handle.Get(), &srv_desc, srv_descriptor);
         srv_id.is_loaded = true;
+
+        if (extra_usage == ResourceUsage::compute_write) {
+            D3D12_UNORDERED_ACCESS_VIEW_DESC uav_desc = {
+                .Format = resource_desc.Format,
+                .ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D,
+                .Texture2D = {
+                    .MipSlice = 0,
+                    .PlaneSlice = 0,
+                }
+            };
+            auto uav_id = srv_id;
+            uav_id.id += 1;
+            auto uav_descriptor = m_heap_bindless->fetch_cpu_handle(uav_id);
+            device->CreateUnorderedAccessView(resource->handle.Get(), nullptr, &uav_desc, uav_descriptor);
+            uav_id.is_loaded = 1;
+        }
 
         // Create RTV
         D3D12_RENDER_TARGET_VIEW_DESC rtv_desc = {
@@ -861,7 +906,7 @@ namespace gfx {
         // If it's a render target, create a new render target
         if (texture.rtv_handle.type != (uint32_t)ResourceType::none) {
             m_heap_rtv->free_descriptor(resource->expect_texture().rtv_handle);
-            handle = create_render_target(resource->name, width, height, texture.pixel_format, texture.clear_color);
+            handle = create_render_target(resource->name, width, height, texture.pixel_format, texture.clear_color, resource->usage);
             return;
         }
 
@@ -888,6 +933,20 @@ namespace gfx {
     void Device::queue_unload_bindless_resource(ResourceHandlePair resource) {
         int fence_value = m_swapchain->current_frame_index() + 3;
         m_resources_to_unload.push_back({ resource, fence_value });
+    }
+
+    void Device::use_resource(const ResourceHandlePair &resource, const ResourceUsage usage) {
+        if (m_curr_pipeline_is_async) {
+            m_temp_upload_buffers.push_back(UploadQueueKeepAlive{ m_upload_fence_value_when_done, resource.resource });
+        }
+        switch (usage) {
+            case ResourceUsage::none: transition_resource(m_curr_pass_cmd.get(), resource.resource.get(), D3D12_RESOURCE_STATE_COMMON); break;
+            case ResourceUsage::read: transition_resource(m_curr_pass_cmd.get(), resource.resource.get(), D3D12_RESOURCE_STATE_GENERIC_READ); break;
+            case ResourceUsage::compute_write: transition_resource(m_curr_pass_cmd.get(), resource.resource.get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS); break; // todo: figure out why UNORDERED_ACCESS doesn't work
+            case ResourceUsage::render_target: transition_resource(m_curr_pass_cmd.get(), resource.resource.get(), D3D12_RESOURCE_STATE_RENDER_TARGET); break;
+            case ResourceUsage::depth_target: transition_resource(m_curr_pass_cmd.get(), resource.resource.get(), D3D12_RESOURCE_STATE_DEPTH_WRITE); break;
+        }
+        m_pass_resources.push_back(resource.resource);
     }
 
     void Device::transition_resource(CommandBuffer* cmd, Resource* resource, D3D12_RESOURCE_STATES new_state) {
