@@ -36,6 +36,14 @@ namespace gfx {
     };
     inline const char* _resource_type_names[] = { "None", "Texture", "Buffer"};
 
+    enum class ResourceUsage : uint8_t {
+        none = 0,
+        read,
+        render_target,
+        depth_target,
+        compute_write,
+    };
+
     struct ResourceHandle {
         uint32_t id : 27;
         uint32_t is_loaded : 1;
@@ -55,6 +63,9 @@ namespace gfx {
         }
         uint32_t as_u32() const {
             return id | is_loaded << 27 | type << 28;
+        }
+        uint32_t as_u32_uav() const {
+            return (id+1) | is_loaded << 27 | type << 28;
         }
     };
 
@@ -124,6 +135,7 @@ namespace gfx {
         }
 
         ResourceType type = ResourceType::none;
+        ResourceUsage usage = ResourceUsage::none;
         ComPtr<ID3D12Resource> handle;
         D3D12_RESOURCE_STATES current_state = D3D12_RESOURCE_STATE_COMMON;
         std::string name;
@@ -201,6 +213,15 @@ namespace gfx {
         case TextureType::tex_cube: return D3D12_SRV_DIMENSION_TEXTURECUBE;  break;
         }
         return D3D12_SRV_DIMENSION_UNKNOWN;
+    }
+
+    constexpr inline D3D12_UAV_DIMENSION texture_type_to_dx12_uav_dimension(const TextureType type) {
+        switch (type) {
+        case TextureType::tex_2d:   return D3D12_UAV_DIMENSION_TEXTURE2D;  break;
+        case TextureType::tex_3d:   return D3D12_UAV_DIMENSION_TEXTURE3D;  break;
+        case TextureType::tex_cube: return D3D12_UAV_DIMENSION_TEXTURE2DARRAY;  break;
+        }
+        return D3D12_UAV_DIMENSION_UNKNOWN;
     }
 
     struct PacketDrawMesh {

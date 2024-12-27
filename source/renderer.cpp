@@ -17,11 +17,11 @@ namespace gfx {
     // Initialisation and state
     Renderer::Renderer(int width, int height, bool debug_layer_enabled) {
         m_device = std::make_unique<Device>(width, height, debug_layer_enabled);
-        m_color_target = m_device->create_render_target("Color framebuffer", width, height, PixelFormat::rgba16_float);
-        m_normal_target = m_device->create_render_target("Normal framebuffer", width,height, PixelFormat::rgba16_float);
-        m_roughness_metallic_target = m_device->create_render_target("Roughness framebuffer", width, height, PixelFormat::rg8_unorm);
-        m_emissive_target = m_device->create_render_target("Emissive framebuffer", width, height, PixelFormat::rg11_b10_float);
-        m_shaded_target = m_device->create_render_target("Shaded framebuffer", width, height, PixelFormat::rgba16_float);
+        m_color_target = m_device->create_render_target("Color framebuffer", width, height, PixelFormat::rgba16_float, {}, ResourceUsage::compute_write);
+        m_normal_target = m_device->create_render_target("Normal framebuffer", width, height, PixelFormat::rgba16_float, {}, ResourceUsage::compute_write);
+        m_roughness_metallic_target = m_device->create_render_target("Roughness framebuffer", width, height, PixelFormat::rg8_unorm, {}, ResourceUsage::compute_write);
+        m_emissive_target = m_device->create_render_target("Emissive framebuffer", width, height, PixelFormat::rg11_b10_float, {}, ResourceUsage::compute_write);
+        m_shaded_target = m_device->create_render_target("Shaded framebuffer", width, height, PixelFormat::rgba16_float, {}, ResourceUsage::compute_write);
         m_depth_target = m_device->create_depth_target("Depth framebuffer", width, height, PixelFormat::depth32_float);
         m_pipeline_scene = m_device->create_raster_pipeline("assets/shaders/geo_pass.vs.hlsl", "assets/shaders/geo_pass.ps.hlsl", {
             m_color_target,
@@ -150,8 +150,16 @@ namespace gfx {
 
         // BRDF
         m_device->begin_compute_pass(m_pipeline_brdf);
+        m_device->use_resource(m_shaded_target, ResourceUsage::compute_write);
+        m_device->use_resource(m_color_target, ResourceUsage::read);
+        m_device->use_resource(m_normal_target, ResourceUsage::read);
+        m_device->use_resource(m_roughness_metallic_target, ResourceUsage::read);
+        m_device->use_resource(m_emissive_target, ResourceUsage::read);
+        m_device->use_resource(m_lights_buffer, ResourceUsage::read);
+        m_device->use_resource(m_spherical_harmonics_buffer, ResourceUsage::read);
+        m_device->use_resource(m_curr_sky_cube.base, ResourceUsage::read);
         m_device->set_compute_root_constants({
-            m_shaded_target.handle.as_u32(),
+            m_shaded_target.handle.as_u32_uav(),
             m_color_target.handle.as_u32(),
             m_normal_target.handle.as_u32(),
             m_roughness_metallic_target.handle.as_u32(),
@@ -170,8 +178,9 @@ namespace gfx {
 
         // Tonemapping
         m_device->begin_compute_pass(m_pipeline_tonemapping);
+        m_device->use_resource(m_shaded_target, ResourceUsage::compute_write);
         m_device->set_compute_root_constants({
-            m_shaded_target.handle.as_u32(),
+            m_shaded_target.handle.as_u32_uav(),
         });
         m_device->dispatch_threadgroups( // threadgroup size is 8x8
             (uint32_t)(m_render_resolution.x / 8.0f),
@@ -185,6 +194,7 @@ namespace gfx {
             .color_targets = {}, // render to swapchain
             .clear_on_begin = false, // We're blitting to the entire buffer, no need to clear first
         });
+        m_device->use_resource(m_shaded_target, ResourceUsage::read);
         m_device->set_graphics_root_constants({
             m_shaded_target.handle.as_u32(), // Texture to blit to screen
         });
