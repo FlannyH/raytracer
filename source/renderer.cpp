@@ -151,14 +151,16 @@ namespace gfx {
 
         // BRDF
         m_device->begin_compute_pass(m_pipeline_brdf);
-        m_device->use_resource(m_shaded_target, ResourceUsage::compute_write);
-        m_device->use_resource(m_color_target, ResourceUsage::non_pixel_shader_read);
-        m_device->use_resource(m_normal_target, ResourceUsage::non_pixel_shader_read);
-        m_device->use_resource(m_roughness_metallic_target, ResourceUsage::non_pixel_shader_read);
-        m_device->use_resource(m_emissive_target, ResourceUsage::non_pixel_shader_read);
-        m_device->use_resource(m_lights_buffer, ResourceUsage::non_pixel_shader_read);
-        m_device->use_resource(m_spherical_harmonics_buffer, ResourceUsage::non_pixel_shader_read);
-        m_device->use_resource(m_curr_sky_cube.base, ResourceUsage::non_pixel_shader_read);
+        m_device->use_resources({
+            { m_shaded_target, ResourceUsage::compute_write },
+            { m_color_target, ResourceUsage::non_pixel_shader_read },
+            { m_normal_target, ResourceUsage::non_pixel_shader_read },
+            { m_roughness_metallic_target, ResourceUsage::non_pixel_shader_read },
+            { m_emissive_target, ResourceUsage::non_pixel_shader_read },
+            { m_lights_buffer, ResourceUsage::non_pixel_shader_read },
+            { m_spherical_harmonics_buffer, ResourceUsage::non_pixel_shader_read },
+            { m_curr_sky_cube.base, ResourceUsage::non_pixel_shader_read },
+        });
         m_device->set_compute_root_constants({
             m_shaded_target.handle.as_u32_uav(),
             m_color_target.handle.as_u32(),
@@ -333,8 +335,10 @@ namespace gfx {
         auto hdri = m_device->load_texture(path + "::(source hdri)", width, height, 1, data, PixelFormat::rgba32_float, TextureType::tex_2d); // uncommenting crashes
         auto cubemap = m_device->load_texture(path + "::(base cubemap)", resolution, resolution, 6, nullptr, PixelFormat::rgba32_float, TextureType::tex_cube, ResourceUsage::compute_write);
         m_device->begin_compute_pass(m_pipeline_hdri_to_cubemap, true);
-        m_device->use_resource(hdri);
-        m_device->use_resource(cubemap, ResourceUsage::compute_write);
+        m_device->use_resources({
+            { hdri, ResourceUsage::non_pixel_shader_read },
+            { cubemap, ResourceUsage::compute_write }
+        });
         m_device->set_compute_root_constants({
            hdri.handle.as_u32(),
            cubemap.handle.as_u32_uav(),

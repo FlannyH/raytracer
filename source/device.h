@@ -76,15 +76,17 @@ namespace gfx {
         void update_buffer(const ResourceHandlePair& buffer, const uint32_t offset, const uint32_t length, const void* data);
         void queue_unload_bindless_resource(ResourceHandlePair resource);
         void use_resource(const ResourceHandlePair& resource, const ResourceUsage usage = ResourceUsage::read);
+        void use_resources(const std::initializer_list<std::pair<ResourceHandlePair, ResourceUsage>>& resources);
 
         ComPtr<ID3D12Device> device = nullptr;
         ComPtr<IDXGIFactory4> factory = nullptr;
         HWND window_hwnd = nullptr;
 
     private:
-        void transition_resource(CommandBuffer* cmd, Resource* resource, D3D12_RESOURCE_STATES new_state);
+        void transition_resource(std::shared_ptr<CommandBuffer> cmd, std::shared_ptr<Resource> resource, D3D12_RESOURCE_STATES new_state);
         int find_dominant_monitor(); // Returns the index of the monitor the window overlaps with most
         void clean_up_old_resources();
+        void execute_resource_transitions(std::shared_ptr<CommandBuffer> cmd);
 
         // Device
         GLFWwindow* m_window_glfw = nullptr;
@@ -114,12 +116,12 @@ namespace gfx {
         size_t m_upload_fence_value_when_done = 0; // The value the upload queue fence will signal when it's done uploading
         std::deque<UploadQueueKeepAlive> m_temp_upload_buffers; // Temporary upload buffer to be unloaded after it's done uploading. The integer is upload queue fence value before it should be unloaded
         std::deque<std::pair<ResourceHandlePair, int>> m_resources_to_unload; // Resources to unload. The integer determines when it should be unloaded
+        std::vector<D3D12_RESOURCE_BARRIER> m_resource_barriers; // Enqueued resource barriers
 
         // Rendering context
         std::shared_ptr<Pipeline> m_curr_bound_pipeline = nullptr; // Will point to a valid pipeline after calling begin_render_pass(), and will be null after calling end_render_pass()
         std::shared_ptr<CommandBuffer> m_curr_pass_cmd; // The command buffer used for this pass
         std::shared_ptr<CommandBuffer> m_queue_async; // The command queue used for async compute passes
-        std::vector<std::shared_ptr<Resource>> m_curr_render_targets; // Currently bound render targets - keeping track of them for proper resource transitions at the end of a render pass
         std::shared_ptr<Resource> m_curr_depth_target = nullptr; // Currently bound depth target - keeping track of them for proper resource transitions at the end of a render pass
         std::vector<std::shared_ptr<Resource>> m_pass_resources; // Resources used in the current pass, which we will need to transition back to a common state at the end of the pass
         bool m_curr_pipeline_is_async = false; // If the current pipeline is async, we need to keep track of resources differently 
