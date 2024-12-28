@@ -103,11 +103,12 @@ namespace gfx {
             // Note: Errors will be printed in the Visual Studio output tab, and not in the console!
             dxgi_factory_flags |= DXGI_CREATE_FACTORY_DEBUG;
             validate(D3D12GetDebugInterface(IID_PPV_ARGS(&m_debug_layer)));
-            validate(m_debug_layer->QueryInterface(IID_PPV_ARGS(&m_debug_layer)));
-            m_debug_layer->EnableDebugLayer();
-            m_debug_layer->SetEnableGPUBasedValidation(true);
-            m_debug_layer->Release();
-            m_debug_layer = nullptr;
+            ID3D12Debug1* debug_interface = nullptr;
+            validate(m_debug_layer->QueryInterface(IID_PPV_ARGS(&debug_interface)));
+            debug_interface->EnableDebugLayer();
+            debug_interface->SetEnableGPUBasedValidation(true);
+            debug_interface->Release();
+            debug_interface = nullptr;
         }
 
 #ifdef _DEBUG
