@@ -68,13 +68,16 @@ namespace gfx {
     }
 
     void Renderer::begin_frame() {
-        // Set normal map clear color to the current viewport data
-        m_color_target.resource->expect_texture().clear_color = {
-            tan(FOV * 0.5f) * (m_resolution.x / m_resolution.y), // viewport width
-            tan(FOV * 0.5f), // viewport height
-            -1.0f, // viewport depth
-            -1.0f, // if this value is negative, it clearly doesn't come from the geo pass, so it means nothing was rendered there
-        };
+        // Fetch window content size
+        int x = 0;
+        int y = 0;
+        m_device->get_window_size(x, y);
+
+        // Enforce minimum framebuffer size
+        if (x < 8) x = 8;
+        if (y < 8) y = 8;
+        m_resolution.x = (float)x;
+        m_resolution.y = (float)y;        
 
         // Update materials
         if (m_should_update_material_buffer) {
@@ -91,21 +94,22 @@ namespace gfx {
         // This means we can be sure that resizing the render target textures is safe
         m_device->begin_frame();
 
-        // Fetch window content size
-        int x = 0;
-        int y = 0;
-        m_device->get_window_size(x, y);
+        render_queue_scenes.clear();
+        m_lights_directional.clear();
+    }
 
-        // Enforce minimum framebuffer size
-        if (x < 8) x = 8;
-        if (y < 8) y = 8;
-        m_resolution.x = (float)x;
-        m_resolution.y = (float)y;
-
+    void Renderer::end_frame() {
         // If the render resolution changes, update the render targets
         const glm::vec2 prev_render_resolution = m_render_resolution;
         m_render_resolution = m_resolution * resolution_scale;
         if (m_render_resolution != prev_render_resolution) {
+            // Set normal map clear color to the current viewport data
+            m_color_target.resource->expect_texture().clear_color = {
+                tan(FOV * 0.5f) * (m_resolution.x / m_resolution.y), // viewport width
+                tan(FOV * 0.5f), // viewport height
+                -1.0f, // viewport depth
+                -1.0f, // if this value is negative, it clearly doesn't come from the geo pass, so it means nothing was rendered there, so we render the skybox
+            };
             resize_texture(m_color_target, (uint32_t)m_render_resolution.x, (uint32_t)m_render_resolution.y);
             resize_texture(m_normal_target, (uint32_t)m_render_resolution.x, (uint32_t)m_render_resolution.y);
             resize_texture(m_roughness_metallic_target, (uint32_t)m_render_resolution.x, (uint32_t)m_render_resolution.y);
@@ -113,12 +117,7 @@ namespace gfx {
             resize_texture(m_shaded_target, (uint32_t)m_render_resolution.x, (uint32_t)m_render_resolution.y);
             resize_texture(m_depth_target, (uint32_t)m_render_resolution.x, (uint32_t)m_render_resolution.y);
         }
-
-        render_queue_scenes.clear();
-        m_lights_directional.clear();
-    }
-
-    void Renderer::end_frame() {
+        
         // Queue rendering scenes
         m_device->begin_raster_pass(m_pipeline_scene, RasterPassInfo{
             .color_targets = {
