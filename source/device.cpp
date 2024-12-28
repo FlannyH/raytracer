@@ -171,7 +171,7 @@ namespace gfx {
 
         // Init context
         m_queue_gfx = std::make_shared<CommandQueue>(device.Get(), CommandBufferType::graphics, L"Graphics command queue");
-        m_upload_queue = std::make_shared<CommandQueue>(device.Get(), CommandBufferType::graphics, L"Upload command queue");
+        m_upload_queue = std::make_shared<CommandQueue>(device.Get(), CommandBufferType::compute, L"Upload command queue");
         m_swapchain = std::make_shared<Swapchain>(*this, *m_queue_gfx, *m_heap_rtv, m_framebuffer_format);
         m_upload_queue_completion_fence = std::make_shared<Fence>(*this);
 
