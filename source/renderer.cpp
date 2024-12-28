@@ -21,7 +21,7 @@ namespace gfx {
         m_normal_target = m_device->create_render_target("Normal framebuffer", width, height, PixelFormat::rgba16_float, {}, ResourceUsage::compute_write);
         m_roughness_metallic_target = m_device->create_render_target("Roughness framebuffer", width, height, PixelFormat::rg8_unorm, {}, ResourceUsage::compute_write);
         m_emissive_target = m_device->create_render_target("Emissive framebuffer", width, height, PixelFormat::rg11_b10_float, {}, ResourceUsage::compute_write);
-        m_shaded_target = m_device->create_render_target("Shaded framebuffer", width, height, PixelFormat::rgba16_float, {}, ResourceUsage::compute_write);
+        m_shaded_target = m_device->load_texture("Shaded framebuffer", width, height, 1, nullptr, PixelFormat::rgba16_float, TextureType::tex_2d, ResourceUsage::compute_write);
         m_depth_target = m_device->create_depth_target("Depth framebuffer", width, height, PixelFormat::depth32_float);
         m_pipeline_scene = m_device->create_raster_pipeline("assets/shaders/geo_pass.vs.hlsl", "assets/shaders/geo_pass.ps.hlsl", {
             m_color_target,
