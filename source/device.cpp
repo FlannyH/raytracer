@@ -1062,7 +1062,6 @@ namespace gfx {
     }
 
     void Device::transition_resource(std::shared_ptr<CommandBuffer> cmd, std::shared_ptr<Resource> resource, D3D12_RESOURCE_STATES new_state) {
-        LOG(Debug, "Transitioning resource %s from %i to %i", resource->name.c_str(), resource->current_state, new_state);
         if (resource->current_state == new_state) return;
 
         if (m_curr_pipeline_is_async) {
