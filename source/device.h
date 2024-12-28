@@ -95,6 +95,7 @@ namespace gfx {
         std::shared_ptr<DescriptorHeap> m_heap_bindless = nullptr;
         std::shared_ptr<CommandQueue> m_queue_gfx = nullptr;
         std::thread device_lost_thread;
+        DWORD m_msg_callback_cookie = 0;
 
         // Swapchain
         std::shared_ptr<Swapchain> m_swapchain = nullptr;

@@ -54,6 +54,41 @@ namespace gfx {
 
     std::mutex mutex_thread_shared_globals;
 
+    static void validation_message_callback(D3D12_MESSAGE_CATEGORY category, D3D12_MESSAGE_SEVERITY severity, D3D12_MESSAGE_ID id, LPCSTR description, void* context) {
+        const char* category_names[] = {
+            "Application Defined", 
+            "Miscellaneous",
+            "Initialization",
+            "Cleanup",
+            "Compilation",
+            "State Creation",
+            "State Setting",
+            "State Getting",
+            "Resource Manipulation",
+            "Execution",
+            "Shader",
+        };
+
+        Log::Level level = Log::Level::Disabled;
+        switch (severity) {
+        case D3D12_MESSAGE_SEVERITY_CORRUPTION:
+        case D3D12_MESSAGE_SEVERITY_ERROR:
+            level = Log::Level::Error;
+            break;
+        case D3D12_MESSAGE_SEVERITY_WARNING:
+            level = Log::Level::Warning;
+            break;
+        case D3D12_MESSAGE_SEVERITY_INFO:
+            level = Log::Level::Info;
+            break;
+        case D3D12_MESSAGE_SEVERITY_MESSAGE:
+            level = Log::Level::Debug;
+            break;
+        }
+
+        Log::write(level, "D3D12: %s: %s", category_names[category], description);
+    }
+
     Device::Device(const int width, const int height, const bool debug_layer_enabled) {
         // Create window
         glfwInit();
@@ -117,6 +152,15 @@ namespace gfx {
 
         if (debug_layer_enabled) {
             validate(device->QueryInterface(m_device_debug.GetAddressOf()));
+        }
+
+        // Register the validation message callback
+        if (debug_layer_enabled) {
+            ComPtr<ID3D12InfoQueue1> info_queue;
+            validate(device->QueryInterface(IID_PPV_ARGS(&info_queue)));
+            info_queue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_CORRUPTION, true);
+            info_queue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_ERROR, true);
+            info_queue->RegisterMessageCallback(validation_message_callback, D3D12_MESSAGE_CALLBACK_FLAG_NONE, nullptr, &m_msg_callback_cookie);
         }
 
         // Create descriptor heaps
