@@ -436,7 +436,10 @@ namespace gfx {
                     .bottom = (LONG)texture->expect_texture().height,
                 };
                 if (render_pass_info.clear_on_begin) {
-                    m_curr_pass_cmd->get()->ClearRenderTargetView(rtv_handle, &texture->expect_texture().clear_color.x, 0, nullptr);
+                    transition_resource(m_curr_pass_cmd, texture, D3D12_RESOURCE_STATE_RENDER_TARGET);
+                    execute_resource_transitions(m_curr_pass_cmd);
+                    auto clear_color = &texture->expect_texture().clear_color;
+                    m_curr_pass_cmd->get()->ClearRenderTargetView(rtv_handle, &clear_color->r, 0, nullptr);
                 }
             }
             have_rtv = true;
@@ -857,11 +860,11 @@ namespace gfx {
             &heap_properties,
             D3D12_HEAP_FLAG_ALLOW_ALL_BUFFERS_AND_TEXTURES,
             &resource_desc,
-            D3D12_RESOURCE_STATE_COMMON,
+            D3D12_RESOURCE_STATE_RENDER_TARGET,
             &clear_value,
             IID_PPV_ARGS(&resource->handle)
         ));
-        resource->current_state = D3D12_RESOURCE_STATE_COMMON;
+        resource->current_state = D3D12_RESOURCE_STATE_RENDER_TARGET;
         auto name_str = std::wstring(name.begin(), name.end());
         resource->handle->SetName(name_str.c_str());
         resource->name = name;
@@ -958,11 +961,11 @@ namespace gfx {
             &heap_properties,
             D3D12_HEAP_FLAG_ALLOW_ALL_BUFFERS_AND_TEXTURES,
             &resource_desc,
-            D3D12_RESOURCE_STATE_COMMON,
+            D3D12_RESOURCE_STATE_DEPTH_WRITE,
             &clear_value,
             IID_PPV_ARGS(&resource->handle)
         ));
-        resource->current_state = D3D12_RESOURCE_STATE_COMMON;
+        resource->current_state = D3D12_RESOURCE_STATE_DEPTH_WRITE;
         auto name_str = std::wstring(name.begin(), name.end());
         resource->handle->SetName(name_str.c_str());
         resource->name = name;
