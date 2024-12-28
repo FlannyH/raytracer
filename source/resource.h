@@ -77,6 +77,7 @@ namespace gfx {
         uint32_t width, height, depth;
         PixelFormat pixel_format;
         // Extra optional handles for render targets
+        bool is_compute_render_target;
         glm::vec4 clear_color;
         ResourceHandle rtv_handle;
         ResourceHandle dsv_handle;

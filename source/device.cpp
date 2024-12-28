@@ -524,6 +524,7 @@ namespace gfx {
             .height = height,
             .depth = depth,
             .pixel_format = pixel_format,
+            .is_compute_render_target = (usage == ResourceUsage::compute_write),
         };
 
         // Create a d3d12 resource for the texture
@@ -831,6 +832,7 @@ namespace gfx {
             .width = width,
             .height = height,
             .pixel_format = pixel_format,
+            .is_compute_render_target = true,
             .clear_color = clear_color,
             .rtv_handle = ResourceHandle::none(),
             .dsv_handle = ResourceHandle::none(),
@@ -930,6 +932,7 @@ namespace gfx {
             .width = width,
             .height = height,
             .pixel_format = pixel_format,
+            .is_compute_render_target = true,
             .clear_color = glm::vec4(clear_depth, 0.0f, 0.0f, 1.0f),
             .rtv_handle = ResourceHandle::none(),
             .dsv_handle = ResourceHandle::none(),
@@ -1015,8 +1018,14 @@ namespace gfx {
             return;
         }
 
-        // todo: If it's not a render target, copy the data over
-        abort();
+        // If it's a render texture (compute shader render target), resize it
+        if (texture.is_compute_render_target) {
+            m_heap_bindless->free_descriptor(handle.handle);
+            handle = load_texture(resource->name, width, height, 1, nullptr, texture.pixel_format, TextureType::tex_2d, resource->usage);
+            return;
+        }
+
+        throw std::runtime_error("todo: when resizing regular textures, resize and copy the data to a new texture");
     }
 
     void Device::update_buffer(const ResourceHandlePair& buffer, const uint32_t offset, const uint32_t size_bytes, const void* data) {
