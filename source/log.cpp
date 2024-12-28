@@ -30,11 +30,17 @@ namespace Log {
             12, // fatal: dark red
         };
 
+#ifdef _WIN32
+        CONSOLE_SCREEN_BUFFER_INFO csbi;
+        HANDLE hConsole = NULL;
+#endif
+
         if (Log::color) {
             const uint32_t color_value = log_level_colors[(size_t)level];
 
             #ifdef _WIN32
-            HANDLE hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
+            hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
+            GetConsoleScreenBufferInfo(hConsole, &csbi);
             SetConsoleTextAttribute(hConsole, *(WORD*)(&color_value));
             #else
             constexpr int color_mapping[] = {
@@ -79,10 +85,15 @@ namespace Log {
         offset += vsnprintf(msg_buf + offset, sizeof(msg_buf) - offset, message, args);
         va_end(args);
 
-#ifndef _WIN32
-        offset += snprintf(msg_buf + offset, sizeof(msg_buf) - offset, "\e[0m");
-#endif
         if (level >= Level::Error)  std::cerr << msg_buf << std::endl;
         else                        std::cout << msg_buf << std::endl;
+        
+        if (Log::color) {
+#ifdef _WIN32
+            SetConsoleTextAttribute(hConsole, csbi.wAttributes);
+#else
+            offset += snprintf(msg_buf + offset, sizeof(msg_buf) - offset, "\e[0m");
+#endif
+        }
     }
 }
