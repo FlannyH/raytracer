@@ -267,7 +267,6 @@ namespace gfx {
         m_queue_gfx.reset();
         m_upload_queue.reset();
         m_upload_queue_completion_fence.reset();
-        m_curr_render_targets.clear();
         m_curr_depth_target.reset();
         m_heap_rtv.reset();
         m_heap_dsv.reset();
@@ -418,8 +417,7 @@ namespace gfx {
                 auto& texture = color_target.resource;
                 auto gfx_cmd = m_curr_pass_cmd->get();
 
-                transition_resource(m_curr_pass_cmd.get(), texture.get(), D3D12_RESOURCE_STATE_RENDER_TARGET);
-                m_curr_render_targets.push_back(texture);
+                transition_resource(m_curr_pass_cmd, texture, D3D12_RESOURCE_STATE_RENDER_TARGET);
                 auto rtv_handle = m_heap_rtv->fetch_cpu_handle(texture->expect_texture().rtv_handle);
                 rtv_handles.push_back(rtv_handle);
 
@@ -449,7 +447,7 @@ namespace gfx {
             auto& texture = render_pass_info.depth_target.resource;
             auto gfx_cmd = m_curr_pass_cmd->get();
 
-            transition_resource(m_curr_pass_cmd.get(), texture.get(), D3D12_RESOURCE_STATE_DEPTH_WRITE);
+            transition_resource(m_curr_pass_cmd, texture, D3D12_RESOURCE_STATE_DEPTH_WRITE);
             dsv_handle = m_heap_dsv->fetch_cpu_handle(texture->expect_texture().dsv_handle);
             m_curr_depth_target = texture;
             m_curr_pass_cmd->get()->ClearDepthStencilView(dsv_handle, D3D12_CLEAR_FLAG_DEPTH, texture->expect_texture().clear_color.x, 0, 0, nullptr);
@@ -457,6 +455,7 @@ namespace gfx {
             have_dsv = true;
         }
         
+        execute_resource_transitions(m_curr_pass_cmd);
         m_curr_pass_cmd->get()->RSSetViewports(1, &viewport);
         m_curr_pass_cmd->get()->RSSetScissorRects(1, &scissor);
         m_curr_pass_cmd->get()->OMSetRenderTargets(
@@ -468,22 +467,6 @@ namespace gfx {
     }
 
     void Device::end_raster_pass() {
-        // If the current render target wasn't the swapchain, the m_curr_render_target pointer is not null
-        // In this case, transition it back to a shader resource, so we can run compute shaders on it if we want, or blit it to the swapchain
-        for (auto& render_target : m_curr_render_targets) {
-            transition_resource(m_curr_pass_cmd.get(), render_target.get(), D3D12_RESOURCE_STATE_COMMON);
-        }
-        m_curr_render_targets.clear();
-
-        if (m_curr_depth_target.get() != nullptr) {
-            transition_resource(m_curr_pass_cmd.get(), m_curr_depth_target.get(), D3D12_RESOURCE_STATE_COMMON);
-            m_curr_depth_target = nullptr;
-        }
-
-        for (auto& resource : m_pass_resources) {
-            transition_resource(m_curr_pass_cmd.get(), resource.get(), D3D12_RESOURCE_STATE_COMMON);
-        }
-        m_pass_resources.clear();
     }
 
     void Device::begin_compute_pass(std::shared_ptr<Pipeline> pipeline, bool async) {
@@ -507,12 +490,7 @@ namespace gfx {
         m_curr_pass_cmd->get()->SetName(async ? L"Async compute pass" : L"Compute pass");	
     }
 
-    void Device::end_compute_pass() {
-        for (auto& resource : m_pass_resources) {
-            transition_resource(m_curr_pass_cmd.get(), resource.get(), D3D12_RESOURCE_STATE_COMMON);
-        }
-        m_pass_resources.clear();
-    }
+    void Device::end_compute_pass() {}
 
     void Device::dispatch_threadgroups(uint32_t x, uint32_t y, uint32_t z) {
         m_curr_pass_cmd->get()->Dispatch(x, y, z);
@@ -694,7 +672,6 @@ namespace gfx {
                 break;
             }
 
-            transition_resource(upload_command_buffer.get(), resource.get(), D3D12_RESOURCE_STATE_COMMON);
             m_temp_upload_buffers.push_back(UploadQueueKeepAlive{ m_upload_fence_value_when_done, upload_buffer });
         }
 
@@ -750,6 +727,11 @@ namespace gfx {
         resource_desc.Flags = D3D12_RESOURCE_FLAG_NONE;
         resource_desc.Flags |= (usage == ResourceUsage::compute_write) ? D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS : D3D12_RESOURCE_FLAG_NONE;
         
+        if (cpu_visible && usage == ResourceUsage::compute_write) {
+            LOG(Error, "Buffer \"%s\" creation failed: buffer can't be simultaneously CPU-visible and writable from a compute shader", name.c_str());
+            return {};
+        }
+
         D3D12_HEAP_PROPERTIES heap_properties = {
             .Type = (cpu_visible) ? (D3D12_HEAP_TYPE_UPLOAD) : (D3D12_HEAP_TYPE_DEFAULT),
         };
@@ -777,9 +759,29 @@ namespace gfx {
             }
         };
 
-        auto id = m_heap_bindless->alloc_descriptor(ResourceType::texture);
+        auto id = m_heap_bindless->alloc_descriptor(ResourceType::buffer);
         const auto handle = m_heap_bindless->fetch_cpu_handle(id);
         device->CreateShaderResourceView(resource->handle.Get(), &srv_desc, handle);
+
+        // If compute_write, also create an unordered access view
+        if (usage == ResourceUsage::compute_write) {
+            const D3D12_UNORDERED_ACCESS_VIEW_DESC uav_desc {
+                .Format = DXGI_FORMAT_R32_TYPELESS,
+                .ViewDimension = D3D12_UAV_DIMENSION_BUFFER,
+                .Buffer = {
+                    .FirstElement = 0,
+                    .NumElements = static_cast<UINT>(size / 4),
+                    .StructureByteStride = 0,
+                    .CounterOffsetInBytes = 0,
+                    .Flags = D3D12_BUFFER_UAV_FLAG_RAW
+                }
+            };
+
+            auto uav_id = id;
+            uav_id.id += 1;
+            const auto uav_handle = m_heap_bindless->fetch_cpu_handle(uav_id);
+            device->CreateUnorderedAccessView(resource->handle.Get(), nullptr, &uav_desc, uav_handle);
+        }
 
         if (data && cpu_visible) {
             // Copy the buffer data to the GPU
@@ -798,9 +800,11 @@ namespace gfx {
             // Upload the data to the destination buffer
             ++m_upload_fence_value_when_done;
             auto cmd = m_upload_queue->create_command_buffer(nullptr, m_upload_fence_value_when_done);
-            transition_resource(cmd.get(), resource.get(), D3D12_RESOURCE_STATE_COPY_DEST);
+            transition_resource(cmd, resource, D3D12_RESOURCE_STATE_COPY_DEST);
+            execute_resource_transitions(cmd);
             cmd->get()->CopyBufferRegion(resource->handle.Get(), 0, upload_buffer->handle.Get(), 0, size);
-            transition_resource(cmd.get(), resource.get(), D3D12_RESOURCE_STATE_COMMON);
+            transition_resource(cmd, resource, D3D12_RESOURCE_STATE_COMMON);
+            execute_resource_transitions(cmd);
             m_temp_upload_buffers.push_back(UploadQueueKeepAlive{ m_upload_fence_value_when_done, upload_buffer });
         }
 
@@ -1026,38 +1030,53 @@ namespace gfx {
         m_resources_to_unload.push_back({ resource, fence_value });
     }
 
-    void Device::use_resource(const ResourceHandlePair &resource, const ResourceUsage usage) {
-        if (m_curr_pipeline_is_async) {
-            m_temp_upload_buffers.push_back(UploadQueueKeepAlive{ m_upload_fence_value_when_done, resource.resource });
-        }
+    D3D12_RESOURCE_STATES resource_usage_to_dx12_state(ResourceUsage usage) {
         switch (usage) {
-            case ResourceUsage::none: transition_resource(m_curr_pass_cmd.get(), resource.resource.get(), D3D12_RESOURCE_STATE_COMMON); break;
-            case ResourceUsage::read: transition_resource(m_curr_pass_cmd.get(), resource.resource.get(), D3D12_RESOURCE_STATE_GENERIC_READ); break;
-            case ResourceUsage::compute_write: transition_resource(m_curr_pass_cmd.get(), resource.resource.get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS); break;
-            case ResourceUsage::render_target: transition_resource(m_curr_pass_cmd.get(), resource.resource.get(), D3D12_RESOURCE_STATE_RENDER_TARGET); break;
-            case ResourceUsage::depth_target: transition_resource(m_curr_pass_cmd.get(), resource.resource.get(), D3D12_RESOURCE_STATE_DEPTH_WRITE); break;
-            case ResourceUsage::pixel_shader_read: transition_resource(m_curr_pass_cmd.get(), resource.resource.get(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE); break;
-            case ResourceUsage::non_pixel_shader_read: transition_resource(m_curr_pass_cmd.get(), resource.resource.get(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE); break;
+            case ResourceUsage::none: return D3D12_RESOURCE_STATE_COMMON;
+            case ResourceUsage::read: return D3D12_RESOURCE_STATE_GENERIC_READ;
+            case ResourceUsage::compute_write: return D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
+            case ResourceUsage::render_target: return D3D12_RESOURCE_STATE_RENDER_TARGET;
+            case ResourceUsage::depth_target: return D3D12_RESOURCE_STATE_DEPTH_WRITE;
+            case ResourceUsage::pixel_shader_read: return D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
+            case ResourceUsage::non_pixel_shader_read: return D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE;
         }
-        m_pass_resources.push_back(resource.resource);
+        return D3D12_RESOURCE_STATE_COMMON;
     }
 
-    void Device::transition_resource(CommandBuffer* cmd, Resource* resource, D3D12_RESOURCE_STATES new_state) {
+    void Device::use_resource(const ResourceHandlePair &resource, const ResourceUsage usage) {
+        transition_resource(m_curr_pass_cmd, resource.resource, resource_usage_to_dx12_state(usage));
+        execute_resource_transitions(m_curr_pass_cmd);
+    }
+
+    void Device::use_resources(const std::initializer_list<std::pair<ResourceHandlePair, ResourceUsage>>& resources) {
+        std::vector<D3D12_RESOURCE_BARRIER> barriers;
+        barriers.reserve(resources.size());
+
+        for (auto& [resource, usage] : resources) {
+            transition_resource(m_curr_pass_cmd, resource.resource, resource_usage_to_dx12_state(usage));
+        }
+        execute_resource_transitions(m_curr_pass_cmd);
+    }
+
+    void Device::transition_resource(std::shared_ptr<CommandBuffer> cmd, std::shared_ptr<Resource> resource, D3D12_RESOURCE_STATES new_state) {
+        LOG(Debug, "Transitioning resource %s from %i to %i", resource->name.c_str(), resource->current_state, new_state);
         if (resource->current_state == new_state) return;
 
+        if (m_curr_pipeline_is_async) {
+            m_temp_upload_buffers.push_back(UploadQueueKeepAlive{ m_upload_fence_value_when_done, resource });
+        }
+
         if (resource->current_state == D3D12_RESOURCE_STATE_UNORDERED_ACCESS) {
-            // If the resource is currently in an unordered access state, we need to add a UAV barrier before transitioning it to a different state
-            D3D12_RESOURCE_BARRIER barrier = {
+            m_resource_barriers.emplace_back(D3D12_RESOURCE_BARRIER {
                 .Type = D3D12_RESOURCE_BARRIER_TYPE_UAV,
                 .Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE,
                 .UAV = {
                     .pResource = resource->handle.Get(),
                 },
-            };
-            cmd->get()->ResourceBarrier(1, &barrier);
+            });
         }
 
-        const D3D12_RESOURCE_BARRIER barrier = {
+        m_resource_barriers.emplace_back(D3D12_RESOURCE_BARRIER {
             .Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION,
             .Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE,
             .Transition = {
@@ -1066,18 +1085,16 @@ namespace gfx {
                 .StateBefore = resource->current_state,
                 .StateAfter = new_state,
             },
-        };
-        cmd->get()->ResourceBarrier(1, &barrier);
+        });
 
         if (new_state == D3D12_RESOURCE_STATE_UNORDERED_ACCESS) {
-            D3D12_RESOURCE_BARRIER barrier = {
+            m_resource_barriers.emplace_back(D3D12_RESOURCE_BARRIER {
                 .Type = D3D12_RESOURCE_BARRIER_TYPE_UAV,
                 .Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE,
                 .UAV = {
                     .pResource = resource->handle.Get(),
                 },
-            };
-            cmd->get()->ResourceBarrier(1, &barrier);
+            });
         }
         
         resource->current_state = new_state;
@@ -1184,5 +1201,12 @@ namespace gfx {
             assert(upload_data.upload_buffer->handle != nullptr && "Critical error! Somehow the handle became null. Check the other code, this is sus.");
             m_temp_upload_buffers.pop_front();
         }
+    }
+    
+    void Device::execute_resource_transitions(std::shared_ptr<CommandBuffer> cmd) {
+        if (m_resource_barriers.empty()) return;
+
+        cmd->get()->ResourceBarrier((UINT)m_resource_barriers.size(), m_resource_barriers.data());
+        m_resource_barriers.clear();
     }
 }
