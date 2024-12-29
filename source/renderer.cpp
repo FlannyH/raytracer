@@ -6,6 +6,8 @@
 #include <glm/matrix.hpp>
 #include <glm/trigonometric.hpp>
 
+#include <algorithm>
+
 namespace gfx {
     #define MAX_MATERIAL_COUNT 1024
     #define DRAW_PACKET_BUFFER_SIZE 102400
@@ -33,9 +35,12 @@ namespace gfx {
         m_pipeline_tonemapping = m_device->create_compute_pipeline("assets/shaders/tonemapping.cs.hlsl");
         m_pipeline_final_blit = m_device->create_raster_pipeline("assets/shaders/fullscreen_tri.vs.hlsl", "assets/shaders/final_blit.ps.hlsl", {});
         m_pipeline_hdri_to_cubemap = m_device->create_compute_pipeline("assets/shaders/hdri_to_cubemap.cs.hlsl");
+        m_pipeline_cubemap_to_diffuse = m_device->create_compute_pipeline("assets/shaders/cubemap_to_diffuse.cs.hlsl");
+        m_pipeline_accumulate_sh_coeffs = m_device->create_compute_pipeline("assets/shaders/accumulate_sh_coeffs.cs.hlsl");
+        m_pipeline_compute_sh_matrices = m_device->create_compute_pipeline("assets/shaders/compute_sh_matrices.cs.hlsl");
         m_material_buffer = m_device->create_buffer("Material descriptions", MAX_MATERIAL_COUNT * sizeof(Material), nullptr, true);
         m_lights_buffer = m_device->create_buffer("Lights buffer", 3 * sizeof(uint32_t) + MAX_LIGHTS_DIRECTIONAL * sizeof(LightDirectional), nullptr, true);
-        m_spherical_harmonics_buffer = m_device->create_buffer("Spherical harmonics coefficients buffer", MAX_CUBEMAP_SH * 3*sizeof(glm::mat4), nullptr, true);
+        m_spherical_harmonics_buffer = m_device->create_buffer("Spherical harmonics coefficients buffer", MAX_CUBEMAP_SH * 3*sizeof(glm::mat4), nullptr, false, ResourceUsage::compute_write);
 
         // Create triple buffered draw packet buffer
         for (int i = 0; i < backbuffer_count; ++i) {
@@ -349,97 +354,137 @@ namespace gfx {
         );
         m_device->end_compute_pass();
 
-        // Pre-compute diffuse irradiance based on this paper: https://graphics.stanford.edu/papers/envmap/envmap.pdf
-        // todo: put this in a buffer or texture on the gpu
-        glm::vec3 l00(0.0f);
-        glm::vec3 l11(0.0f);
-        glm::vec3 l10(0.0f);
-        glm::vec3 l1_1(0.0f); 
-        glm::vec3 l21(0.0f);
-        glm::vec3 l2_1(0.0f); 
-        glm::vec3 l2_2(0.0f); 
-        glm::vec3 l20(0.0f);
-        glm::vec3 l22(0.0f);
+        // Convert cubemap to spherical harmonics
+        auto coeff_buffer = m_device->create_buffer(
+            "Spherical harmonics per-pixel coefficients buffer", 
+            resolution * resolution * 6 * sizeof(glm::vec3) * 9, 
+            nullptr, false, ResourceUsage::compute_write
+        );
+        m_device->begin_compute_pass(m_pipeline_cubemap_to_diffuse, true);
+        m_device->use_resources({
+            { cubemap, ResourceUsage::non_pixel_shader_read },
+            { coeff_buffer, ResourceUsage::compute_write }
+        });
+        m_device->set_compute_root_constants({
+            cubemap.handle.as_u32(),
+            coeff_buffer.handle.as_u32_uav(),
+            (uint32_t)resolution
+        });
+        m_device->dispatch_threadgroups( // threadgroup size is 8x8
+            (uint32_t)(resolution / 8),
+            (uint32_t)(resolution / 8),
+            6 // faces
+        );
+        m_device->end_compute_pass();
 
-        for (int face = 0; face < 6; ++face) {
-            for (int y = 0; y < resolution; ++y) {
-                for (int x = 0; x < resolution; ++x) {
-                    // Get UV coordinates for this face
-                    const float u = (((float)x + 0.5f) / (float)resolution) * 2.0f - 1.0f;
-                    const float v = (((float)y + 0.5f) / (float)resolution) * 2.0f - 1.0f;
+        // Calculate the number of threadgroups needed for the reduction
+        constexpr auto reduction_per_pass = 256;
+        uint32_t n_items = (uint32_t)(resolution * resolution * 6);
+        uint32_t n_threadgroups = (n_items + reduction_per_pass - 1) / reduction_per_pass;
 
-                    // Convert to vector and normalize it
-                    glm::vec3 dir(0.0f);
-                    switch (face) {
-                    case 0: dir = glm::vec3(1.0f, -v, -u);   break;
-                    case 1: dir = glm::vec3(-1.0f, -v, u);  break;
-                    case 2: dir = glm::vec3(u, 1.0f, v);   break;
-                    case 3: dir = glm::vec3(u, -1.0f, -v);   break;
-                    case 4: dir = glm::vec3(u, -v, 1.0f);    break;
-                    case 5: dir = glm::vec3(-u, -v, -1.0f);   break;
-                    }
+        // Create the temporary buffers
+        auto scratch_buffer1 = m_device->create_buffer(
+            "Spherical harmonics compute scratch buffer 1", 
+            n_threadgroups * sizeof(glm::vec3) * 9, 
+            nullptr, false, ResourceUsage::compute_write
+        );
+        auto scratch_buffer2 = m_device->create_buffer(
+            "Spherical harmonics compute scratch buffer 2", 
+            n_threadgroups * sizeof(glm::vec3) * 9, 
+            nullptr, false, ResourceUsage::compute_write
+        );
 
-                    // Get normal vector for this destination pixel
-                    glm::vec3 normal = glm::normalize(dir);
+        // Pass 1
+        m_device->begin_compute_pass(m_pipeline_accumulate_sh_coeffs, true);
+        m_device->use_resources({
+            { coeff_buffer, ResourceUsage::non_pixel_shader_read },
+            { scratch_buffer1, ResourceUsage::compute_write },
+        });
+        m_device->set_compute_root_constants({
+            scratch_buffer1.handle.as_u32_uav(),
+            coeff_buffer.handle.as_u32(),
+            n_items
+        });
+        m_device->dispatch_threadgroups(n_threadgroups, 1, 1);
+        m_device->end_compute_pass();
 
-                    // Compute spherical harmonics coefficients
-                    const glm::vec3 sample = cubemap_faces.at((size_t)(x + (y * resolution) + (face * resolution * resolution)));
-                    l00 += sample * (0.282095f);
-                    l11 += sample * (0.488603f * normal.x);
-                    l10 += sample * (0.488603f * normal.z);
-                    l1_1 += sample * (0.488603f * normal.y);
-                    l21 += sample * (1.092548f * normal.x * normal.z);
-                    l2_1 += sample * (1.092548f * normal.y * normal.z);
-                    l2_2 += sample * (1.092548f * normal.x * normal.y);
-                    l20 += sample * (0.315392f * (3.0f * normal.z * normal.z - 1.0f));
-                    l22 += sample * (0.546274f * (normal.x * normal.x - normal.y * normal.y));
-                }
+        // Keep reducing until we have 1 entry
+        while (true) {
+            // Even passes
+            n_items = n_threadgroups;
+            if (n_items == 1) {
+                // Create matrix from scratch_buffer1 from the final values
+                LOG(Debug, "n_items = %3i,   calculate matrices and store them at offset %i", n_items, m_spherical_harmonics_buffer_cursor);
+                m_device->begin_compute_pass(m_pipeline_compute_sh_matrices, true);
+                m_device->use_resources({
+                    { scratch_buffer1, ResourceUsage::non_pixel_shader_read },
+                    { m_spherical_harmonics_buffer, ResourceUsage::compute_write },
+                });
+                m_device->set_compute_root_constants({
+                    scratch_buffer1.handle.as_u32(),
+                    m_spherical_harmonics_buffer.handle.as_u32_uav(),
+                    m_spherical_harmonics_buffer_cursor,
+                    (uint32_t)(resolution * resolution * 6)
+                });
+                m_device->dispatch_threadgroups(1, 1, 1);
+                m_device->end_compute_pass();
+                // m_spherical_harmonics_buffer_cursor += 192;
+                break;
             }
+
+            n_threadgroups = (n_items + reduction_per_pass - 1) / reduction_per_pass;
+            LOG(Debug, "n_items = %3i,   n_threadgroups = %3i", n_items, n_threadgroups);
+            m_device->begin_compute_pass(m_pipeline_accumulate_sh_coeffs, true);
+            m_device->use_resources({
+                { scratch_buffer1, ResourceUsage::non_pixel_shader_read },
+                { scratch_buffer2, ResourceUsage::compute_write },
+            });
+            m_device->set_compute_root_constants({
+                scratch_buffer2.handle.as_u32_uav(),
+                scratch_buffer1.handle.as_u32(),
+                n_items
+            });
+            m_device->dispatch_threadgroups(n_threadgroups, 1, 1);
+            m_device->end_compute_pass();
+
+            // Odd passes
+            n_items = n_threadgroups;
+            if (n_items == 1) {
+                // Create matrix from scratch_buffer2 from the final values
+                LOG(Debug, "n_items = %3i,   calculate matrices and store them at offset %i", n_items, m_spherical_harmonics_buffer_cursor);
+                m_device->begin_compute_pass(m_pipeline_compute_sh_matrices, true);
+                m_device->use_resources({
+                    { scratch_buffer2, ResourceUsage::non_pixel_shader_read },
+                    { m_spherical_harmonics_buffer, ResourceUsage::compute_write },
+                });
+                m_device->set_compute_root_constants({
+                    scratch_buffer2.handle.as_u32(),
+                    m_spherical_harmonics_buffer.handle.as_u32_uav(),
+                    m_spherical_harmonics_buffer_cursor,
+                    (uint32_t)(resolution * resolution * 6)
+                });
+                m_device->dispatch_threadgroups(1, 1, 1);
+                m_device->end_compute_pass();
+                // m_spherical_harmonics_buffer_cursor += 192;
+                break;
+            }
+
+            n_threadgroups = (n_items + reduction_per_pass - 1) / reduction_per_pass;
+            LOG(Debug, "n_items = %3i,   n_threadgroups = %3i", n_items, n_threadgroups);
+            m_device->begin_compute_pass(m_pipeline_accumulate_sh_coeffs, true);
+            m_device->use_resources({
+                { scratch_buffer2, ResourceUsage::non_pixel_shader_read },
+                { scratch_buffer1, ResourceUsage::compute_write },
+            });
+            m_device->set_compute_root_constants({
+                scratch_buffer1.handle.as_u32_uav(),
+                scratch_buffer2.handle.as_u32(),
+                n_items
+            });
+            m_device->dispatch_threadgroups(n_threadgroups, 1, 1);
+            m_device->end_compute_pass();
         }
 
-        l00 /= (float)(resolution * resolution * 6);
-        l11 /= (float)(resolution * resolution * 6);
-        l10 /= (float)(resolution * resolution * 6);
-        l1_1 /= (float)(resolution * resolution * 6);
-        l21 /= (float)(resolution * resolution * 6);
-        l2_1 /= (float)(resolution * resolution * 6);
-        l2_2 /= (float)(resolution * resolution * 6);
-        l20 /= (float)(resolution * resolution * 6);
-        l22 /= (float)(resolution * resolution * 6);
-
-        // Construct matrix
-        constexpr float c1 = 0.429043f;
-        constexpr float c2 = 0.511664f;
-        constexpr float c3 = 0.743125f;
-        constexpr float c4 = 0.886227f;
-        constexpr float c5 = 0.247708f;
-        // todo: verify row order
-        const glm::mat4 sh_matrices[3] = {
-            glm::mat4(
-                c1*l22.r,   c1*l2_2.r, c1*l21.r,  c2*l11.r,
-                c1*l2_2.r, -c1*l22.r,  c1*l2_1.r, c2*l1_1.r,
-                c1*l21.r,   c1*l2_1.r, c3*l20.r,  c2*l10.r,
-                c2*l11.r,   c2*l1_1.r, c2*l10.r,  c4*l00.r - c5*l20.r
-            ),
-            glm::mat4(
-                c1*l22.g,   c1*l2_2.g, c1*l21.g,  c2*l11.g,
-                c1*l2_2.g, -c1*l22.g,  c1*l2_1.g, c2*l1_1.g,
-                c1*l21.g,   c1*l2_1.g, c3*l20.g,  c2*l10.g,
-                c2*l11.g,   c2*l1_1.g, c2*l10.g,  c4*l00.g - c5*l20.g
-            ),
-            glm::mat4(
-                c1*l22.b,   c1*l2_2.b, c1*l21.b,  c2*l11.b,
-                c1*l2_2.b, -c1*l22.b,  c1*l2_1.b, c2*l1_1.b,
-                c1*l21.b,   c1*l2_1.b, c3*l20.b,  c2*l10.b,
-                c2*l11.b,   c2*l1_1.b, c2*l10.b,  c4*l00.b - c5*l20.b
-            )
-        };
-
-
-        const uint32_t offset = m_spherical_harmonics_buffer_cursor;
-        m_device->update_buffer(m_spherical_harmonics_buffer, m_spherical_harmonics_buffer_cursor, sizeof(sh_matrices), &sh_matrices);
-        m_spherical_harmonics_buffer_cursor += sizeof(sh_matrices);
-        
         // We won't need the original image data anymore
         stbi_image_free(data);
         
@@ -447,7 +492,7 @@ namespace gfx {
         return {
             .hdri = hdri,
             .base = cubemap,
-            .offset_diffuse_sh = offset
+            .offset_diffuse_sh = 0
         };
     }
 
