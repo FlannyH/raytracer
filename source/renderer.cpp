@@ -19,7 +19,7 @@ namespace gfx {
     // Initialisation and state
     Renderer::Renderer(int width, int height, bool debug_layer_enabled) {
         m_device = std::make_unique<Device>(width, height, debug_layer_enabled);
-        m_color_target = m_device->create_render_target("Color framebuffer", width, height, PixelFormat::rgba16_float, {}, ResourceUsage::compute_write);
+        m_color_target = m_device->create_render_target("Color framebuffer", width, height, PixelFormat::rgba16_float, {0.0f, 0.0f, 0.0f, -1.0f}, ResourceUsage::compute_write);
         m_normal_target = m_device->create_render_target("Normal framebuffer", width, height, PixelFormat::rgba16_float, {}, ResourceUsage::compute_write);
         m_roughness_metallic_target = m_device->create_render_target("Roughness framebuffer", width, height, PixelFormat::rg8_unorm, {}, ResourceUsage::compute_write);
         m_emissive_target = m_device->create_render_target("Emissive framebuffer", width, height, PixelFormat::rg11_b10_float, {}, ResourceUsage::compute_write);
@@ -108,12 +108,9 @@ namespace gfx {
         const glm::vec2 prev_render_resolution = m_render_resolution;
         m_render_resolution = m_resolution * resolution_scale;
         if (m_render_resolution != prev_render_resolution) {
-            // Set normal map clear color to the current viewport data
-            m_color_target.resource->expect_texture().clear_color = {
+            m_view_data.viewport_size = {
                 tan(FOV * 0.5f) * (m_resolution.x / m_resolution.y), // viewport width
                 tan(FOV * 0.5f), // viewport height
-                -1.0f, // viewport depth
-                -1.0f, // if this value is negative, it clearly doesn't come from the geo pass, so it means nothing was rendered there, so we render the skybox
             };
             resize_texture(m_color_target, (uint32_t)m_render_resolution.x, (uint32_t)m_render_resolution.y);
             resize_texture(m_normal_target, (uint32_t)m_render_resolution.x, (uint32_t)m_render_resolution.y);
@@ -154,6 +151,7 @@ namespace gfx {
         );
 
         // BRDF
+        const uint32_t view_data_offset = create_draw_packet(&m_view_data, sizeof(m_view_data));
         m_device->begin_compute_pass(m_pipeline_brdf);
         m_device->use_resources({
             { m_shaded_target, ResourceUsage::compute_write },
@@ -164,6 +162,7 @@ namespace gfx {
             { m_lights_buffer, ResourceUsage::non_pixel_shader_read },
             { m_spherical_harmonics_buffer, ResourceUsage::non_pixel_shader_read },
             { m_curr_sky_cube.base, ResourceUsage::non_pixel_shader_read },
+            { m_draw_packets[m_device->frame_index() % backbuffer_count], ResourceUsage::non_pixel_shader_read }
         });
         m_device->set_compute_root_constants({
             m_shaded_target.handle.as_u32_uav(),
@@ -174,7 +173,9 @@ namespace gfx {
             m_lights_buffer.handle.as_u32(),
             m_spherical_harmonics_buffer.handle.as_u32(),
             m_curr_sky_cube.base.handle.as_u32(),
-            m_curr_sky_cube.offset_diffuse_sh
+            m_curr_sky_cube.offset_diffuse_sh,
+            m_draw_packets[m_device->frame_index() % backbuffer_count].handle.as_u32(),
+            view_data_offset
         });
         m_device->dispatch_threadgroups( // threadgroup size is 8x8
             (uint32_t)(m_render_resolution.x / 8.0f),
@@ -219,7 +220,7 @@ namespace gfx {
             .projection_matrix = glm::perspectiveFov(glm::radians(70.f), m_resolution.x, m_resolution.y, 0.0001f, 1000.0f),
         };
 
-        m_normal_target.resource->expect_texture().clear_color = { transform.rotation.x, transform.rotation.y, transform.rotation.z, transform.rotation.w };
+        m_view_data.rotation = { transform.rotation.x, transform.rotation.y, transform.rotation.z, transform.rotation.w };
         m_camera_matrices_offset = create_draw_packet(&camera_matrices, sizeof(camera_matrices));
     }
 

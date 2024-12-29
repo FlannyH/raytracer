@@ -8,8 +8,15 @@ struct RootConstants {
     uint spherical_harmonics_buffer;
     uint curr_sky_cube;
     uint curr_ibl_diffuse_sh_offset;
+    uint view_data_buffer;
+    uint view_data_buffer_offset;
 };
 ConstantBuffer<RootConstants> root_constants : register(b0, space0);
+
+struct ViewData {
+    float4 forward;
+    float2 viewport_size;
+};
 
 struct LightCounts {
     uint n_directional_lights;
@@ -56,11 +63,8 @@ void main(uint3 dispatch_thread_id : SV_DispatchThreadID) {
     Texture2D<float4> normal_texture = ResourceDescriptorHeap[NonUniformResourceIndex(root_constants.normal_texture & MASK_ID)];
     Texture2D<float3> emissive_texture = ResourceDescriptorHeap[NonUniformResourceIndex(root_constants.emissive_texture & MASK_ID)];
     float4 color = color_texture[dispatch_thread_id.xy];
-    float4 normal = normal_texture[dispatch_thread_id.xy];
     
-    // Normal buffer alpha channel is 0 if nothing was rendered, in which case:
-    // - normals buffer: forward direction (quaternion)
-    // - color buffer: {viewport_width, viewport_height, viewport_depth}
+    // Color buffer alpha channel is < 0 if nothing was rendered, in which case:
     // which will facilitate skybox rendering. The alpha channel would otherwise be unused, so might as well.
     if (color.a < -0.0001f) {
         if ((root_constants.curr_sky_cube & MASK_IS_LOADED) == false) {
@@ -73,8 +77,11 @@ void main(uint3 dispatch_thread_id : SV_DispatchThreadID) {
         float2 uv = ((float2(dispatch_thread_id.xy) + 0.5) / resolution) * 2.0 - 1.0;
         
         // Calculate view direction
-        float3 view_direction = normalize(color.xyz * float3(uv.x, -uv.y, 1.0));
-        view_direction = rotate_vector_by_quaternion(view_direction, normal.xyzw);
+        ByteAddressBuffer view_data_buffer = ResourceDescriptorHeap[NonUniformResourceIndex(root_constants.view_data_buffer & MASK_ID)];
+        ViewData view_data = view_data_buffer.Load<ViewData>(root_constants.view_data_buffer_offset);
+
+        float3 view_direction = normalize(float3(view_data.viewport_size * float2(uv.x, -uv.y), -1.0f));
+        view_direction = rotate_vector_by_quaternion(view_direction, view_data.forward);
         
         // Fetch texture and output
         TextureCube<float4> sky_texture = ResourceDescriptorHeap[NonUniformResourceIndex(root_constants.curr_sky_cube & MASK_ID)];
@@ -84,6 +91,7 @@ void main(uint3 dispatch_thread_id : SV_DispatchThreadID) {
         return;
     }
     
+    float4 normal = normal_texture[dispatch_thread_id.xy];
     float3 emission = emissive_texture[dispatch_thread_id.xy];
     
     // Get light buffer
