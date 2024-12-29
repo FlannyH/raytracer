@@ -25,7 +25,6 @@ groupshared SHCoefficients tg_shared_buffer[THREADGROUP_SIZE * 2];
 
 [numthreads(THREADGROUP_SIZE, 1, 1)]
 void main(uint3 group_id : SV_GroupID, uint3 thread_id : SV_DispatchThreadID) {
-    // todo: does this need to be globally coherent?
     ByteAddressBuffer input_buffer = ResourceDescriptorHeap[NonUniformResourceIndex(root_constants.input_buffer & MASK_ID)];
     globallycoherent RWByteAddressBuffer output_buffer = ResourceDescriptorHeap[NonUniformResourceIndex(root_constants.output_buffer & MASK_ID)];
     
