@@ -62,6 +62,9 @@ namespace gfx {
         std::shared_ptr<Pipeline> m_pipeline_tonemapping = nullptr;
         std::shared_ptr<Pipeline> m_pipeline_final_blit = nullptr;
         std::shared_ptr<Pipeline> m_pipeline_hdri_to_cubemap = nullptr;
+        std::shared_ptr<Pipeline> m_pipeline_cubemap_to_diffuse = nullptr;
+        std::shared_ptr<Pipeline> m_pipeline_accumulate_sh_coeffs = nullptr;
+        std::shared_ptr<Pipeline> m_pipeline_compute_sh_matrices = nullptr;
         std::vector<int> m_material_indices_to_reuse;
         std::vector<Material> m_materials; // Should be uploaded to the GPU after modifying
         ResourceHandlePair m_material_buffer{}; // Buffer that contains all currently loaded materials

@@ -15,7 +15,7 @@ void main(uint3 dispatch_thread_id : SV_DispatchThreadID) {
     Texture2D<float4> hdri = ResourceDescriptorHeap[NonUniformResourceIndex(root_constants.hdri & MASK_ID)];
     RWTexture2DArray<float4> cubemap = ResourceDescriptorHeap[NonUniformResourceIndex(root_constants.cube_map & MASK_ID)];
 
-    uint cubemap_w, cubemap_h, cubemap_faces;
+    float cubemap_w, cubemap_h, cubemap_faces;
     cubemap.GetDimensions(cubemap_w, cubemap_h, cubemap_faces);
 
     uint dst_x = dispatch_thread_id.x;

@@ -112,10 +112,10 @@ namespace gfx {
         }
 
 #ifdef _DEBUG
-        // ComPtr<ID3D12DeviceRemovedExtendedDataSettings1> dred_settings;
-        // validate(D3D12GetDebugInterface(IID_PPV_ARGS(&dred_settings)));
-        // dred_settings->SetAutoBreadcrumbsEnablement(D3D12_DRED_ENABLEMENT_FORCED_ON);
-        // dred_settings->SetPageFaultEnablement(D3D12_DRED_ENABLEMENT_FORCED_ON);
+        ComPtr<ID3D12DeviceRemovedExtendedDataSettings1> dred_settings;
+        validate(D3D12GetDebugInterface(IID_PPV_ARGS(&dred_settings)));
+        dred_settings->SetAutoBreadcrumbsEnablement(D3D12_DRED_ENABLEMENT_FORCED_ON);
+        dred_settings->SetPageFaultEnablement(D3D12_DRED_ENABLEMENT_FORCED_ON);
 #endif
 
         // Create factory
