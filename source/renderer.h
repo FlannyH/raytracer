@@ -3,6 +3,11 @@
 #include "device.h"
 
 namespace gfx {
+    struct ViewData {
+        glm::vec4 rotation{};
+        glm::vec2 viewport_size{};
+    };
+
     class Renderer {
     public:
         // Initialisation and state
@@ -74,5 +79,6 @@ namespace gfx {
         ResourceHandlePair m_draw_packets[backbuffer_count]; // Scratch buffer that is used to send draw info to the shader pipelines
         uint32_t m_draw_packet_cursor = 0; // Current allocation offset into the draw packet buffer
         uint32_t m_camera_matrices_offset = 0; // Where the camera matrices for this frame are stored
+        ViewData m_view_data{};
     };
 }
