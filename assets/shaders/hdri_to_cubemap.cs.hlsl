@@ -39,9 +39,9 @@ void main(uint3 dispatch_thread_id : SV_DispatchThreadID) {
     float spherical_v = asin(dir.y) / PI + 0.5f;
 
     float4 pixel = hdri.SampleLevel(tex_sampler, float2(spherical_u, spherical_v), 0);
-    pixel.r = min(pixel.r, 8000.0f); // some HDRIs have very high values
-    pixel.g = min(pixel.g, 8000.0f); // so to avoid blowing out the values
-    pixel.b = min(pixel.b, 8000.0f); // let's clamp them to a reasonable limit
+    pixel.r = min(pixel.r, 16000.0f); // some HDRIs have very high values
+    pixel.g = min(pixel.g, 16000.0f); // so to avoid blowing out the values
+    pixel.b = min(pixel.b, 16000.0f); // let's clamp them to a reasonable limit
     
     cubemap[uint3(dst_x, dst_y, face)] = pixel;
 }
