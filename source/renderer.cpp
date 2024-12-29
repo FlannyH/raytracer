@@ -314,8 +314,7 @@ namespace gfx {
     }
 
     ResourceHandlePair Renderer::load_scene_gltf(const std::string& path) {
-        const auto resource = std::make_shared<Resource>();
-        resource->type = ResourceType::scene;
+        const auto resource = std::make_shared<Resource>(ResourceType::scene);
         resource->expect_scene().root = gfx::create_scene_graph_from_gltf(*this, path);
 
         ResourceHandle handle = allocate_non_gpu_resource_handle(ResourceType::scene);

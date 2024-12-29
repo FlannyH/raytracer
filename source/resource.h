@@ -7,6 +7,7 @@
 #include <glm/vec2.hpp>
 #include <glm/matrix.hpp>
 #include <optional>
+#include <variant>
 
 namespace gfx {
     struct SceneNode;
@@ -126,17 +127,24 @@ namespace gfx {
     }
 
     struct Resource {
+        Resource(ResourceType resource_type) {
+            switch (resource_type) {
+                case ResourceType::texture: resource = TextureResource{}; type = resource_type; break;
+                case ResourceType::buffer:  resource = BufferResource{};  type = resource_type; break;
+                case ResourceType::scene:   resource = SceneResource{};   type = resource_type; break;
+            }
+        }
         TextureResource& expect_texture() {
             assert(type == ResourceType::texture);
-            return texture_resource;
+            return std::get<TextureResource>(resource);
         }
         BufferResource& expect_buffer() {
             assert(type == ResourceType::buffer);
-            return buffer_resource;
+            return std::get<BufferResource>(resource);
         }
         SceneResource& expect_scene() {
             assert(type == ResourceType::scene);
-            return scene_resource;
+            return std::get<SceneResource>(resource);
         }
 
         ResourceType type = ResourceType::none;
@@ -145,11 +153,7 @@ namespace gfx {
         D3D12_RESOURCE_STATES current_state = D3D12_RESOURCE_STATE_COMMON;
         std::string name;
      private:
-        union {
-            TextureResource texture_resource;
-            BufferResource buffer_resource;
-            SceneResource scene_resource;
-        };
+        std::variant<TextureResource, BufferResource, SceneResource> resource;
     }; 
 
     struct ResourceHandlePair {
