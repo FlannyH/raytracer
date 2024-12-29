@@ -515,8 +515,7 @@ namespace gfx {
 
     ResourceHandlePair Device::load_texture(const std::string& name, uint32_t width, uint32_t height, uint32_t depth, void* data, PixelFormat pixel_format, TextureType type, ResourceUsage usage) {
         // Make texture resource
-        const auto resource = std::make_shared<Resource>();
-        resource->type = ResourceType::texture;
+        const auto resource = std::make_shared<Resource>(ResourceType::texture);
         resource->usage = usage;
         resource->expect_texture() = {
             .data = static_cast<uint8_t*>(data),
@@ -710,9 +709,7 @@ namespace gfx {
 
     ResourceHandlePair Device::create_buffer(const std::string& name, const size_t size, void* data, bool cpu_visible, ResourceUsage usage) {
         // Create engine resource
-        const auto resource = std::make_shared<Resource>();
-        resource->type = ResourceType::buffer;
-        resource->usage = usage;
+        const auto resource = std::make_shared<Resource>(ResourceType::buffer);
         resource->expect_buffer() = {
             .data = data,
             .size = size,
@@ -824,8 +821,7 @@ namespace gfx {
 
     ResourceHandlePair Device::create_render_target(const std::string& name, uint32_t width, uint32_t height, PixelFormat pixel_format, std::optional<glm::vec4> clear_color, ResourceUsage extra_usage) {
         // Make texture resource
-        const auto resource = std::make_shared<Resource>();
-        resource->type = ResourceType::texture;
+        const auto resource = std::make_shared<Resource>(ResourceType::texture);
         resource->usage = extra_usage;
         resource->expect_texture() = {
             .data = nullptr,
@@ -927,8 +923,7 @@ namespace gfx {
 
     ResourceHandlePair Device::create_depth_target(const std::string& name, uint32_t width, uint32_t height, PixelFormat pixel_format, float clear_depth) {
         // Make texture resource
-        const auto resource = std::make_shared<Resource>();
-        resource->type = ResourceType::texture,
+        const auto resource = std::make_shared<Resource>(ResourceType::texture);
         resource->expect_texture() = {
             .data = nullptr,
             .width = width,
