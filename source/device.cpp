@@ -513,49 +513,40 @@ namespace gfx {
         gfx_cmd->DrawInstanced(n_vertices, 1, 0, 0);
     }
 
-    ResourceHandlePair Device::load_texture(const std::string& name, uint32_t width, uint32_t height, uint32_t depth, void* data, PixelFormat pixel_format, TextureType type, ResourceUsage usage) {
-        // Make texture resource
-        const auto resource = std::make_shared<Resource>(ResourceType::texture);
-        resource->usage = usage;
-        resource->expect_texture() = {
-            .data = static_cast<uint8_t*>(data),
-            .width = width,
-            .height = height,
-            .depth = depth,
-            .pixel_format = pixel_format,
-            .is_compute_render_target = (usage == ResourceUsage::compute_write),
+    D3D12_UNORDERED_ACCESS_VIEW_DESC make_texture_uav_desc(DXGI_FORMAT format, TextureType type, int depth, int mip_slice) {
+        D3D12_UNORDERED_ACCESS_VIEW_DESC uav_desc = {
+            .Format = format,
         };
 
-        // Create a d3d12 resource for the texture
-        D3D12_RESOURCE_DESC resource_desc = {};
-        resource_desc.Dimension = texture_type_to_dx12_resource_dimension(type);
-        resource_desc.Width = resource->expect_texture().width;
-        resource_desc.Height = resource->expect_texture().height;
-        resource_desc.DepthOrArraySize = resource->expect_texture().depth;
-        resource_desc.MipLevels = 1;
-        resource_desc.Format = pixel_format_to_dx12(pixel_format);
-        resource_desc.SampleDesc.Count = 1;
-        resource_desc.Flags = D3D12_RESOURCE_FLAG_NONE;
-        resource_desc.Flags |= (usage == ResourceUsage::compute_write) ? D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS : D3D12_RESOURCE_FLAG_NONE;
-        resource_desc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
+        switch (type) {
+        case TextureType::tex_2d:
+            uav_desc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D;
+            uav_desc.Texture2D.MipSlice = mip_slice;
+            uav_desc.Texture2D.PlaneSlice = 0;
+            break;
+        case TextureType::tex_3d:
+            uav_desc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE3D;
+            uav_desc.Texture3D.MipSlice = mip_slice;
+            uav_desc.Texture3D.FirstWSlice = 0;
+            uav_desc.Texture3D.WSize = depth;
+            break;
+        case TextureType::tex_cube:
+            uav_desc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2DARRAY;
+            uav_desc.Texture2DArray.MipSlice = mip_slice;
+            uav_desc.Texture2DArray.FirstArraySlice = 0;
+            uav_desc.Texture2DArray.ArraySize = 6;
+            break;
+        default:
+            LOG(Error, "Unknown texture type %i", (int)type);
+            break;
+        }
 
-        D3D12_HEAP_PROPERTIES heap_properties = {};
-        heap_properties.Type = D3D12_HEAP_TYPE_DEFAULT;
+        return uav_desc;
+    }
 
-        const auto upload_size = width * height * depth * size_per_pixel(pixel_format);
-        auto id = m_heap_bindless->alloc_descriptor(ResourceType::texture);
-        auto descriptor = m_heap_bindless->fetch_cpu_handle(id);
-        validate(device->CreateCommittedResource(
-            &heap_properties,
-            D3D12_HEAP_FLAG_NONE,
-            &resource_desc,
-            D3D12_RESOURCE_STATE_COPY_DEST,
-            nullptr,
-            IID_PPV_ARGS(&resource->handle)
-        ));
-        resource->current_state = D3D12_RESOURCE_STATE_COPY_DEST;
+    D3D12_SHADER_RESOURCE_VIEW_DESC make_texture_srv_desc(DXGI_FORMAT format, TextureType type, int mip_levels) {
         D3D12_SHADER_RESOURCE_VIEW_DESC srv_desc = {
-            .Format = resource_desc.Format,
+            .Format = format,
             .Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING,
         };
         switch (type) {
@@ -581,38 +572,96 @@ namespace gfx {
             LOG(Error, "Unknown texture type %i", (int)type);
             break;
         }
+
+        return srv_desc;
+    }
+
+    ResourceHandlePair Device::load_texture(const std::string& name, uint32_t width, uint32_t height, uint32_t depth, void* data, PixelFormat pixel_format, TextureType type, ResourceUsage usage, bool generate_mips) {
+        // Make texture resource
+        const auto resource = std::make_shared<Resource>(ResourceType::texture);
+        resource->usage = usage;
+        resource->expect_texture() = {
+            .data = static_cast<uint8_t*>(data),
+            .width = width,
+            .height = height,
+            .depth = depth,
+            .pixel_format = pixel_format,
+            .is_compute_render_target = (usage == ResourceUsage::compute_write),
+        };
+
+        // Create a d3d12 resource for the texture
+        D3D12_RESOURCE_DESC resource_desc = {};
+        resource_desc.Dimension = texture_type_to_dx12_resource_dimension(type);
+        resource_desc.Width = width;
+        resource_desc.Height = height;
+        resource_desc.DepthOrArraySize = depth;
+        resource_desc.Format = pixel_format_to_dx12(pixel_format);
+        resource_desc.SampleDesc.Count = 1;
+        resource_desc.Flags = D3D12_RESOURCE_FLAG_NONE;
+        resource_desc.Flags |= (usage == ResourceUsage::compute_write) ? D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS : D3D12_RESOURCE_FLAG_NONE;
+        resource_desc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
+
+        ResourceHandle id = m_heap_bindless->alloc_descriptor(ResourceType::texture);
+
+        int mip_levels = 1;
+        if (generate_mips) {
+            uint32_t w = width / 2;
+            uint32_t h = height / 2;
+            while (w > 1 && h > 1) {
+                mip_levels++;
+                w >>= 1;
+                h >>= 1;
+            }
+        }
+        resource_desc.MipLevels = (UINT16)mip_levels;
+
+        D3D12_HEAP_PROPERTIES heap_properties = {};
+        heap_properties.Type = D3D12_HEAP_TYPE_DEFAULT;
+
+        const auto upload_size = width * height * depth * size_per_pixel(pixel_format);
+        auto descriptor = m_heap_bindless->fetch_cpu_handle(id);
+        validate(device->CreateCommittedResource(
+            &heap_properties,
+            D3D12_HEAP_FLAG_NONE,
+            &resource_desc,
+            D3D12_RESOURCE_STATE_COPY_DEST,
+            nullptr,
+            IID_PPV_ARGS(&resource->handle)
+        ));
+        resource->current_state = D3D12_RESOURCE_STATE_COPY_DEST;
+        auto srv_desc = make_texture_srv_desc(resource_desc.Format, type, mip_levels);
         device->CreateShaderResourceView(resource->handle.Get(), &srv_desc, descriptor);
+        
+        std::vector<ResourceHandle> mip_srv_handles;
+        std::vector<ResourceHandle> mip_uav_handles;
+        mip_levels = 0;
+        if (generate_mips) {
+            uint32_t w = width / 2;
+            uint32_t h = height / 2;
+            while (w > 1 && h > 1) {
+                ResourceHandle mip_srv_id = m_heap_bindless->alloc_descriptor(ResourceType::texture);
+                ResourceHandle mip_uav_id = mip_srv_id; mip_uav_id.id += 1;
+                auto mip_srv_descriptor = m_heap_bindless->fetch_cpu_handle(mip_srv_id);
+                auto mip_uav_descriptor = m_heap_bindless->fetch_cpu_handle(mip_uav_id);
+                
+                D3D12_SHADER_RESOURCE_VIEW_DESC mip_srv_desc = make_texture_srv_desc(resource_desc.Format, type, 1);
+                D3D12_UNORDERED_ACCESS_VIEW_DESC mip_uav_desc = make_texture_uav_desc(resource_desc.Format, type, depth, mip_levels);
+                device->CreateShaderResourceView(resource->handle.Get(), &mip_srv_desc, mip_srv_descriptor);
+                device->CreateUnorderedAccessView(resource->handle.Get(), nullptr, &mip_uav_desc, mip_uav_descriptor);
+
+                mip_srv_handles.push_back(mip_srv_id);
+                mip_srv_handles.push_back(mip_uav_id);
+
+                mip_levels++;
+                w >>= 1;
+                h >>= 1;
+            }
+        }
 
         if (usage == ResourceUsage::compute_write) {
-            D3D12_UNORDERED_ACCESS_VIEW_DESC uav_desc = {
-                .Format = resource_desc.Format,
-            };
-
-            switch (type) {
-            case TextureType::tex_2d:
-                uav_desc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D;
-                uav_desc.Texture2D.MipSlice = 0;
-                uav_desc.Texture2D.PlaneSlice = 0;
-                break;
-            case TextureType::tex_3d:
-                uav_desc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE3D;
-                uav_desc.Texture3D.MipSlice = 0;
-                uav_desc.Texture3D.FirstWSlice = 0;
-                uav_desc.Texture3D.WSize = resource->expect_texture().depth;
-                break;
-            case TextureType::tex_cube:
-                uav_desc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2DARRAY;
-                uav_desc.Texture2DArray.MipSlice = 0;
-                uav_desc.Texture2DArray.FirstArraySlice = 0;
-                uav_desc.Texture2DArray.ArraySize = 6;
-                break;
-            default:
-                LOG(Error, "Unknown texture type %i", (int)type);
-                break;
-            }
-            
             auto uav_id = id;
             uav_id.id += 1;
+            D3D12_UNORDERED_ACCESS_VIEW_DESC uav_desc = make_texture_uav_desc(resource_desc.Format, type, depth, 0);
             auto uav_descriptor = m_heap_bindless->fetch_cpu_handle(uav_id);
             device->CreateUnorderedAccessView(resource->handle.Get(), nullptr, &uav_desc, uav_descriptor);
         }
@@ -681,6 +730,8 @@ namespace gfx {
         id.is_loaded = true; // todo, only set this to true when the upload command buffer finished (when the fence value was reached)
         resource->name = name;
         resource->handle->SetName(std::wstring(name.begin(), name.end()).c_str());
+        resource->expect_texture().mip_srv_handles = mip_srv_handles;
+        resource->expect_texture().mip_uav_handles = mip_uav_handles;
 
         return ResourceHandlePair{ id, resource };
     }

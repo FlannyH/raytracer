@@ -318,7 +318,9 @@ namespace gfx {
                 1,
                 (void*)image_gltf->image.data(),
                 pixel_format_from_gltf_image(*image_gltf),
-                TextureType::tex_2d
+                TextureType::tex_2d,
+                ResourceUsage::none,
+                false // todo: implement mipmapping and set this to true
             );
         }
         

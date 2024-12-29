@@ -249,13 +249,13 @@ namespace gfx {
         stbi__vertically_flip_on_load = 0;
         int width, height, channels;
         uint8_t* data = stbi_load(path.c_str(), &width, &height, &channels, 4);
-        auto texture = load_texture(path, width, height, 1, data, PixelFormat::rgba8_unorm, TextureType::tex_2d);
+        auto texture = load_texture(path, width, height, 1, data, PixelFormat::rgba8_unorm, TextureType::tex_2d, ResourceUsage::none, false); // todo: implement mipmapping and set this to true
         stbi_image_free(data);
         return texture;
     }
 
-    ResourceHandlePair Renderer::load_texture(const std::string& name, uint32_t width, uint32_t height, uint32_t depth, void* data, PixelFormat pixel_format, TextureType type) {
-        ResourceHandlePair texture = m_device->load_texture(name, width, height, depth, data, pixel_format, type);
+    ResourceHandlePair Renderer::load_texture(const std::string& name, uint32_t width, uint32_t height, uint32_t depth, void* data, PixelFormat pixel_format, TextureType type, ResourceUsage usage, bool generate_mips) {
+        ResourceHandlePair texture = m_device->load_texture(name, width, height, depth, data, pixel_format, type, usage, generate_mips);
         m_resources[texture.handle.id] = texture.resource;
         return texture;
     }
@@ -340,7 +340,7 @@ namespace gfx {
 
         // Convert HDRI to cubemap
         auto hdri = m_device->load_texture(path + "::(source hdri)", width, height, 1, data, PixelFormat::rgba32_float, TextureType::tex_2d); // uncommenting crashes
-        auto cubemap = m_device->load_texture(path + "::(base cubemap)", resolution, resolution, 6, nullptr, PixelFormat::rgba32_float, TextureType::tex_cube, ResourceUsage::compute_write);
+        auto cubemap = m_device->load_texture(path + "::(base cubemap)", resolution, resolution, 6, nullptr, PixelFormat::rgba32_float, TextureType::tex_cube, ResourceUsage::compute_write, true);
         m_device->begin_compute_pass(m_pipeline_hdri_to_cubemap, true);
         m_device->use_resources({
             { hdri, ResourceUsage::non_pixel_shader_read },
