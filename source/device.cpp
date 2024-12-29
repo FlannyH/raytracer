@@ -435,7 +435,7 @@ namespace gfx {
                     .right = (LONG)texture->expect_texture().width,
                     .bottom = (LONG)texture->expect_texture().height,
                 };
-                if (render_pass_info.clear_on_begin) {
+                if (render_pass_info.clear_on_begin && texture->expect_texture().clear_on_begin) {
                     transition_resource(m_curr_pass_cmd, texture, D3D12_RESOURCE_STATE_RENDER_TARGET);
                     execute_resource_transitions(m_curr_pass_cmd);
                     auto clear_color = &texture->expect_texture().clear_color;
@@ -822,7 +822,7 @@ namespace gfx {
         return ResourceHandlePair{ id, resource };
     }
 
-    ResourceHandlePair Device::create_render_target(const std::string& name, uint32_t width, uint32_t height, PixelFormat pixel_format, glm::vec4 clear_color, ResourceUsage extra_usage) {
+    ResourceHandlePair Device::create_render_target(const std::string& name, uint32_t width, uint32_t height, PixelFormat pixel_format, std::optional<glm::vec4> clear_color, ResourceUsage extra_usage) {
         // Make texture resource
         const auto resource = std::make_shared<Resource>();
         resource->type = ResourceType::texture;
@@ -832,8 +832,9 @@ namespace gfx {
             .width = width,
             .height = height,
             .pixel_format = pixel_format,
+            .clear_on_begin = clear_color.has_value(),
             .is_compute_render_target = true,
-            .clear_color = clear_color,
+            .clear_color = clear_color.value_or(glm::vec4(0.0f, 0.0f, 0.0f, 0.0f)),
             .rtv_handle = ResourceHandle::none(),
             .dsv_handle = ResourceHandle::none(),
         };
@@ -850,9 +851,10 @@ namespace gfx {
         resource_desc.Flags = D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
         resource_desc.Flags |= (extra_usage == ResourceUsage::compute_write) ? D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS : D3D12_RESOURCE_FLAG_NONE;
         resource_desc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
+        const glm::vec4 clear_color_value = resource->expect_texture().clear_color;
         D3D12_CLEAR_VALUE clear_value = {
             .Format = resource_desc.Format,
-            .Color = { clear_color.r, clear_color.g, clear_color.b, clear_color.a },
+            .Color = { clear_color_value.r, clear_color_value.g, clear_color_value.b, clear_color_value.a },
         };
 
         // Create resource
@@ -932,6 +934,7 @@ namespace gfx {
             .width = width,
             .height = height,
             .pixel_format = pixel_format,
+            .clear_on_begin = true,
             .is_compute_render_target = true,
             .clear_color = glm::vec4(clear_depth, 0.0f, 0.0f, 1.0f),
             .rtv_handle = ResourceHandle::none(),
@@ -1006,8 +1009,10 @@ namespace gfx {
 
         // If it's a render target, create a new render target
         if (texture.rtv_handle.type != (uint32_t)ResourceType::none) {
+            std::optional<glm::vec4> clear_color{};
+            if (texture.clear_on_begin) clear_color = texture.clear_color;
             m_heap_rtv->free_descriptor(resource->expect_texture().rtv_handle);
-            handle = create_render_target(resource->name, width, height, texture.pixel_format, texture.clear_color, resource->usage);
+            handle = create_render_target(resource->name, width, height, texture.pixel_format, clear_color, resource->usage);
             return;
         }
 
