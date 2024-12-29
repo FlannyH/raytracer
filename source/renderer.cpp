@@ -19,7 +19,7 @@ namespace gfx {
     // Initialisation and state
     Renderer::Renderer(int width, int height, bool debug_layer_enabled) {
         m_device = std::make_unique<Device>(width, height, debug_layer_enabled);
-        m_color_target = m_device->create_render_target("Color framebuffer", width, height, PixelFormat::rgba16_float, {0.0f, 0.0f, 0.0f, -1.0f}, ResourceUsage::compute_write);
+        m_color_target = m_device->create_render_target("Color framebuffer", width, height, PixelFormat::rgba16_float, glm::vec4(0.0f, 0.0f, 0.0f, -1.0f), ResourceUsage::compute_write);
         m_normal_target = m_device->create_render_target("Normal framebuffer", width, height, PixelFormat::rgba16_float, {}, ResourceUsage::compute_write);
         m_roughness_metallic_target = m_device->create_render_target("Roughness framebuffer", width, height, PixelFormat::rg8_unorm, {}, ResourceUsage::compute_write);
         m_emissive_target = m_device->create_render_target("Emissive framebuffer", width, height, PixelFormat::rg11_b10_float, {}, ResourceUsage::compute_write);
