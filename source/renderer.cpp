@@ -38,6 +38,7 @@ namespace gfx {
         m_pipeline_cubemap_to_diffuse = m_device->create_compute_pipeline("assets/shaders/cubemap_to_diffuse.cs.hlsl");
         m_pipeline_accumulate_sh_coeffs = m_device->create_compute_pipeline("assets/shaders/accumulate_sh_coeffs.cs.hlsl");
         m_pipeline_compute_sh_matrices = m_device->create_compute_pipeline("assets/shaders/compute_sh_matrices.cs.hlsl");
+        m_pipeline_prefilter_cubemap = m_device->create_compute_pipeline("assets/shaders/prefilter_cubemap.cs.hlsl");
         m_material_buffer = m_device->create_buffer("Material descriptions", MAX_MATERIAL_COUNT * sizeof(Material), nullptr, true);
         m_lights_buffer = m_device->create_buffer("Lights buffer", 3 * sizeof(uint32_t) + MAX_LIGHTS_DIRECTIONAL * sizeof(LightDirectional), nullptr, true);
         m_spherical_harmonics_buffer = m_device->create_buffer("Spherical harmonics coefficients buffer", MAX_CUBEMAP_SH * 3*sizeof(glm::mat4), nullptr, false, ResourceUsage::compute_write);
@@ -324,6 +325,8 @@ namespace gfx {
     }
 
     Cubemap Renderer::load_environment_map(const std::string& path, const int resolution) {
+        LOG(Debug, "Loading environment map \"%s\" at resolution %ix%ix6", path.c_str(), resolution, resolution);
+
         // Load HDRI from file
         stbi__vertically_flip_on_load = 0;
         int width, height, channels;
@@ -486,13 +489,32 @@ namespace gfx {
             m_device->end_compute_pass();
         }
 
+        // Pre-filter specular maps
+        // todo: store these in the base map's mipmaps
+        auto filtered_cubemap = m_device->load_texture(path + "::(test filtered)", 64, 64, 6, nullptr, PixelFormat::rgba32_float, TextureType::tex_cube, ResourceUsage::compute_write);
+        m_device->begin_compute_pass(m_pipeline_prefilter_cubemap);
+        m_device->use_resources({
+            {cubemap, ResourceUsage::non_pixel_shader_read},
+            {filtered_cubemap, ResourceUsage::compute_write}
+        });
+        m_device->set_compute_root_constants({
+            cubemap.handle.as_u32(),
+            filtered_cubemap.handle.as_u32_uav(),
+            (uint32_t)resolution,
+            (uint32_t)64,
+            (uint32_t)(0.25f * 65536.0f)
+        });
+        m_device->dispatch_threadgroups(64 / 8, 64 / 8, 6);
+        m_device->end_compute_pass();
+
         // We won't need the original image data anymore
         stbi_image_free(data);
         
         // Now upload this texture as a cubemap
         return {
             .hdri = hdri,
-            .base = cubemap,
+            .base = filtered_cubemap,
+            .ibl_specular = cubemap,
             .offset_diffuse_sh = 0
         };
     }
