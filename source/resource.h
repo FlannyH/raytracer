@@ -83,6 +83,9 @@ namespace gfx {
         glm::vec4 clear_color;
         ResourceHandle rtv_handle;
         ResourceHandle dsv_handle;
+        // Extra optional handles for mipmaps
+        std::vector<ResourceHandle> mip_srv_handles;
+        std::vector<ResourceHandle> mip_uav_handles;
     };
 
     struct BufferResource {

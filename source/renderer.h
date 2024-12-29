@@ -29,7 +29,7 @@ namespace gfx {
         // Resource management
         void unload_resource(ResourceHandlePair& resource);
         ResourceHandlePair load_texture(const std::string& path, bool free_after_upload = true); // Load a texture from a file
-        ResourceHandlePair load_texture(const std::string& name, uint32_t width, uint32_t height, uint32_t depth, void* data, PixelFormat pixel_format, TextureType type); // Load a texture from memory
+        ResourceHandlePair load_texture(const std::string& name, uint32_t width, uint32_t height, uint32_t depth, void* data, PixelFormat pixel_format, TextureType type, ResourceUsage usage, bool generate_mips); // Load a texture from memory
         ResourceHandlePair create_buffer(const std::string& name, size_t size, void* data, bool cpu_visible);
         ResourceHandlePair load_scene_gltf(const std::string& path);
         Cubemap load_environment_map(const std::string& path, const int resolution = 1024);
