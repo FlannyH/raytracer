@@ -202,7 +202,6 @@ void main(uint3 dispatch_thread_id : SV_DispatchThreadID) {
         TextureCube<float4> sky_texture = ResourceDescriptorHeap[NonUniformResourceIndex(root_constants.curr_sky_cube & MASK_ID)];
         float mip_level = pow(roughness, 1.5f) * (root_constants.curr_sky_n_mips + 1);
         float3 env_sample = sky_texture.SampleLevel(cube_sampler, normalize(reflect_dir), mip_level).rgb;
-        float2 env_brdf = env_brdf_lut[int2(n_dot_v * 511, roughness * 511)];
         float2 env_brdf = env_brdf_lut.Sample(tex_sampler_clamp, float2(n_dot_v, roughness));
         float3 indirect_specular = env_sample * (specular_f * env_brdf.x + env_brdf.y);
         specular += specular_f * indirect_specular * FULLBRIGHT_NITS * PI;
