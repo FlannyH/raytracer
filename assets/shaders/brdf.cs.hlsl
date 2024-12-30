@@ -89,7 +89,13 @@ float geometry_smith(float3 n, float3 v, float3 l, float roughness) {
 }
 
 float3 fresnel_schlick(float v_dot_h, float3 f0, float roughness) {
-    return f0 + (1.0f - f0) * pow(2.0, (-5.55473 * v_dot_h - 6.98316) * v_dot_h);
+    // return f0 + (1.0f - f0) * pow(2.0, (-5.55473 * v_dot_h - 6.98316) * v_dot_h);
+    // return f0 + (1.0f - f0) * pow(1.0f - v_dot_h, 5.0f);
+
+    // return f0 + (max(vec3(1.0 - roughness), f0) - f0) * pow(2.0, (-5.55473 * v_dot_h - 6.98316) * v_dot_h);
+    float smooth = 1.0 - roughness;
+    float3 smooth3 = float3(smooth, smooth, smooth);
+    return f0 + (max(smooth3, f0) - f0) * pow(1.0f - v_dot_h, 5.0f);
 }
 
 float3 reflect(float3 i, float3 n) {
@@ -146,16 +152,19 @@ void main(uint3 dispatch_thread_id : SV_DispatchThreadID) {
     float3 emission = emissive_texture[dispatch_thread_id.xy];
     float2 metal_roughness = metal_roughness_texture[dispatch_thread_id.xy].rg;
     float metallic = metal_roughness.r;
-    float roughness = pow(metal_roughness.g, 1.0f / 2.2);
+    float roughness = pow(metal_roughness.g, 1.0f / 2.2f);
     
     // Get light buffer
     ByteAddressBuffer packet_buffer = ResourceDescriptorHeap[NonUniformResourceIndex(root_constants.lights_buffer & MASK_ID)];
     LightCounts light_counts = packet_buffer.Load<LightCounts>(0);
     
     // Process all directional lights
-    const float3 f0 = mix(0.04f, color.rgb, metallic);
+    float3 f0 = mix(0.04f, color.rgb, metallic);
+    float3 reflect_dir = reflect(view_direction, normal);
+    float3 half_vector = normalize(-view_direction + reflect_dir);
+    float v_dot_h = saturate(dot(half_vector, -view_direction));
     float n_dot_v = saturate(dot(normal, -view_direction));
-    float3 specular_f = fresnel_schlick(n_dot_v, f0, roughness);
+    float3 specular_f = fresnel_schlick(v_dot_h, f0, roughness);
     float3 k_s = specular_f;
     float3 diffuse_mul = 1.0f - specular_f;
     diffuse_mul *= 1.0 - metallic;
@@ -191,8 +200,7 @@ void main(uint3 dispatch_thread_id : SV_DispatchThreadID) {
     if (root_constants.curr_sky_cube & MASK_IS_LOADED) {
         TextureCube<float4> sky_texture = ResourceDescriptorHeap[NonUniformResourceIndex(root_constants.curr_sky_cube & MASK_ID)];
         float mip_level = pow(roughness, 1.5f) * (root_constants.curr_sky_n_mips + 1);
-        float3 r = reflect(view_direction, normal);
-        float3 env_sample = sky_texture.SampleLevel(cube_sampler, normalize(r), mip_level).rgb;
+        float3 env_sample = sky_texture.SampleLevel(cube_sampler, normalize(reflect_dir), mip_level).rgb;
         float2 env_brdf = env_brdf_lut[int2(n_dot_v * 511, roughness * 511)];
         float3 indirect_specular = env_sample * (specular_f * env_brdf.x + env_brdf.y);
         specular += specular_f * indirect_specular * FULLBRIGHT_NITS * PI;

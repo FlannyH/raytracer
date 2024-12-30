@@ -503,11 +503,11 @@ namespace gfx {
         float roughness = 0.0f;
         m_device->begin_compute_pass(m_pipeline_prefilter_cubemap, true);
         const auto& mip_handles = cubemap.resource->subresource_handles;
-        // `mip_handles.size() + 1` so we don't reach roughness = 1.0, which
-        // cause a div by zero on the GPU, and values approaching 1.0 give wrong results
-        const float roughness_step = 1.0f / (mip_handles.size() + 1);
+        const float roughness_step = 1.0f / ((float)mip_handles.size());
         for (uint32_t i = 0; i < mip_handles.size(); ++i) {
             roughness += roughness_step;
+            // Roughness values of 1.0f cause a div by zero on the GPU, and values above 1.0 are wrong
+            if (roughness >= 1.0f) roughness = 0.99f;
 
             m_device->use_resources({
                 {cubemap, ResourceUsage::non_pixel_shader_read, 0},
