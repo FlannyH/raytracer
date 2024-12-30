@@ -491,7 +491,7 @@ namespace gfx {
         // Pre-filter specular maps
         uint32_t mip_res = resolution / 2;
         float roughness = 0.0f;
-        m_device->begin_compute_pass(m_pipeline_prefilter_cubemap);
+        m_device->begin_compute_pass(m_pipeline_prefilter_cubemap, true);
         const auto& mip_handles = cubemap.resource->subresource_handles;
         // `mip_handles.size() + 1` so we don't reach roughness = 1.0, which
         // cause a div by zero on the GPU, and values approaching 1.0 give wrong results
