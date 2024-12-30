@@ -51,7 +51,7 @@ namespace gfx {
         uint32_t m_non_gpu_resource_handle_cursor = 0;
         ResourceHandlePair m_color_target = { ResourceHandle::none(), nullptr };
         ResourceHandlePair m_normal_target = { ResourceHandle::none(), nullptr };
-        ResourceHandlePair m_roughness_metallic_target = { ResourceHandle::none(), nullptr };
+        ResourceHandlePair m_metallic_roughness_target = { ResourceHandle::none(), nullptr };
         ResourceHandlePair m_emissive_target = { ResourceHandle::none(), nullptr };
         ResourceHandlePair m_shaded_target = { ResourceHandle::none(), nullptr };
         ResourceHandlePair m_depth_target = { ResourceHandle::none(), nullptr };
