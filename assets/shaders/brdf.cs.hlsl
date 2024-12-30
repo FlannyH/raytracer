@@ -1,5 +1,6 @@
 struct RootConstants {
     uint output_texture;
+    uint position_texture;
     uint color_texture;
     uint normal_texture;
     uint metal_roughness_texture;

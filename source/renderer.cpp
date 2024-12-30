@@ -19,6 +19,7 @@ namespace gfx {
     // Initialisation and state
     Renderer::Renderer(int width, int height, bool debug_layer_enabled) {
         m_device = std::make_unique<Device>(width, height, debug_layer_enabled);
+        m_position_target = m_device->create_render_target("Position framebuffer", width, height, PixelFormat::rgba32_float, {}, ResourceUsage::compute_write);
         m_color_target = m_device->create_render_target("Color framebuffer", width, height, PixelFormat::rgba16_float, glm::vec4(0.0f, 0.0f, 0.0f, -1.0f), ResourceUsage::compute_write);
         m_normal_target = m_device->create_render_target("Normal framebuffer", width, height, PixelFormat::rgba16_float, {}, ResourceUsage::compute_write);
         m_metallic_roughness_target = m_device->create_render_target("Metallic & roughness framebuffer", width, height, PixelFormat::rg8_unorm, {}, ResourceUsage::compute_write);
@@ -26,6 +27,7 @@ namespace gfx {
         m_shaded_target = m_device->load_texture("Shaded framebuffer", width, height, 1, nullptr, PixelFormat::rgba16_float, TextureType::tex_2d, ResourceUsage::compute_write);
         m_depth_target = m_device->create_depth_target("Depth framebuffer", width, height, PixelFormat::depth32_float);
         m_pipeline_scene = m_device->create_raster_pipeline("assets/shaders/geo_pass.vs.hlsl", "assets/shaders/geo_pass.ps.hlsl", {
+            m_position_target,
             m_color_target,
             m_normal_target,
             m_metallic_roughness_target,
@@ -113,6 +115,7 @@ namespace gfx {
                 tan(FOV * 0.5f) * (m_resolution.x / m_resolution.y), // viewport width
                 tan(FOV * 0.5f), // viewport height
             };
+            resize_texture(m_position_target, (uint32_t)m_render_resolution.x, (uint32_t)m_render_resolution.y);
             resize_texture(m_color_target, (uint32_t)m_render_resolution.x, (uint32_t)m_render_resolution.y);
             resize_texture(m_normal_target, (uint32_t)m_render_resolution.x, (uint32_t)m_render_resolution.y);
             resize_texture(m_metallic_roughness_target, (uint32_t)m_render_resolution.x, (uint32_t)m_render_resolution.y);
@@ -124,6 +127,7 @@ namespace gfx {
         // Queue rendering scenes
         m_device->begin_raster_pass(m_pipeline_scene, RasterPassInfo{
             .color_targets = {
+                m_position_target,
                 m_color_target,
                 m_normal_target,
                 m_metallic_roughness_target,
@@ -156,6 +160,7 @@ namespace gfx {
         m_device->begin_compute_pass(m_pipeline_brdf);
         m_device->use_resources({
             { m_shaded_target, ResourceUsage::compute_write },
+            { m_position_target, ResourceUsage::non_pixel_shader_read },
             { m_color_target, ResourceUsage::non_pixel_shader_read },
             { m_normal_target, ResourceUsage::non_pixel_shader_read },
             { m_metallic_roughness_target, ResourceUsage::non_pixel_shader_read },
@@ -167,6 +172,7 @@ namespace gfx {
         });
         m_device->set_compute_root_constants({
             m_shaded_target.handle.as_u32_uav(),
+            m_position_target.handle.as_u32(),
             m_color_target.handle.as_u32(),
             m_normal_target.handle.as_u32(),
             m_metallic_roughness_target.handle.as_u32(),
