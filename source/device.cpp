@@ -576,7 +576,7 @@ namespace gfx {
         return srv_desc;
     }
 
-    ResourceHandlePair Device::load_texture(const std::string& name, uint32_t width, uint32_t height, uint32_t depth, void* data, PixelFormat pixel_format, TextureType type, ResourceUsage usage, bool generate_mips) {
+    ResourceHandlePair Device::load_texture(const std::string& name, uint32_t width, uint32_t height, uint32_t depth, void* data, PixelFormat pixel_format, TextureType type, ResourceUsage usage, int max_mip_levels, int min_resolution) {
         // Make texture resource
         const auto resource = std::make_shared<Resource>(ResourceType::texture);
         resource->usage = usage;
@@ -604,10 +604,10 @@ namespace gfx {
         ResourceHandle id = m_heap_bindless->alloc_descriptor(ResourceType::texture);
 
         int mip_levels = 1;
-        if (generate_mips) {
+        if (max_mip_levels > 1) {
             uint32_t w = width;
             uint32_t h = height;
-            while (w > 1 && h > 1) {
+            while (w > min_resolution && h > min_resolution && mip_levels < max_mip_levels) {
                 mip_levels++;
                 w >>= 1;
                 h >>= 1;
@@ -634,7 +634,7 @@ namespace gfx {
         
         std::vector<ResourceHandle> mip_handles;
         int mip_level = 0;
-        if (generate_mips) {
+        if (max_mip_levels > 1) {
             uint32_t w = width;
             uint32_t h = height;
             while (++mip_level < mip_levels) {
