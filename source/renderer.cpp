@@ -489,21 +489,32 @@ namespace gfx {
         }
 
         // Pre-filter specular maps
-        // todo: store these in the base map's mipmaps
-        auto filtered_cubemap = m_device->load_texture(path + "::(test filtered)", 64, 64, 6, nullptr, PixelFormat::rgba32_float, TextureType::tex_cube, ResourceUsage::compute_write);
+        uint32_t mip_res = resolution / 2;
+        float roughness = 0.0f;
         m_device->begin_compute_pass(m_pipeline_prefilter_cubemap);
-        m_device->use_resources({
-            {cubemap, ResourceUsage::non_pixel_shader_read},
-            {filtered_cubemap, ResourceUsage::compute_write}
-        });
-        m_device->set_compute_root_constants({
-            cubemap.handle.as_u32(),
-            filtered_cubemap.handle.as_u32_uav(),
-            (uint32_t)resolution,
-            (uint32_t)64,
-            (uint32_t)(0.25f * 65536.0f)
-        });
-        m_device->dispatch_threadgroups(64 / 8, 64 / 8, 6);
+        const auto& mip_handles = cubemap.resource->subresource_handles;
+        // `mip_handles.size() + 1` so we don't reach roughness = 1.0, which
+        // cause a div by zero on the GPU, and values approaching 1.0 give wrong results
+        const float roughness_step = 1.0f / (mip_handles.size() + 1);
+        for (uint32_t i = 0; i < mip_handles.size(); ++i) {
+            roughness += roughness_step;
+
+            m_device->use_resources({
+                {cubemap, ResourceUsage::non_pixel_shader_read, 0},
+                {cubemap, ResourceUsage::compute_write, i + 1}
+            });
+            m_device->set_compute_root_constants({
+                cubemap.handle.as_u32(),
+                mip_handles[i].as_u32_uav(),
+                (uint32_t)mip_res,
+                (uint32_t)mip_res,
+                (uint32_t)(roughness * roughness * 65536.0f)
+            });
+            LOG(Debug, "mip %2i, res: %4i: roughness: %.3f", i, mip_res, roughness);
+            const uint32_t n_threadgroups = (mip_res + 7) / 8;
+            m_device->dispatch_threadgroups(n_threadgroups, n_threadgroups, 6);
+            mip_res /= 2;
+        }
         m_device->end_compute_pass();
 
         // We won't need the original image data anymore
@@ -512,7 +523,7 @@ namespace gfx {
         // Now upload this texture as a cubemap
         return {
             .hdri = hdri,
-            .base = filtered_cubemap,
+            .base = cubemap,
             .ibl_specular = cubemap,
             .offset_diffuse_sh = 0
         };

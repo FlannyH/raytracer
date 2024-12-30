@@ -83,9 +83,6 @@ namespace gfx {
         glm::vec4 clear_color;
         ResourceHandle rtv_handle;
         ResourceHandle dsv_handle;
-        // Extra optional handles for mipmaps
-        std::vector<ResourceHandle> mip_srv_handles;
-        std::vector<ResourceHandle> mip_uav_handles;
     };
 
     struct BufferResource {
@@ -155,6 +152,10 @@ namespace gfx {
         ComPtr<ID3D12Resource> handle;
         D3D12_RESOURCE_STATES current_state = D3D12_RESOURCE_STATE_COMMON;
         std::string name;
+        
+        // Extra optional handles for subresources
+        std::vector<ResourceHandle> subresource_handles;
+        std::vector<D3D12_RESOURCE_STATES> subresource_states;
      private:
         std::variant<TextureResource, BufferResource, SceneResource> resource;
     }; 
