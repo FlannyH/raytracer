@@ -80,8 +80,9 @@ void main(uint3 dispatch_thread_id : SV_DispatchThreadID) {
 
     const float roughness = float(root_constants.roughness) / 65536.0f;
     const float roughness2 = roughness * roughness;
-    const int n_samples = max(1, int(8192.0f * roughness * (512.0f / cubemap_w)));
+    const int n_samples = max(1, int(1024.0f * (pow(roughness, 1.5f) / 2.0f + 0.5f) * (512.0f / cubemap_w)));
 
+    float max_hdr_brightness = 100.f * (1.0f - pow(roughness, 1.0f / 3.0f));
     float total_weight = 0.0f;
     float3 color = float3(0, 0, 0);
     for (int i = 0; i < n_samples; ++i) {
@@ -91,7 +92,8 @@ void main(uint3 dispatch_thread_id : SV_DispatchThreadID) {
 
         const float n_dot_l = saturate(dot(n, l));
         if (n_dot_l > 0.0f) {
-            color += min(32.f * (1.0f - roughness), base_cube_map.SampleLevel(cube_sampler, l, 0) * n_dot_l);
+            // Brightness is limited to avoid fireflies in the output image
+            color += min(max_hdr_brightness, base_cube_map.SampleLevel(cube_sampler, l, 0) * n_dot_l);
             total_weight += n_dot_l;   
         }
     }
