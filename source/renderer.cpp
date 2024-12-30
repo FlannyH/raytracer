@@ -44,6 +44,7 @@ namespace gfx {
         m_material_buffer = m_device->create_buffer("Material descriptions", MAX_MATERIAL_COUNT * sizeof(Material), nullptr, true);
         m_lights_buffer = m_device->create_buffer("Lights buffer", 3 * sizeof(uint32_t) + MAX_LIGHTS_DIRECTIONAL * sizeof(LightDirectional), nullptr, true);
         m_spherical_harmonics_buffer = m_device->create_buffer("Spherical harmonics coefficients buffer", MAX_CUBEMAP_SH * 3*sizeof(glm::mat4), nullptr, false, ResourceUsage::compute_write);
+        m_env_brdf_lut = load_texture("assets/textures/env_brdf_lut.png");
 
         // Create triple buffered draw packet buffer
         for (int i = 0; i < backbuffer_count; ++i) {
@@ -168,6 +169,7 @@ namespace gfx {
             { m_lights_buffer, ResourceUsage::non_pixel_shader_read },
             { m_spherical_harmonics_buffer, ResourceUsage::non_pixel_shader_read },
             { m_curr_sky_cube.base, ResourceUsage::non_pixel_shader_read },
+            { m_env_brdf_lut, ResourceUsage::non_pixel_shader_read },
             { m_draw_packets[m_device->frame_index() % backbuffer_count], ResourceUsage::non_pixel_shader_read }
         });
         m_device->set_compute_root_constants({
@@ -181,8 +183,10 @@ namespace gfx {
             m_spherical_harmonics_buffer.handle.as_u32(),
             m_curr_sky_cube.base.handle.as_u32(),
             m_curr_sky_cube.offset_diffuse_sh,
+            (uint32_t)m_curr_sky_cube.base.resource->subresource_handles.size() + 1,
             m_draw_packets[m_device->frame_index() % backbuffer_count].handle.as_u32(),
-            view_data_offset
+            view_data_offset,
+            m_env_brdf_lut.handle.as_u32()
         });
         m_device->dispatch_threadgroups( // threadgroup size is 8x8
             (uint32_t)(m_render_resolution.x / 8.0f),

@@ -7,7 +7,7 @@
 
 int main(int n_args, char** args) {
     const auto renderer = std::make_unique<gfx::Renderer>(1280, 720, true);
-    auto scene = renderer->load_scene_gltf("assets/models/monke.gltf");
+    auto scene = renderer->load_scene_gltf("assets/models/DamagedHelmet.gltf");
     auto cubemap = renderer->load_environment_map("assets/textures/resting_place_2_4k.hdr", 1024);
     auto lights = renderer->load_scene_gltf("assets/models/lights_test.glb");
     renderer->set_skybox(cubemap);
