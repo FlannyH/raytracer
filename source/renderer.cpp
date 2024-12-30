@@ -19,6 +19,8 @@ namespace gfx {
     // Initialisation and state
     Renderer::Renderer(int width, int height, bool debug_layer_enabled) {
         m_device = std::make_unique<Device>(width, height, debug_layer_enabled);
+
+        LOG(Debug, "Creating framebuffers");
         m_position_target = m_device->create_render_target("Position framebuffer", width, height, PixelFormat::rgba32_float, {}, ResourceUsage::compute_write);
         m_color_target = m_device->create_render_target("Color framebuffer", width, height, PixelFormat::rgba16_float, glm::vec4(0.0f, 0.0f, 0.0f, -1.0f), ResourceUsage::compute_write);
         m_normal_target = m_device->create_render_target("Normal framebuffer", width, height, PixelFormat::rgba16_float, {}, ResourceUsage::compute_write);
@@ -26,6 +28,7 @@ namespace gfx {
         m_emissive_target = m_device->create_render_target("Emissive framebuffer", width, height, PixelFormat::rg11_b10_float, {}, ResourceUsage::compute_write);
         m_shaded_target = m_device->load_texture("Shaded framebuffer", width, height, 1, nullptr, PixelFormat::rgba16_float, TextureType::tex_2d, ResourceUsage::compute_write);
         m_depth_target = m_device->create_depth_target("Depth framebuffer", width, height, PixelFormat::depth32_float);
+        LOG(Debug, "Compiling shaders");
         m_pipeline_scene = m_device->create_raster_pipeline("assets/shaders/geo_pass.vs.hlsl", "assets/shaders/geo_pass.ps.hlsl", {
             m_position_target,
             m_color_target,
@@ -41,15 +44,32 @@ namespace gfx {
         m_pipeline_accumulate_sh_coeffs = m_device->create_compute_pipeline("assets/shaders/accumulate_sh_coeffs.cs.hlsl");
         m_pipeline_compute_sh_matrices = m_device->create_compute_pipeline("assets/shaders/compute_sh_matrices.cs.hlsl");
         m_pipeline_prefilter_cubemap = m_device->create_compute_pipeline("assets/shaders/prefilter_cubemap.cs.hlsl");
+        m_pipeline_ibl_brdf_lut_gen = m_device->create_compute_pipeline("assets/shaders/ibl_brdf_lut_gen.cs.hlsl");
+        
+        LOG(Debug, "Creating buffers");
         m_material_buffer = m_device->create_buffer("Material descriptions", MAX_MATERIAL_COUNT * sizeof(Material), nullptr, true);
         m_lights_buffer = m_device->create_buffer("Lights buffer", 3 * sizeof(uint32_t) + MAX_LIGHTS_DIRECTIONAL * sizeof(LightDirectional), nullptr, true);
         m_spherical_harmonics_buffer = m_device->create_buffer("Spherical harmonics coefficients buffer", MAX_CUBEMAP_SH * 3*sizeof(glm::mat4), nullptr, false, ResourceUsage::compute_write);
-        m_env_brdf_lut = load_texture("assets/textures/env_brdf_lut.png");
 
         // Create triple buffered draw packet buffer
         for (int i = 0; i < backbuffer_count; ++i) {
             m_draw_packets[i] = m_device->create_buffer("Draw Packets", DRAW_PACKET_BUFFER_SIZE, nullptr, true);
         }
+
+        LOG(Debug, "Precalculating IBL BRDF LUT");
+        constexpr uint32_t ibl_brdf_resolution = 512;
+        m_env_brdf_lut = m_device->load_texture(
+            "IBL BRDF LUT", ibl_brdf_resolution, ibl_brdf_resolution, 1, nullptr, 
+            PixelFormat::rg16_float, TextureType::tex_2d, ResourceUsage::compute_write
+        );
+        m_device->begin_compute_pass(m_pipeline_ibl_brdf_lut_gen, true);
+        m_device->use_resource(m_env_brdf_lut, ResourceUsage::compute_write);
+        m_device->set_compute_root_constants({
+            m_env_brdf_lut.handle.as_u32_uav(),
+            ibl_brdf_resolution
+        });
+        m_device->dispatch_threadgroups(ibl_brdf_resolution / 8, ibl_brdf_resolution / 8, 1);
+        m_device->end_compute_pass();
 
         LOG(Info, "Renderer initialized (DirectX 12)");
     }
