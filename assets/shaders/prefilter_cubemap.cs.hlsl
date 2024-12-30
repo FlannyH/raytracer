@@ -82,7 +82,7 @@ void main(uint3 dispatch_thread_id : SV_DispatchThreadID) {
     const float roughness2 = roughness * roughness;
     const int n_samples = max(1, int(1024.0f * (pow(roughness, 1.5f) / 2.0f + 0.5f) * (512.0f / cubemap_w)));
 
-    float max_hdr_brightness = 100.f * (1.0f - pow(roughness, 1.0f / 3.0f));
+    float max_hdr_brightness = 64.f * (1.0f - pow(roughness, 1.0f / 3.0f));
     float total_weight = 0.0f;
     float3 color = float3(0, 0, 0);
     for (int i = 0; i < n_samples; ++i) {
