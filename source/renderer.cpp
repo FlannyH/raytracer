@@ -346,7 +346,7 @@ namespace gfx {
 
         // Convert HDRI to cubemap
         auto hdri = m_device->load_texture(path + "::(source hdri)", width, height, 1, data, PixelFormat::rgba32_float, TextureType::tex_2d);
-        auto cubemap = m_device->load_texture(path + "::(base cubemap)", resolution, resolution, 6, nullptr, PixelFormat::rgba32_float, TextureType::tex_cube, ResourceUsage::compute_write, 7);
+        auto cubemap = m_device->load_texture(path + "::(base cubemap)", resolution, resolution, 6, nullptr, PixelFormat::rgba32_float, TextureType::tex_cube, ResourceUsage::compute_write, 10, 16);
         m_device->begin_compute_pass(m_pipeline_hdri_to_cubemap, true);
         m_device->use_resources({
             { hdri, ResourceUsage::non_pixel_shader_read },
