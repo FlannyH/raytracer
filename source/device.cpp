@@ -553,19 +553,19 @@ namespace gfx {
         case TextureType::tex_2d:
             srv_desc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
             srv_desc.Texture2D.MostDetailedMip = 0;
-            srv_desc.Texture2D.MipLevels = 1;
+            srv_desc.Texture2D.MipLevels = mip_levels;
             srv_desc.Texture2D.PlaneSlice = 0;
             break;
         case TextureType::tex_3d:
             srv_desc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE3D;
             srv_desc.Texture3D.MostDetailedMip = 0;
-            srv_desc.Texture3D.MipLevels = 1;
+            srv_desc.Texture3D.MipLevels = mip_levels;
             srv_desc.Texture3D.ResourceMinLODClamp = 0.0f;
             break;
         case TextureType::tex_cube:
             srv_desc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURECUBE;
             srv_desc.TextureCube.MostDetailedMip = 0;
-            srv_desc.TextureCube.MipLevels = 1;
+            srv_desc.TextureCube.MipLevels = mip_levels;
             srv_desc.TextureCube.ResourceMinLODClamp = 0.0f;
             break;
         default:
