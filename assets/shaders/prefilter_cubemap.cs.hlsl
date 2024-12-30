@@ -46,7 +46,7 @@ float3 importance_sample_ggx(float2 xi, float roughness2, float3 n) {
     return (tangent_x * h.x) + (tangent_y * h.y) + (n * h.z);
 }
 
-sampler cube_sampler : register(s1);
+sampler cube_sampler : register(s2);
 
 // https://de45xmedrsdbp.cloudfront.net/Resources/files/2013SiggraphPresentationsNotes-26915738.pdf
 [numthreads(8, 8, 1)]

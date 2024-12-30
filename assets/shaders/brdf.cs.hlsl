@@ -107,7 +107,8 @@ float3 mix(float3 x, float3 y, float a) {
 }
 
 sampler tex_sampler : register(s0);
-sampler cube_sampler : register(s1);
+sampler tex_sampler_clamp : register(s1);
+sampler cube_sampler : register(s2);
 
 [numthreads(8, 8, 1)]
 void main(uint3 dispatch_thread_id : SV_DispatchThreadID) {

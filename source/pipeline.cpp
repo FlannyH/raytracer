@@ -33,7 +33,7 @@ namespace gfx {
             },
         };
 
-        D3D12_STATIC_SAMPLER_DESC samplers[2] = {
+        D3D12_STATIC_SAMPLER_DESC samplers[3] = {
             { // Regular texture
                 .Filter = D3D12_FILTER_ANISOTROPIC,
                 .AddressU = D3D12_TEXTURE_ADDRESS_MODE_WRAP,
@@ -49,7 +49,7 @@ namespace gfx {
                 .RegisterSpace = 0,
                 .ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL,
             },
-            { // Cubemap
+            { // Lookup texture (clamp)
                 .Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR,
                 .AddressU = D3D12_TEXTURE_ADDRESS_MODE_CLAMP,
                 .AddressV = D3D12_TEXTURE_ADDRESS_MODE_CLAMP,
@@ -63,6 +63,21 @@ namespace gfx {
                 .ShaderRegister = 1,
                 .RegisterSpace = 0,
                 .ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL,
+            },
+            { // Cubemap
+                .Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR,
+                .AddressU = D3D12_TEXTURE_ADDRESS_MODE_CLAMP,
+                .AddressV = D3D12_TEXTURE_ADDRESS_MODE_CLAMP,
+                .AddressW = D3D12_TEXTURE_ADDRESS_MODE_CLAMP,
+                .MipLODBias = 0.0f,
+                .MaxAnisotropy = 16,
+                .ComparisonFunc = D3D12_COMPARISON_FUNC_NEVER,
+                .BorderColor = D3D12_STATIC_BORDER_COLOR_OPAQUE_BLACK,
+                .MinLOD = 0.0f,
+                .MaxLOD = 100000.0f,
+                .ShaderRegister = 2,
+                .RegisterSpace = 0,
+                .ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL,
             }
         };
 
@@ -71,7 +86,7 @@ namespace gfx {
             .Desc_1_1 = {
                 .NumParameters = 1,
                 .pParameters = root_parameters,
-                .NumStaticSamplers = 2,
+                .NumStaticSamplers = 3,
                 .pStaticSamplers = samplers,
                 .Flags = D3D12_ROOT_SIGNATURE_FLAG_CBV_SRV_UAV_HEAP_DIRECTLY_INDEXED,
             }
@@ -178,7 +193,7 @@ namespace gfx {
             },
         };
 
-        D3D12_STATIC_SAMPLER_DESC samplers[2] = {
+        D3D12_STATIC_SAMPLER_DESC samplers[3] = {
             { // Regular texture
                 .Filter = D3D12_FILTER_ANISOTROPIC,
                 .AddressU = D3D12_TEXTURE_ADDRESS_MODE_WRAP,
@@ -194,7 +209,7 @@ namespace gfx {
                 .RegisterSpace = 0,
                 .ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL,
             },
-            { // Cubemap
+            { // Lookup texture (clamp)
                 .Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR,
                 .AddressU = D3D12_TEXTURE_ADDRESS_MODE_CLAMP,
                 .AddressV = D3D12_TEXTURE_ADDRESS_MODE_CLAMP,
@@ -208,6 +223,21 @@ namespace gfx {
                 .ShaderRegister = 1,
                 .RegisterSpace = 0,
                 .ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL,
+            },
+            { // Cubemap
+                .Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR,
+                .AddressU = D3D12_TEXTURE_ADDRESS_MODE_CLAMP,
+                .AddressV = D3D12_TEXTURE_ADDRESS_MODE_CLAMP,
+                .AddressW = D3D12_TEXTURE_ADDRESS_MODE_CLAMP,
+                .MipLODBias = 0.0f,
+                .MaxAnisotropy = 16,
+                .ComparisonFunc = D3D12_COMPARISON_FUNC_NEVER,
+                .BorderColor = D3D12_STATIC_BORDER_COLOR_OPAQUE_BLACK,
+                .MinLOD = 0.0f,
+                .MaxLOD = 100000.0f,
+                .ShaderRegister = 2,
+                .RegisterSpace = 0,
+                .ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL,
             }
         };
 
@@ -216,7 +246,7 @@ namespace gfx {
             .Desc_1_1 = {
                 .NumParameters = 1,
                 .pParameters = root_parameters,
-                .NumStaticSamplers = 2,
+                .NumStaticSamplers = 3,
                 .pStaticSamplers = samplers,
                 .Flags = D3D12_ROOT_SIGNATURE_FLAG_CBV_SRV_UAV_HEAP_DIRECTLY_INDEXED,
             }

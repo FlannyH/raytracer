@@ -20,7 +20,7 @@ struct SHCoefficients {
 #define MASK_ID ((1 << 27) - 1)
 #define MASK_IS_LOADED (1 << 27)
 
-sampler cube_sampler : register(s1);
+sampler cube_sampler : register(s2);
 
 [numthreads(8, 8, 1)]
 void main(uint3 dispatch_thread_id : SV_DispatchThreadID) {
