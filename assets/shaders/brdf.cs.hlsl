@@ -64,8 +64,7 @@ void main(uint3 dispatch_thread_id : SV_DispatchThreadID) {
     Texture2D<float3> emissive_texture = ResourceDescriptorHeap[NonUniformResourceIndex(root_constants.emissive_texture & MASK_ID)];
     float4 color = color_texture[dispatch_thread_id.xy];
     
-    // Color buffer alpha channel is < 0 if nothing was rendered, in which case:
-    // which will facilitate skybox rendering. The alpha channel would otherwise be unused, so might as well.
+    // Color buffer alpha channel is < 0 if nothing was rendered
     if (color.a < -0.0001f) {
         if ((root_constants.curr_sky_cube & MASK_IS_LOADED) == false) {
             output_texture[dispatch_thread_id.xy].rgb = 0.0f;
