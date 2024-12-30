@@ -508,7 +508,7 @@ namespace gfx {
                 mip_handles[i].as_u32_uav(),
                 (uint32_t)mip_res,
                 (uint32_t)mip_res,
-                (uint32_t)(roughness * roughness * 65536.0f)
+                (uint32_t)(powf(roughness, 1.5f) * 65536.0f)
             });
             LOG(Debug, "mip %2i, res: %4i: roughness: %.3f", i, mip_res, roughness);
             const uint32_t n_threadgroups = (mip_res + 7) / 8;
