@@ -35,6 +35,12 @@ namespace gfx {
         std::shared_ptr<Resource> upload_buffer; // Temporary buffer that will be copied to the destination resource
     };
 
+    struct ResourceTransitionInfo {
+        ResourceHandlePair handle;
+        ResourceUsage usage;
+        uint32_t subresource_id = (uint32_t)-1;
+    };
+
     struct Device {
     public:
         // Initialization
@@ -76,14 +82,14 @@ namespace gfx {
         void update_buffer(const ResourceHandlePair& buffer, const uint32_t offset, const uint32_t length, const void* data);
         void queue_unload_bindless_resource(ResourceHandlePair resource);
         void use_resource(const ResourceHandlePair& resource, const ResourceUsage usage = ResourceUsage::read);
-        void use_resources(const std::initializer_list<std::pair<ResourceHandlePair, ResourceUsage>>& resources);
+        void use_resources(const std::initializer_list<ResourceTransitionInfo>& resources);
 
         ComPtr<ID3D12Device> device = nullptr;
         ComPtr<IDXGIFactory4> factory = nullptr;
         HWND window_hwnd = nullptr;
 
     private:
-        void transition_resource(std::shared_ptr<CommandBuffer> cmd, std::shared_ptr<Resource> resource, D3D12_RESOURCE_STATES new_state);
+        void transition_resource(std::shared_ptr<CommandBuffer> cmd, std::shared_ptr<Resource> resource, D3D12_RESOURCE_STATES new_state, uint32_t subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES);
         int find_dominant_monitor(); // Returns the index of the monitor the window overlaps with most
         void clean_up_old_resources();
         void execute_resource_transitions(std::shared_ptr<CommandBuffer> cmd);

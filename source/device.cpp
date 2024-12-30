@@ -605,8 +605,8 @@ namespace gfx {
 
         int mip_levels = 1;
         if (generate_mips) {
-            uint32_t w = width / 2;
-            uint32_t h = height / 2;
+            uint32_t w = width;
+            uint32_t h = height;
             while (w > 1 && h > 1) {
                 mip_levels++;
                 w >>= 1;
@@ -632,29 +632,28 @@ namespace gfx {
         auto srv_desc = make_texture_srv_desc(resource_desc.Format, type, mip_levels);
         device->CreateShaderResourceView(resource->handle.Get(), &srv_desc, descriptor);
         
-        std::vector<ResourceHandle> mip_srv_handles;
-        std::vector<ResourceHandle> mip_uav_handles;
-        mip_levels = 0;
+        std::vector<ResourceHandle> mip_handles;
+        int mip_level = 0;
         if (generate_mips) {
-            uint32_t w = width / 2;
-            uint32_t h = height / 2;
-            while (w > 1 && h > 1) {
+            uint32_t w = width;
+            uint32_t h = height;
+            while (++mip_level < mip_levels) {
                 ResourceHandle mip_srv_id = m_heap_bindless->alloc_descriptor(ResourceType::texture);
                 ResourceHandle mip_uav_id = mip_srv_id; mip_uav_id.id += 1;
                 auto mip_srv_descriptor = m_heap_bindless->fetch_cpu_handle(mip_srv_id);
                 auto mip_uav_descriptor = m_heap_bindless->fetch_cpu_handle(mip_uav_id);
                 
                 D3D12_SHADER_RESOURCE_VIEW_DESC mip_srv_desc = make_texture_srv_desc(resource_desc.Format, type, 1);
-                D3D12_UNORDERED_ACCESS_VIEW_DESC mip_uav_desc = make_texture_uav_desc(resource_desc.Format, type, depth, mip_levels);
+                D3D12_UNORDERED_ACCESS_VIEW_DESC mip_uav_desc = make_texture_uav_desc(resource_desc.Format, type, depth, mip_level);
                 device->CreateShaderResourceView(resource->handle.Get(), &mip_srv_desc, mip_srv_descriptor);
                 device->CreateUnorderedAccessView(resource->handle.Get(), nullptr, &mip_uav_desc, mip_uav_descriptor);
 
-                mip_srv_handles.push_back(mip_srv_id);
-                mip_srv_handles.push_back(mip_uav_id);
+                mip_handles.push_back(mip_srv_id);
 
-                mip_levels++;
                 w >>= 1;
                 h >>= 1;
+                if (w < 1) w = 1;
+                if (h < 1) h = 1;
             }
         }
 
@@ -730,8 +729,11 @@ namespace gfx {
         id.is_loaded = true; // todo, only set this to true when the upload command buffer finished (when the fence value was reached)
         resource->name = name;
         resource->handle->SetName(std::wstring(name.begin(), name.end()).c_str());
-        resource->expect_texture().mip_srv_handles = mip_srv_handles;
-        resource->expect_texture().mip_uav_handles = mip_uav_handles;
+        resource->subresource_handles = mip_handles;
+
+        auto& mip_states = resource->subresource_states;
+        mip_states.resize(mip_handles.size());
+        std::fill(mip_states.begin(), mip_states.end(), D3D12_RESOURCE_STATE_COPY_DEST);
 
         return ResourceHandlePair{ id, resource };
     }
@@ -1111,17 +1113,18 @@ namespace gfx {
         execute_resource_transitions(m_curr_pass_cmd);
     }
 
-    void Device::use_resources(const std::initializer_list<std::pair<ResourceHandlePair, ResourceUsage>>& resources) {
+    void Device::use_resources(const std::initializer_list<ResourceTransitionInfo>& resources) {
         std::vector<D3D12_RESOURCE_BARRIER> barriers;
         barriers.reserve(resources.size());
 
-        for (auto& [resource, usage] : resources) {
-            transition_resource(m_curr_pass_cmd, resource.resource, resource_usage_to_dx12_state(usage));
+        for (auto& [resource, usage, subresource] : resources) {
+            transition_resource(m_curr_pass_cmd, resource.resource, resource_usage_to_dx12_state(usage), subresource);
         }
         execute_resource_transitions(m_curr_pass_cmd);
     }
 
-    void Device::transition_resource(std::shared_ptr<CommandBuffer> cmd, std::shared_ptr<Resource> resource, D3D12_RESOURCE_STATES new_state) {
+    void Device::transition_resource(std::shared_ptr<CommandBuffer> cmd, std::shared_ptr<Resource> resource, D3D12_RESOURCE_STATES new_state, uint32_t subresource) {
+        auto current_state = (subresource == (uint32_t)-1 || subresource == 0) ? (resource->current_state) : (resource->subresource_states[subresource - 1]);
         if (resource->current_state == new_state) return;
 
         if (m_curr_pipeline_is_async) {
@@ -1143,7 +1146,7 @@ namespace gfx {
             .Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE,
             .Transition = {
                 .pResource = resource->handle.Get(),
-                .Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES,
+                .Subresource = subresource,
                 .StateBefore = resource->current_state,
                 .StateAfter = new_state,
             },
@@ -1159,7 +1162,14 @@ namespace gfx {
             });
         }
         
-        resource->current_state = new_state;
+        if (subresource == 0) resource->current_state = new_state;
+        else if (subresource != (uint32_t)-1) resource->subresource_states[subresource - 1] = new_state;
+        else {
+            resource->current_state = new_state;
+            for (auto& state : resource->subresource_states) {
+                state = new_state;
+            }
+        }
     }
 
     bool Device::should_stay_open() {
