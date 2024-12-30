@@ -61,6 +61,9 @@ void main(uint3 dispatch_thread_id : SV_DispatchThreadID) {
     uint y = dispatch_thread_id.y;
     uint face = dispatch_thread_id.z;
 
+    if (x >= cubemap_w) return;
+    if (y >= cubemap_h) return;
+
     // Get normal vector
     float cu = ((float(x) + 0.5f) / float(cubemap_w)) * 2.0f - 1.0f;
     float cv = ((float(y) + 0.5f) / float(cubemap_h)) * 2.0f - 1.0f;
