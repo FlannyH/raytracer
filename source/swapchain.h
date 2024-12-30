@@ -28,7 +28,7 @@ namespace gfx {
         void get_back_buffers(const Device& device, DescriptorHeap& rtv_heap);
         int width() const { return m_width; }
         int height() const { return m_height; }
-        int current_frame_index() const {
+        size_t current_frame_index() const {
             return m_frame_index;
         }
         uint64_t current_fence_completed_value() {
@@ -36,16 +36,16 @@ namespace gfx {
         }
 
     private:
-        int framebuffer_index() const {
-            return m_swapchain->GetCurrentBackBufferIndex();
+        size_t framebuffer_index() const {
+            return (size_t)m_swapchain->GetCurrentBackBufferIndex();
         }
         ComPtr<IDXGISwapChain3> m_swapchain = nullptr;
         ComPtr<ID3D12Resource> m_render_targets[backbuffer_count] = {};
         D3D12_CPU_DESCRIPTOR_HANDLE m_render_target_views[backbuffer_count] = {};
         D3D12_RESOURCE_STATES m_render_target_states[backbuffer_count] = {};
         std::shared_ptr<Fence> m_fence;
-        int m_frame_wait_values[backbuffer_count]{};
-        int m_frame_index = 0;
+        size_t m_frame_wait_values[backbuffer_count]{};
+        size_t m_frame_index = 0;
         int m_width = 0;
         int m_height = 0;
     };

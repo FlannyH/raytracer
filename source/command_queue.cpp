@@ -31,7 +31,7 @@ namespace gfx {
         command_queue->SetName(name.c_str());
     }
 
-    std::shared_ptr<CommandBuffer> CommandQueue::create_command_buffer(const Pipeline* pipeline, uint64_t frame_index) {
+    std::shared_ptr<CommandBuffer> CommandQueue::create_command_buffer(const Pipeline* pipeline, size_t frame_index) {
         // Reuse if there's one available
         if (m_command_buffers_to_reuse.empty() == false) {
             size_t index_to_reuse = m_command_buffers_to_reuse.front();
