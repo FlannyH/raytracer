@@ -25,6 +25,7 @@ struct RootConstants {
 ConstantBuffer<RootConstants> root_constants : register(b0, space0);
 
 struct VertexOut {
+    float3 position : POSITION;
     float3 normal : NORMAL0;
     float3 tangent : TANGENT0;
     float3 bitangent : TANGENT1;
@@ -33,10 +34,11 @@ struct VertexOut {
 };
 
 struct PixelOut {
-    float4 color : SV_Target0;
-    float4 normal : SV_Target1;
-    float2 metal_roughness : SV_Target2;
-    float3 emissive : SV_Target3;
+    float4 position : SV_Target0;
+    float4 color : SV_Target1;
+    float4 normal : SV_Target2;
+    float2 metal_roughness : SV_Target3;
+    float3 emissive : SV_Target4;
 };
 
 struct Material {
@@ -64,10 +66,11 @@ PixelOut main(in float4 position : SV_Position, in VertexOut input) {
     PixelOut output;
     
     // Fill default values
+    output.position = float4(input.position, 1.0f);
     output.color = input.color;
     output.normal.xyz = input.normal;
     output.normal.w = 0.0f;
-    output.metal_roughness = float2(0.0f, 0.0f);
+    output.metal_roughness = float2(0.0f, 1.0f);
     output.emissive = float3(0.0f, 0.0f, 0.0f);
     
     // Apply material

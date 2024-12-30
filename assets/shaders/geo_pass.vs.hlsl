@@ -54,6 +54,7 @@ struct RootConstants {
 ConstantBuffer<RootConstants> root_constants : register(b0, space0);
 
 struct VertexOut {
+    float3 position : POSITION;
     float3 normal : NORMAL0;
     float3 tangent : TANGENT0;
     float3 bitangent : TANGENT1;
@@ -90,6 +91,7 @@ float4 main(in uint vertex_index : SV_VertexID, out VertexOut output) : SV_POSIT
     vert_pos = mul(camera_matrices.view_matrix, vert_pos);
     vert_pos = mul(camera_matrices.projection_matrix, vert_pos);
     
+    output.position = vert.position;
     output.color = vert.color;
     output.normal = normalize(mul((float3x3)draw_packet.model_transform, vert.normal));
     output.tangent.xyz = normalize(mul((float3x3)draw_packet.model_transform, vert.tangent.xyz));
