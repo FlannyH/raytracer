@@ -56,6 +56,7 @@ namespace gfx {
         ResourceHandlePair m_emissive_target = { ResourceHandle::none(), nullptr };
         ResourceHandlePair m_shaded_target = { ResourceHandle::none(), nullptr };
         ResourceHandlePair m_depth_target = { ResourceHandle::none(), nullptr };
+        ResourceHandlePair m_env_brdf_lut = { ResourceHandle::none(), nullptr };
         Cubemap m_curr_sky_cube = {};
         ResourceHandlePair m_spherical_harmonics_buffer = { ResourceHandle::none(), nullptr };
         uint32_t m_spherical_harmonics_buffer_cursor = 0;

@@ -93,6 +93,7 @@ void main(uint3 dispatch_thread_id : SV_DispatchThreadID) {
         const float n_dot_l = saturate(dot(n, l));
         if (n_dot_l > 0.0f) {
             // Brightness is limited to avoid fireflies in the output image
+            // todo: https://learnopengl.com/PBR/IBL/Specular-IBL - whatever Chetan Jags is doing to reduce the fireflies
             color += min(max_hdr_brightness, base_cube_map.SampleLevel(cube_sampler, l, 0) * n_dot_l);
             total_weight += n_dot_l;   
         }
