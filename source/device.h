@@ -104,6 +104,12 @@ namespace gfx {
         std::shared_ptr<CommandQueue> m_queue_gfx = nullptr;
         std::thread device_lost_thread;
         DWORD m_msg_callback_cookie = 0;
+        bool m_gpu_profiling = false;
+
+        // Profiling
+        ComPtr<ID3D12QueryHeap> m_query_heap = nullptr;
+        std::vector<std::string> m_query_labels;
+        ResourceHandlePair m_query_buffer;
 
         // Swapchain
         std::shared_ptr<Swapchain> m_swapchain = nullptr;
