@@ -3,7 +3,7 @@
 #include "device.h"
 
 namespace gfx {
-    Pipeline::Pipeline(const Device& device, const std::string& vertex_shader_path, const std::string& pixel_shader_path, const std::vector<DXGI_FORMAT> render_target_formats, const DXGI_FORMAT depth_target_format) {
+    Pipeline::Pipeline(const Device& device, const std::string& name, const std::string& vertex_shader_path, const std::string& pixel_shader_path, const std::vector<DXGI_FORMAT> render_target_formats, const DXGI_FORMAT depth_target_format) {
         assert(render_target_formats.size() <= 8 && "Too many render targets!");
 
         // Compile shaders
@@ -170,7 +170,7 @@ namespace gfx {
         validate(pipeline_state->SetName(L"Render Pipeline State")); // todo: add customizable name with default parameter
     }
 
-    Pipeline::Pipeline(const Device& device, const std::string& compute_shader_path) {
+    Pipeline::Pipeline(const Device& device, const std::string& name, const std::string& compute_shader_path) {
         // Compile shader
         const auto cs = Shader(compute_shader_path, "main", ShaderType::compute); // todo: add customizable entry point
 

@@ -29,23 +29,23 @@ namespace gfx {
         m_shaded_target = m_device->load_texture("Shaded framebuffer", width, height, 1, nullptr, PixelFormat::rgba16_float, TextureType::tex_2d, ResourceUsage::compute_write);
         m_depth_target = m_device->create_depth_target("Depth framebuffer", width, height, PixelFormat::depth32_float);
         LOG(Debug, "Compiling shaders");
-        m_pipeline_scene = m_device->create_raster_pipeline("assets/shaders/geo_pass.vs.hlsl", "assets/shaders/geo_pass.ps.hlsl", {
+        m_pipeline_scene = m_device->create_raster_pipeline("Geometry pass"  ,"assets/shaders/geo_pass.vs.hlsl", "assets/shaders/geo_pass.ps.hlsl", {
             m_position_target,
             m_color_target,
             m_normal_target,
             m_metallic_roughness_target,
             m_emissive_target
         }, m_depth_target);
-        m_pipeline_brdf = m_device->create_compute_pipeline("assets/shaders/brdf.cs.hlsl");
-        m_pipeline_tonemapping = m_device->create_compute_pipeline("assets/shaders/tonemapping.cs.hlsl");
-        m_pipeline_final_blit = m_device->create_raster_pipeline("assets/shaders/fullscreen_tri.vs.hlsl", "assets/shaders/final_blit.ps.hlsl", {});
-        m_pipeline_hdri_to_cubemap = m_device->create_compute_pipeline("assets/shaders/hdri_to_cubemap.cs.hlsl");
-        m_pipeline_cubemap_to_diffuse = m_device->create_compute_pipeline("assets/shaders/cubemap_to_diffuse.cs.hlsl");
-        m_pipeline_accumulate_sh_coeffs = m_device->create_compute_pipeline("assets/shaders/accumulate_sh_coeffs.cs.hlsl");
-        m_pipeline_compute_sh_matrices = m_device->create_compute_pipeline("assets/shaders/compute_sh_matrices.cs.hlsl");
-        m_pipeline_prefilter_cubemap = m_device->create_compute_pipeline("assets/shaders/prefilter_cubemap.cs.hlsl");
-        m_pipeline_ibl_brdf_lut_gen = m_device->create_compute_pipeline("assets/shaders/ibl_brdf_lut_gen.cs.hlsl");
-        m_pipeline_downsample = m_device->create_compute_pipeline("assets/shaders/downsample.cs.hlsl");
+        m_pipeline_brdf = m_device->create_compute_pipeline("BRDF", "assets/shaders/brdf.cs.hlsl");
+        m_pipeline_tonemapping = m_device->create_compute_pipeline("Tonemapping", "assets/shaders/tonemapping.cs.hlsl");
+        m_pipeline_final_blit = m_device->create_raster_pipeline("Final blit", "assets/shaders/fullscreen_tri.vs.hlsl", "assets/shaders/final_blit.ps.hlsl", {});
+        m_pipeline_hdri_to_cubemap = m_device->create_compute_pipeline("HRDI to cubemap conversion" ,"assets/shaders/hdri_to_cubemap.cs.hlsl");
+        m_pipeline_cubemap_to_diffuse = m_device->create_compute_pipeline("Indirect diffuse spherical harmonics calculation" ,"assets/shaders/cubemap_to_diffuse.cs.hlsl");
+        m_pipeline_accumulate_sh_coeffs = m_device->create_compute_pipeline("Accumulate spherical harmonics coefficients", "assets/shaders/accumulate_sh_coeffs.cs.hlsl");
+        m_pipeline_compute_sh_matrices = m_device->create_compute_pipeline("Compute spherical harmonics matrices", "assets/shaders/compute_sh_matrices.cs.hlsl");
+        m_pipeline_prefilter_cubemap = m_device->create_compute_pipeline("Prefilter specular IBL cubemap" ,"assets/shaders/prefilter_cubemap.cs.hlsl");
+        m_pipeline_ibl_brdf_lut_gen = m_device->create_compute_pipeline("Generate IBL BRDF LUT", "assets/shaders/ibl_brdf_lut_gen.cs.hlsl");
+        m_pipeline_downsample = m_device->create_compute_pipeline("Downsample texture" ,"assets/shaders/downsample.cs.hlsl");
         
         LOG(Debug, "Creating buffers");
         m_material_buffer = m_device->create_buffer("Material descriptions", MAX_MATERIAL_COUNT * sizeof(Material), nullptr, true);
