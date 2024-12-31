@@ -1114,9 +1114,6 @@ namespace gfx {
     }
 
     void Device::use_resources(const std::initializer_list<ResourceTransitionInfo>& resources) {
-        std::vector<D3D12_RESOURCE_BARRIER> barriers;
-        barriers.reserve(resources.size());
-
         for (auto& [resource, usage, subresource] : resources) {
             transition_resource(m_curr_pass_cmd, resource.resource, resource_usage_to_dx12_state(usage), subresource);
         }
@@ -1125,7 +1122,7 @@ namespace gfx {
 
     void Device::transition_resource(std::shared_ptr<CommandBuffer> cmd, std::shared_ptr<Resource> resource, D3D12_RESOURCE_STATES new_state, uint32_t subresource) {
         auto current_state = (subresource == (uint32_t)-1 || subresource == 0) ? (resource->current_state) : (resource->subresource_states[subresource - 1]);
-        if (resource->current_state == new_state) return;
+        if (current_state == new_state) return;
 
         if (m_curr_pipeline_is_async) {
             m_temp_upload_buffers.push_back(UploadQueueKeepAlive{ m_upload_fence_value_when_done, resource });
@@ -1147,7 +1144,7 @@ namespace gfx {
             .Transition = {
                 .pResource = resource->handle.Get(),
                 .Subresource = subresource,
-                .StateBefore = resource->current_state,
+                .StateBefore = current_state,
                 .StateAfter = new_state,
             },
         });
