@@ -578,11 +578,11 @@ namespace gfx {
             if (roughness >= 1.0f) roughness = 0.99f;
 
             m_device->use_resources({
-                {cubemap, ResourceUsage::non_pixel_shader_read, 0},
-                {cubemap, ResourceUsage::compute_write, i + 1}
+                {scratch, ResourceUsage::non_pixel_shader_read, 0},
+                {scratch, ResourceUsage::compute_write, i + 1}
             });
             m_device->set_compute_root_constants({
-                cubemap.handle.as_u32(),
+                scratch.handle.as_u32(),
                 mip_handles[i].as_u32_uav(),
                 (uint32_t)mip_res,
                 (uint32_t)mip_res,

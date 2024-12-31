@@ -46,6 +46,21 @@ float3 importance_sample_ggx(float2 xi, float roughness2, float3 n) {
     return (tangent_x * h.x) + (tangent_y * h.y) + (n * h.z);
 }
 
+// Sources used for the following functions:
+// - https://de45xmedrsdbp.cloudfront.net/Resources/files/2013SiggraphPresentationsNotes-26915738.pdf
+// - https://learnopengl.com/PBR/Lighting (which has GLSL implementations of the above)
+float distribution_ggx(float n_dot_h, float roughness) {
+    float a = roughness*roughness;
+    float a2 = a*a;
+    float n_dot_h2 = n_dot_h * n_dot_h;
+	
+    float num = a2;
+    float denom = (n_dot_h2 * (a2 - 1.0f) + 1.0f);
+    denom = PI * denom * denom;
+	
+    return num / denom;
+}
+
 sampler cube_sampler : register(s2);
 
 // https://de45xmedrsdbp.cloudfront.net/Resources/files/2013SiggraphPresentationsNotes-26915738.pdf
@@ -82,19 +97,26 @@ void main(uint3 dispatch_thread_id : SV_DispatchThreadID) {
     const float roughness2 = roughness * roughness;
     const int n_samples = max(1, int(1024.0f * (pow(roughness, 1.5f) / 2.0f + 0.5f) * (512.0f / cubemap_w)));
 
-    float max_hdr_brightness = 64.f * (1.0f - pow(roughness, 1.0f / 3.0f));
+    float max_hdr_brightness = 500.f * (1.0f - pow(roughness, 1.0f / 3.0f));
     float total_weight = 0.0f;
     float3 color = float3(0, 0, 0);
     for (int i = 0; i < n_samples; ++i) {
         const float2 xi = hammersley(i, n_samples);
         const float3 h = importance_sample_ggx(xi, roughness2, n);
-        const float3 l = 2 * dot(v, h) * h - v;
+        const float h_dot_v = dot(h, v);
+        const float3 l = 2 * (h_dot_v) * h - v;
 
         const float n_dot_l = saturate(dot(n, l));
         if (n_dot_l > 0.0f) {
-            // Brightness is limited to avoid fireflies in the output image
-            // todo: https://learnopengl.com/PBR/IBL/Specular-IBL - whatever Chetan Jags is doing to reduce the fireflies
-            color += min(max_hdr_brightness, base_cube_map.SampleLevel(cube_sampler, l, 0) * n_dot_l);
+            // Select mip level to sample
+            float n_dot_h = dot(n, h);
+            float d = distribution_ggx(n_dot_h, roughness);
+            float pdf = (d * n_dot_h / (4.0f * h_dot_v)) + 0.0001f;
+            float sa_pixel = 4.0 * PI / (6.0 * cubemap_w * cubemap_h);
+            float sa_sample = 1.0 / (float(n_samples) * pdf + 0.0001);
+            float mip = roughness == 0.0 ? 0.0 : 0.5 * log2(sa_sample / sa_pixel);
+
+            color += min(max_hdr_brightness, base_cube_map.SampleLevel(cube_sampler, l, mip) * n_dot_l);
             total_weight += n_dot_l;   
         }
     }
