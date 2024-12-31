@@ -358,6 +358,13 @@ namespace gfx {
 
     Cubemap Renderer::load_environment_map(const std::string& path, const int sky_res, const int ibl_res, const float quality) {
         LOG(Debug, "Loading environment map \"%s\" at sky resolution %ix%ix6, and IBL resolution %ix%ix6", path.c_str(), sky_res, sky_res, ibl_res, ibl_res);
+        if (sky_res < 2) {
+            LOG(Error, "Sky resolution must be at least 2x2");
+            return {};
+        }
+        if (sky_res < ibl_res / 2) {
+            LOG(Warning, "Sky resolution (%ix%ix6) is less than half of the IBL resolution (%ix%ix6), resulting in poorer specular quality", sky_res, sky_res, ibl_res, ibl_res);
+        }
 
         // Load HDRI from file
         stbi__vertically_flip_on_load = 0;
@@ -365,7 +372,7 @@ namespace gfx {
         glm::vec4* data = (glm::vec4*)stbi_loadf(path.c_str(), &width, &height, &channels, 4);
 
         if (!data) {
-            LOG(Error, "Failed to load environment map \"%s\"", path.c_str());
+            LOG(Error, "Failed to load environment map \"%s\" - does the file exist?", path.c_str());
             return {};
         }
 

@@ -11,21 +11,19 @@ ConstantBuffer<RootConstants> root_constants : register(b0, space0);
 #define MASK_ID ((1 << 27) - 1)
 #define PI 3.14159265358979f
 
-// https://ttwong12.github.io/papers/udpoint/udpoint.pdf - based on Source Code 1
-float2 hammersley(int k, float n) {
-    float u = 0.0f;
-    float p = 0.5f;
-    int kk = k;
-    while (kk > 0) {
-        if ((kk & 1) == 1) {
-            u += p;
-        }
-        p *= 0.5f;
-        kk >>= 1;
-    }
-    float v = (k + 0.5f) / n;
-    return float2(u, v);
-}
+float radical_inverse_vdc(uint bits) {
+     bits = (bits << 16u) | (bits >> 16u);
+     bits = ((bits & 0x55555555u) << 1u) | ((bits & 0xAAAAAAAAu) >> 1u);
+     bits = ((bits & 0x33333333u) << 2u) | ((bits & 0xCCCCCCCCu) >> 2u);
+     bits = ((bits & 0x0F0F0F0Fu) << 4u) | ((bits & 0xF0F0F0F0u) >> 4u);
+     bits = ((bits & 0x00FF00FFu) << 8u) | ((bits & 0xFF00FF00u) >> 8u);
+     return float(bits) * 2.3283064365386963e-10; // / 0x100000000
+ }
+
+ // http://holger.dammertz.org/stuff/notes_HammersleyOnHemisphere.html
+ float2 hammersley(uint i, uint n) {
+     return float2(float(i)/float(n), radical_inverse_vdc(i));
+ }
 
 // https://de45xmedrsdbp.cloudfront.net/Resources/files/2013SiggraphPresentationsNotes-26915738.pdf
 float3 importance_sample_ggx(float2 xi, float roughness2, float3 n) {
@@ -99,7 +97,7 @@ void main(uint3 dispatch_thread_id : SV_DispatchThreadID) {
     const float quality = float(root_constants.quality) / 65536.f;
     const int n_samples = max(1, int(1024.0f * quality * (pow(roughness, 2.0f) / 2.0f + 0.5f) * (512.0f / cubemap_w)));
 
-    float max_hdr_brightness = 500.f * (1.0f - pow(roughness, 1.0f / 3.0f));
+    float max_hdr_brightness = sqrt(quality) * 400.f * (1.0f - pow(roughness, 1.0f / 3.0f));
     float total_weight = 0.0f;
     float3 color = float3(0, 0, 0);
     for (int i = 0; i < n_samples; ++i) {
