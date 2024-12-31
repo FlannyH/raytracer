@@ -45,6 +45,7 @@ namespace gfx {
         m_pipeline_compute_sh_matrices = m_device->create_compute_pipeline("assets/shaders/compute_sh_matrices.cs.hlsl");
         m_pipeline_prefilter_cubemap = m_device->create_compute_pipeline("assets/shaders/prefilter_cubemap.cs.hlsl");
         m_pipeline_ibl_brdf_lut_gen = m_device->create_compute_pipeline("assets/shaders/ibl_brdf_lut_gen.cs.hlsl");
+        m_pipeline_downsample = m_device->create_compute_pipeline("assets/shaders/downsample.cs.hlsl");
         
         LOG(Debug, "Creating buffers");
         m_material_buffer = m_device->create_buffer("Material descriptions", MAX_MATERIAL_COUNT * sizeof(Material), nullptr, true);
@@ -371,6 +372,7 @@ namespace gfx {
         // Convert HDRI to cubemap
         auto hdri = m_device->load_texture(path + "::(source hdri)", width, height, 1, data, PixelFormat::rgba32_float, TextureType::tex_2d);
         auto cubemap = m_device->load_texture(path + "::(base cubemap)", resolution, resolution, 6, nullptr, PixelFormat::rgba32_float, TextureType::tex_cube, ResourceUsage::compute_write, 10, 16);
+        auto scratch = m_device->load_texture(path + "::(scratch buffer)", resolution / 2, resolution / 2, 6, nullptr, PixelFormat::rgba32_float, TextureType::tex_cube, ResourceUsage::compute_write, 9, 8);
         m_device->begin_compute_pass(m_pipeline_hdri_to_cubemap, true);
         m_device->use_resources({
             { hdri, ResourceUsage::non_pixel_shader_read },
@@ -385,6 +387,52 @@ namespace gfx {
            (uint32_t)(resolution / 8),
            6 // faces
         );
+        m_device->end_compute_pass();
+
+        // Compute mipmaps
+        uint32_t res = resolution / 2;
+        uint32_t dest_mip = 0;
+        m_device->begin_compute_pass(m_pipeline_downsample, true);
+
+        // First take data from the base map, compute the first mip, and store it in the scratch buffer
+        m_device->use_resources({
+            { cubemap, ResourceUsage::non_pixel_shader_read },
+            { scratch, ResourceUsage::compute_write, 0 }
+        });
+        m_device->set_compute_root_constants({
+           cubemap.handle.as_u32_uav(),
+           scratch.handle.as_u32_uav(),
+           res, res, 4,
+           1
+        });
+        m_device->dispatch_threadgroups( // threadgroup size is 8x8x1
+           (uint32_t)(res / 8),
+           (uint32_t)(res / 8),
+           6 // faces
+        );
+
+        // Then keep downsampling until we reach 1x1
+        while (res > 8) {
+            res >>= 1;
+            m_device->use_resources({
+                { scratch, ResourceUsage::non_pixel_shader_read, dest_mip },
+                { scratch, ResourceUsage::compute_write, dest_mip + 1 }
+            });
+            m_device->set_compute_root_constants({
+                (dest_mip == 0) 
+                ?   scratch.handle.as_u32_uav()
+                :   scratch.resource->subresource_handles[dest_mip - 1].as_u32_uav(),
+                scratch.resource->subresource_handles[dest_mip].as_u32_uav(),
+                res, res, 4, // 4 components
+                1 // is_cubemap = true
+            });
+            m_device->dispatch_threadgroups( // threadgroup size is 8x8x1
+            (uint32_t)((res + 7) / 8),
+            (uint32_t)((res + 7) / 8),
+            6 // faces
+            );
+            ++dest_mip;
+        }
         m_device->end_compute_pass();
 
         // Convert cubemap to spherical harmonics
@@ -435,7 +483,7 @@ namespace gfx {
         });
         m_device->set_compute_root_constants({
             scratch_buffer1.handle.as_u32_uav(),
-            coeff_buffer.handle.as_u32(),
+            coeff_buffer.handle.as_u32_uav(),
             n_items
         });
         m_device->dispatch_threadgroups(n_threadgroups, 1, 1);
