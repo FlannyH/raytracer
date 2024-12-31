@@ -204,7 +204,7 @@ void main(uint3 dispatch_thread_id : SV_DispatchThreadID) {
         float3 env_sample = sky_texture.SampleLevel(cube_sampler, normalize(reflect_dir), mip_level).rgb;
         float2 env_brdf = env_brdf_lut.Sample(tex_sampler_clamp, float2(n_dot_v, roughness));
         float3 indirect_specular = env_sample * (specular_f * env_brdf.x + env_brdf.y);
-        specular += specular_f * indirect_specular * FULLBRIGHT_NITS * PI;
+        specular += specular_f * indirect_specular * FULLBRIGHT_NITS;
     }
     
     out_value += diffuse * diffuse_mul;
