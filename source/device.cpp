@@ -18,6 +18,8 @@
 #include "input.h"
 #include "fence.h"
 
+#define MAX_QUERY_COUNT 128
+
 namespace gfx {
     const char* breadcrumb_op_names[49] = {
         "SETMARKER",                                        "BEGINEVENT",
@@ -238,6 +240,17 @@ namespace gfx {
         };
         device_lost_thread = std::thread(device_lost_handler, this);
         
+        m_gpu_profiling = debug_layer_enabled;
+        if (m_gpu_profiling) {
+            device->SetStablePowerState(true);
+
+            D3D12_QUERY_HEAP_DESC query_heap_desc = {};
+            query_heap_desc.Count = MAX_QUERY_COUNT * 2;
+            query_heap_desc.Type = D3D12_QUERY_HEAP_TYPE_TIMESTAMP;
+            device->CreateQueryHeap(&query_heap_desc, IID_PPV_ARGS(&m_query_heap));
+            m_query_buffer = create_buffer("GPU profiling query buffer", MAX_QUERY_COUNT * sizeof(uint64_t), nullptr, false);
+        }
+
         input::init(m_window_glfw);
         get_window_size(m_width, m_height);
     }
@@ -339,6 +352,8 @@ namespace gfx {
         m_queue_gfx->clean_up_old_command_buffers(m_swapchain->current_fence_completed_value());
         m_upload_queue->clean_up_old_command_buffers(m_upload_fence_value_when_done);
         clean_up_old_resources();
+
+        m_query_labels.clear();
     }
 
     void Device::end_frame() {
@@ -373,6 +388,13 @@ namespace gfx {
     void Device::begin_raster_pass(std::shared_ptr<Pipeline> pipeline, RasterPassInfo&& render_pass_info) {
         // Create command buffer for this pass
         m_curr_pass_cmd = m_queue_gfx->create_command_buffer(pipeline.get(), m_swapchain->current_frame_index());
+
+        if (m_gpu_profiling) {
+            if (m_query_labels.size() * 2 > MAX_QUERY_COUNT) {
+                LOG(Error, "Query buffer overflow");
+            }
+            m_curr_pass_cmd->get()->EndQuery(m_query_heap.Get(), D3D12_QUERY_TYPE_TIMESTAMP, m_query_labels.size() * 2); // Entries are stored in pairs
+        }
 
         // Set up pipeline
         m_curr_bound_pipeline = pipeline;
@@ -470,6 +492,13 @@ namespace gfx {
     }
 
     void Device::end_raster_pass() {
+        if (m_gpu_profiling) {
+            m_curr_pass_cmd->get()->EndQuery(m_query_heap.Get(), D3D12_QUERY_TYPE_TIMESTAMP, m_query_labels.size() * 2 + 1);
+            m_query_labels.push_back(m_curr_bound_pipeline->get_name());
+            transition_resource(m_curr_pass_cmd, m_query_buffer.resource, D3D12_RESOURCE_STATE_COPY_DEST);
+            execute_resource_transitions(m_curr_pass_cmd);
+            m_curr_pass_cmd->get()->ResolveQueryData(m_query_heap.Get(), D3D12_QUERY_TYPE_TIMESTAMP, 0, m_query_labels.size() * 2, m_query_buffer.resource->handle.Get(), 0);
+        }
     }
 
     void Device::begin_compute_pass(std::shared_ptr<Pipeline> pipeline, bool async) {
@@ -480,6 +509,13 @@ namespace gfx {
         }
         else {
             m_curr_pass_cmd = m_queue_gfx->create_command_buffer(pipeline.get(), m_swapchain->current_frame_index());
+        }
+
+        if (m_gpu_profiling) {
+            if (m_query_labels.size() * 2 > MAX_QUERY_COUNT) {
+                LOG(Error, "Query buffer overflow");
+            }
+            m_curr_pass_cmd->get()->EndQuery(m_query_heap.Get(), D3D12_QUERY_TYPE_TIMESTAMP, m_query_labels.size() * 2); // Entries are stored in pairs
         }
 
         // Set up pipeline
@@ -493,7 +529,15 @@ namespace gfx {
         m_curr_pass_cmd->get()->SetName(async ? L"Async compute pass" : L"Compute pass");	
     }
 
-    void Device::end_compute_pass() {}
+    void Device::end_compute_pass() {
+        if (m_gpu_profiling) {
+            m_curr_pass_cmd->get()->EndQuery(m_query_heap.Get(), D3D12_QUERY_TYPE_TIMESTAMP, m_query_labels.size() * 2 + 1);
+            m_query_labels.push_back(m_curr_bound_pipeline->get_name());
+            transition_resource(m_curr_pass_cmd, m_query_buffer.resource, D3D12_RESOURCE_STATE_COPY_DEST);
+            execute_resource_transitions(m_curr_pass_cmd);
+            m_curr_pass_cmd->get()->ResolveQueryData(m_query_heap.Get(), D3D12_QUERY_TYPE_TIMESTAMP, 0, m_query_labels.size() * 2, m_query_buffer.resource->handle.Get(), 0);
+        }
+    }
 
     void Device::dispatch_threadgroups(uint32_t x, uint32_t y, uint32_t z) {
         m_curr_pass_cmd->get()->Dispatch(x, y, z);
