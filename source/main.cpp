@@ -40,6 +40,9 @@ int main(int n_args, char** args) {
             glm::mod(camera_euler_angles.y, glm::radians(360.f));
             camera.rotation = glm::quat(camera_euler_angles);
         }
+        const float scroll = input::mouse_scroll().y;
+        if (scroll > 0.0f) move_speed *= 1.1f;
+        if (scroll < 0.0f) move_speed /= 1.1f;
 
         renderer->begin_frame();
         
