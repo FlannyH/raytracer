@@ -61,13 +61,13 @@ namespace gfx {
         int frame_index();
 
         // Rasterization
-        std::shared_ptr<Pipeline> create_raster_pipeline(const std::string& vertex_shader_path, const std::string& pixel_shader_path, const std::initializer_list<ResourceHandlePair> render_targets, const ResourceHandlePair depth_target = { ResourceHandle::none(), nullptr });
+        std::shared_ptr<Pipeline> create_raster_pipeline(const std::string& name, const std::string& vertex_shader_path, const std::string& pixel_shader_path, const std::initializer_list<ResourceHandlePair> render_targets, const ResourceHandlePair depth_target = { ResourceHandle::none(), nullptr });
         void begin_raster_pass(std::shared_ptr<Pipeline> pipeline, RasterPassInfo&& render_pass_info);
         void end_raster_pass();
         void draw_vertices(uint32_t n_vertices);
 
         // Compute
-        std::shared_ptr<Pipeline> create_compute_pipeline(const std::string& compute_shader_path);
+        std::shared_ptr<Pipeline> create_compute_pipeline(const std::string& name, const std::string& compute_shader_path);
         void begin_compute_pass(std::shared_ptr<Pipeline> pipeline, bool async = false);
         void end_compute_pass();
         void dispatch_threadgroups(uint32_t x, uint32_t y, uint32_t z);
