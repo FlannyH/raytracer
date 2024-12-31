@@ -294,9 +294,8 @@ namespace gfx {
     };
 
     struct Cubemap {
-        std::optional<ResourceHandlePair> hdri{};
-        ResourceHandlePair base{};
-        ResourceHandlePair ibl_specular{};
+        ResourceHandlePair sky{};
+        ResourceHandlePair ibl{};
         uint32_t offset_diffuse_sh = 0;
     };
 }

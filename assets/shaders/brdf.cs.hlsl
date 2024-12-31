@@ -8,8 +8,9 @@ struct RootConstants {
     uint lights_buffer;
     uint spherical_harmonics_buffer;
     uint curr_sky_cube;
+    uint curr_specular_ibl;
     uint curr_ibl_diffuse_sh_offset;
-    uint curr_sky_n_mips;
+    uint curr_specular_ibl_n_mips;
     uint view_data_buffer;
     uint view_data_buffer_offset;
     uint env_brdf_lut;
@@ -198,10 +199,10 @@ void main(uint3 dispatch_thread_id : SV_DispatchThreadID) {
     }
 
     // Indirect specular
-    if (root_constants.curr_sky_cube & MASK_IS_LOADED) {
-        TextureCube<float4> sky_texture = ResourceDescriptorHeap[NonUniformResourceIndex(root_constants.curr_sky_cube & MASK_ID)];
-        float mip_level = pow(roughness, 1.5f) * (root_constants.curr_sky_n_mips + 1);
-        float3 env_sample = sky_texture.SampleLevel(cube_sampler, normalize(reflect_dir), mip_level).rgb;
+    if (root_constants.curr_specular_ibl & MASK_IS_LOADED) {
+        TextureCube<float4> ibl_texture = ResourceDescriptorHeap[NonUniformResourceIndex(root_constants.curr_specular_ibl & MASK_ID)];
+        float mip_level = pow(roughness, 1.5f) * (root_constants.curr_specular_ibl_n_mips + 1);
+        float3 env_sample = ibl_texture.SampleLevel(cube_sampler, normalize(reflect_dir), mip_level).rgb;
         float2 env_brdf = env_brdf_lut.Sample(tex_sampler_clamp, float2(n_dot_v, roughness));
         float3 indirect_specular = env_sample * (specular_f * env_brdf.x + env_brdf.y);
         specular += specular_f * indirect_specular * FULLBRIGHT_NITS;

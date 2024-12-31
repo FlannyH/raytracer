@@ -189,7 +189,8 @@ namespace gfx {
             { m_emissive_target, ResourceUsage::non_pixel_shader_read },
             { m_lights_buffer, ResourceUsage::non_pixel_shader_read },
             { m_spherical_harmonics_buffer, ResourceUsage::non_pixel_shader_read },
-            { m_curr_sky_cube.base, ResourceUsage::non_pixel_shader_read },
+            { m_curr_sky_cube.sky, ResourceUsage::non_pixel_shader_read },
+            { m_curr_sky_cube.ibl, ResourceUsage::non_pixel_shader_read },
             { m_env_brdf_lut, ResourceUsage::non_pixel_shader_read },
             { m_draw_packets[m_device->frame_index() % backbuffer_count], ResourceUsage::non_pixel_shader_read }
         });
@@ -202,9 +203,10 @@ namespace gfx {
             m_emissive_target.handle.as_u32(),
             m_lights_buffer.handle.as_u32(),
             m_spherical_harmonics_buffer.handle.as_u32(),
-            m_curr_sky_cube.base.handle.as_u32(),
+            m_curr_sky_cube.sky.handle.as_u32(),
+            m_curr_sky_cube.ibl.handle.as_u32(),
             m_curr_sky_cube.offset_diffuse_sh,
-            (uint32_t)m_curr_sky_cube.base.resource->subresource_handles.size() + 1,
+            (uint32_t)m_curr_sky_cube.ibl.resource->subresource_handles.size(),
             m_draw_packets[m_device->frame_index() % backbuffer_count].handle.as_u32(),
             view_data_offset,
             m_env_brdf_lut.handle.as_u32()
@@ -354,8 +356,8 @@ namespace gfx {
         return ResourceHandlePair{ handle, resource };
     }
 
-    Cubemap Renderer::load_environment_map(const std::string& path, const int resolution) {
-        LOG(Debug, "Loading environment map \"%s\" at resolution %ix%ix6", path.c_str(), resolution, resolution);
+    Cubemap Renderer::load_environment_map(const std::string& path, const int sky_res, const int ibl_res, const float quality) {
+        LOG(Debug, "Loading environment map \"%s\" at sky resolution %ix%ix6, and IBL resolution %ix%ix6", path.c_str(), sky_res, sky_res, ibl_res, ibl_res);
 
         // Load HDRI from file
         stbi__vertically_flip_on_load = 0;
@@ -367,40 +369,59 @@ namespace gfx {
             return {};
         }
 
-        std::vector<glm::vec4> cubemap_faces((size_t)(resolution * resolution * 6));
+        std::vector<glm::vec4> cubemap_faces((size_t)(sky_res * sky_res * 6));
 
         // Convert HDRI to cubemap
         auto hdri = m_device->load_texture(path + "::(source hdri)", width, height, 1, data, PixelFormat::rgba32_float, TextureType::tex_2d);
-        auto cubemap = m_device->load_texture(path + "::(base cubemap)", resolution, resolution, 6, nullptr, PixelFormat::rgba32_float, TextureType::tex_cube, ResourceUsage::compute_write, 10, 16);
-        auto scratch = m_device->load_texture(path + "::(scratch buffer)", resolution / 2, resolution / 2, 6, nullptr, PixelFormat::rgba32_float, TextureType::tex_cube, ResourceUsage::compute_write, 9, 8);
+        auto sky = m_device->load_texture(path + "::(sky cubemap)", sky_res, sky_res, 6, nullptr, PixelFormat::rgba32_float, TextureType::tex_cube, ResourceUsage::compute_write);
+        auto ibl = m_device->load_texture(path + "::(specular ibl)", ibl_res, ibl_res, 6, nullptr, PixelFormat::rgba32_float, TextureType::tex_cube, ResourceUsage::compute_write, 9, 8);
+        auto scratch = m_device->load_texture(path + "::(scratch buffer)", sky_res / 2, sky_res/ 2, 6, nullptr, PixelFormat::rgba32_float, TextureType::tex_cube, ResourceUsage::compute_write, 9, 8);
         m_device->begin_compute_pass(m_pipeline_hdri_to_cubemap, true);
+
+        // Sky
         m_device->use_resources({
             { hdri, ResourceUsage::non_pixel_shader_read },
-            { cubemap, ResourceUsage::compute_write }
+            { sky, ResourceUsage::compute_write }
         });
         m_device->set_compute_root_constants({
            hdri.handle.as_u32(),
-           cubemap.handle.as_u32_uav(),
+           sky.handle.as_u32_uav(),
         });
         m_device->dispatch_threadgroups( // threadgroup size is 8x8x1
-           (uint32_t)(resolution / 8),
-           (uint32_t)(resolution / 8),
+           (uint32_t)(sky_res / 8),
+           (uint32_t)(sky_res / 8),
            6 // faces
         );
+
+        // IBL
+        m_device->use_resources({
+            { hdri, ResourceUsage::non_pixel_shader_read },
+            { ibl, ResourceUsage::compute_write }
+        });
+        m_device->set_compute_root_constants({
+           hdri.handle.as_u32(),
+           ibl.handle.as_u32_uav(),
+        });
+        m_device->dispatch_threadgroups( // threadgroup size is 8x8x1
+           (uint32_t)(ibl_res / 8),
+           (uint32_t)(ibl_res / 8),
+           6 // faces
+        );
+
         m_device->end_compute_pass();
 
         // Compute mipmaps
-        uint32_t res = resolution / 2;
+        uint32_t res = sky_res / 2;
         uint32_t dest_mip = 0;
         m_device->begin_compute_pass(m_pipeline_downsample, true);
 
-        // First take data from the base map, compute the first mip, and store it in the scratch buffer
+        // First take data from the sky map, compute the first mip, and store it in the scratch buffer
         m_device->use_resources({
-            { cubemap, ResourceUsage::non_pixel_shader_read },
+            { sky, ResourceUsage::non_pixel_shader_read },
             { scratch, ResourceUsage::compute_write, 0 }
         });
         m_device->set_compute_root_constants({
-           cubemap.handle.as_u32_uav(),
+           sky.handle.as_u32_uav(),
            scratch.handle.as_u32_uav(),
            res, res, 4,
            1
@@ -438,29 +459,29 @@ namespace gfx {
         // Convert cubemap to spherical harmonics
         auto coeff_buffer = m_device->create_buffer(
             "Spherical harmonics per-pixel coefficients buffer", 
-            resolution * resolution * 6 * sizeof(glm::vec3) * 9, 
+            ibl_res * ibl_res * 6 * sizeof(glm::vec3) * 9, 
             nullptr, false, ResourceUsage::compute_write
         );
         m_device->begin_compute_pass(m_pipeline_cubemap_to_diffuse, true);
         m_device->use_resources({
-            { cubemap, ResourceUsage::non_pixel_shader_read },
+            { ibl, ResourceUsage::non_pixel_shader_read },
             { coeff_buffer, ResourceUsage::compute_write }
         });
         m_device->set_compute_root_constants({
-            cubemap.handle.as_u32(),
+            ibl.handle.as_u32(),
             coeff_buffer.handle.as_u32_uav(),
-            (uint32_t)resolution
+            (uint32_t)ibl_res
         });
         m_device->dispatch_threadgroups( // threadgroup size is 8x8
-            (uint32_t)(resolution / 8),
-            (uint32_t)(resolution / 8),
+            (uint32_t)(ibl_res / 8),
+            (uint32_t)(ibl_res / 8),
             6 // faces
         );
         m_device->end_compute_pass();
 
         // Calculate the number of threadgroups needed for the reduction
         constexpr auto reduction_per_pass = 256;
-        uint32_t n_items = (uint32_t)(resolution * resolution * 6);
+        uint32_t n_items = (uint32_t)(ibl_res * ibl_res * 6);
         uint32_t n_threadgroups = (n_items + reduction_per_pass - 1) / reduction_per_pass;
 
         // Create the temporary buffers
@@ -505,7 +526,7 @@ namespace gfx {
                     scratch_buffer1.handle.as_u32(),
                     m_spherical_harmonics_buffer.handle.as_u32_uav(),
                     m_spherical_harmonics_buffer_cursor,
-                    (uint32_t)(resolution * resolution * 6)
+                    (uint32_t)(ibl_res * ibl_res * 6)
                 });
                 m_device->dispatch_threadgroups(1, 1, 1);
                 m_device->end_compute_pass();
@@ -542,7 +563,7 @@ namespace gfx {
                     scratch_buffer2.handle.as_u32(),
                     m_spherical_harmonics_buffer.handle.as_u32_uav(),
                     m_spherical_harmonics_buffer_cursor,
-                    (uint32_t)(resolution * resolution * 6)
+                    (uint32_t)(ibl_res * ibl_res * 6)
                 });
                 m_device->dispatch_threadgroups(1, 1, 1);
                 m_device->end_compute_pass();
@@ -567,10 +588,10 @@ namespace gfx {
         }
 
         // Pre-filter specular maps
-        uint32_t mip_res = resolution / 2;
+        uint32_t mip_res = ibl_res / 2;
         float roughness = 0.0f;
         m_device->begin_compute_pass(m_pipeline_prefilter_cubemap, true);
-        const auto& mip_handles = cubemap.resource->subresource_handles;
+        const auto& mip_handles = ibl.resource->subresource_handles;
         const float roughness_step = 1.0f / ((float)mip_handles.size());
         for (uint32_t i = 0; i < mip_handles.size(); ++i) {
             roughness += roughness_step;
@@ -579,14 +600,15 @@ namespace gfx {
 
             m_device->use_resources({
                 {scratch, ResourceUsage::non_pixel_shader_read, 0},
-                {scratch, ResourceUsage::compute_write, i + 1}
+                {ibl, ResourceUsage::compute_write, i + 1}
             });
             m_device->set_compute_root_constants({
                 scratch.handle.as_u32(),
                 mip_handles[i].as_u32_uav(),
                 (uint32_t)mip_res,
                 (uint32_t)mip_res,
-                (uint32_t)(powf(roughness, 1.5f) * 65536.0f)
+                (uint32_t)(powf(roughness, 1.5f) * 65536.0f),
+                (uint32_t)(powf(quality, 2.0f) * 65536.0f)
             });
             LOG(Debug, "mip %2i, res: %4i: roughness: %.3f", i, mip_res, roughness);
             const uint32_t n_threadgroups = (mip_res + 7) / 8;
@@ -600,9 +622,8 @@ namespace gfx {
         
         // Now upload this texture as a cubemap
         return {
-            .hdri = hdri,
-            .base = cubemap,
-            .ibl_specular = cubemap,
+            .sky = sky,
+            .ibl = ibl,
             .offset_diffuse_sh = 0
         };
     }

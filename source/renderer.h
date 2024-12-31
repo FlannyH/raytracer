@@ -32,7 +32,7 @@ namespace gfx {
         ResourceHandlePair load_texture(const std::string& name, uint32_t width, uint32_t height, uint32_t depth, void* data, PixelFormat pixel_format, TextureType type, ResourceUsage usage, bool generate_mips); // Load a texture from memory
         ResourceHandlePair create_buffer(const std::string& name, size_t size, void* data, bool cpu_visible);
         ResourceHandlePair load_scene_gltf(const std::string& path);
-        Cubemap load_environment_map(const std::string& path, const int resolution = 1024);
+        Cubemap load_environment_map(const std::string& path, const int sky_res = 1024, const int ibl_res = 256, const float quality = 1.0f);
         void resize_texture(ResourceHandlePair& texture, const uint32_t width, const uint32_t height);
 
         friend SceneNode* create_scene_graph_from_gltf(Renderer& renderer, const std::string& path);

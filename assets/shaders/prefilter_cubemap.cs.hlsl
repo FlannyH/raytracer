@@ -4,6 +4,7 @@ struct RootConstants {
     uint base_resolution;
     uint target_resolution;
     uint roughness; // fixed point value between 0 (0.0) and 65536 (1.0)
+    uint quality; // fixed point value between 0 (0.0) and 65536 (1.0)
 };
 ConstantBuffer<RootConstants> root_constants : register(b0, space0);
 
@@ -95,7 +96,8 @@ void main(uint3 dispatch_thread_id : SV_DispatchThreadID) {
 
     const float roughness = float(root_constants.roughness) / 65536.0f;
     const float roughness2 = roughness * roughness;
-    const int n_samples = max(1, int(1024.0f * (pow(roughness, 1.5f) / 2.0f + 0.5f) * (512.0f / cubemap_w)));
+    const float quality = float(root_constants.quality) / 65536.f;
+    const int n_samples = max(1, int(1024.0f * quality * (pow(roughness, 2.0f) / 2.0f + 0.5f) * (512.0f / cubemap_w)));
 
     float max_hdr_brightness = 500.f * (1.0f - pow(roughness, 1.0f / 3.0f));
     float total_weight = 0.0f;
