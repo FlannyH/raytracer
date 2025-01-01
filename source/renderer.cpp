@@ -17,8 +17,8 @@ namespace gfx {
     #define FOV (glm::radians(70.f))
 
     // Initialisation and state
-    Renderer::Renderer(int width, int height, bool debug_layer_enabled) {
-        m_device = std::make_unique<Device>(width, height, debug_layer_enabled);
+    Renderer::Renderer(int width, int height, bool debug_layer_enabled, bool gpu_profiling_enabled) {
+        m_device = std::make_unique<Device>(width, height, debug_layer_enabled, gpu_profiling_enabled);
 
         LOG(Debug, "Creating framebuffers");
         m_position_target = m_device->create_render_target("Position framebuffer", width, height, PixelFormat::rgba32_float, {}, ResourceUsage::compute_write);

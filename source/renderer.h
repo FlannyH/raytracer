@@ -11,7 +11,7 @@ namespace gfx {
     class Renderer {
     public:
         // Initialisation and state
-        Renderer(int width, int height, bool debug_layer_enabled);
+        Renderer(int width, int height, bool debug_layer_enabled, bool gpu_profiling_enabled);
         ~Renderer();
         Renderer(const Renderer&) = delete;
         Renderer& operator=(const Renderer&) = delete;
