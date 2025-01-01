@@ -249,6 +249,9 @@ namespace gfx {
             query_heap_desc.Type = D3D12_QUERY_HEAP_TYPE_TIMESTAMP;
             device->CreateQueryHeap(&query_heap_desc, IID_PPV_ARGS(&m_query_heap));
             m_query_buffer = create_buffer("GPU profiling query buffer", MAX_QUERY_COUNT * sizeof(uint64_t), nullptr, ResourceUsage::cpu_read_write);
+            uint64_t freq;
+            m_queue_gfx->command_queue->GetTimestampFrequency(&freq);
+            m_timestamp_frequency = (float)freq;
         }
 
         input::init(m_window_glfw);
@@ -352,8 +355,6 @@ namespace gfx {
         m_queue_gfx->clean_up_old_command_buffers(m_swapchain->current_fence_completed_value());
         m_upload_queue->clean_up_old_command_buffers(m_upload_fence_value_when_done);
         clean_up_old_resources();
-
-        m_query_labels.clear();
     }
 
     void Device::end_frame() {
@@ -363,6 +364,31 @@ namespace gfx {
         m_swapchain->present();
         glfwPollEvents();
         glfwSwapBuffers(m_window_glfw);
+
+        if (m_gpu_profiling) {
+            std::vector<uint64_t> timestamps;
+            timestamps.resize(m_query_labels.size() * 2);
+            readback_buffer(m_query_buffer, 0, timestamps.size() * sizeof(uint64_t), timestamps.data());
+            std::vector<float> pipeline_times;
+            pipeline_times.resize(m_query_labels.size());
+            float total = 0.0f;
+            for (int i = 0; i < m_query_labels.size(); ++i) {
+                pipeline_times[i] = ((float)(timestamps[i*2 + 1] - timestamps[i*2 + 0])) / m_timestamp_frequency;
+                total += pipeline_times[i];
+            }
+
+            LOG(Info, "----------------------------------------GPU PROFILING----------------------------------------");
+            for (int i = 0; i < m_query_labels.size(); ++i) {
+                LOG(Info, "%56s: %.3f ms (%2.1f%%)", m_query_labels[i].c_str(), pipeline_times[i] * 1000.f, 100.f * pipeline_times[i] / total);
+            }
+
+            // Warn if we drop below 60 fps, error if we drop below 30 fps, cuz then there's 
+            if (total > (1.f / 30.f)) LOG(Error,   "Frame: %.3f ms (%.1f fps)", total * 1000.f, 1.0f / total);
+            if (total > (1.f / 60.f)) LOG(Warning, "Frame: %.3f ms (%.1f fps)", total * 1000.f, 1.0f / total);
+            else                      LOG(Info,    "Frame: %.3f ms (%.1f fps)", total * 1000.f, 1.0f / total);
+            LOG(Info, "---------------------------------------------------------------------------------------------\n");
+            m_query_labels.clear();
+        }
     }
 
     void Device::set_graphics_root_constants(const std::vector<uint32_t>& constants) {
