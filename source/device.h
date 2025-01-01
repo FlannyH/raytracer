@@ -44,7 +44,7 @@ namespace gfx {
     struct Device {
     public:
         // Initialization
-        Device(int width, int height, bool debug_layer_enabled);
+        Device(int width, int height, bool debug_layer_enabled, bool gpu_profiling_enabled);
         ~Device();
         Device(const Device&) = delete;
         Device& operator=(const Device&) = delete;

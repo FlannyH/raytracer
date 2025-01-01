@@ -91,7 +91,7 @@ namespace gfx {
         Log::write(level, "D3D12: %s: %s", category_names[category], description);
     }
 
-    Device::Device(const int width, const int height, const bool debug_layer_enabled) {
+    Device::Device(const int width, const int height, const bool debug_layer_enabled, const bool gpu_profiling_enabled) {
         // Create window
         glfwInit();
         glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API); // use GLFW_NO_API, since we're not using OpenGL
