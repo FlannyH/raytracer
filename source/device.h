@@ -110,7 +110,8 @@ namespace gfx {
         // Profiling
         ComPtr<ID3D12QueryHeap> m_query_heap = nullptr;
         std::vector<std::string> m_query_labels;
-        ResourceHandlePair m_query_buffer;
+        ResourceHandlePair m_query_buffer{};
+        float m_timestamp_frequency = 1.0f;
 
         // Swapchain
         std::shared_ptr<Swapchain> m_swapchain = nullptr;
