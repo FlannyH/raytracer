@@ -1153,6 +1153,37 @@ namespace gfx {
         buffer.resource->handle->Unmap(0, &write_range);
     }
 
+    void Device::readback_buffer(const ResourceHandlePair& buffer, const uint32_t offset, const uint32_t n_bytes, void* destination) {
+        if (buffer.resource->usage != ResourceUsage::cpu_read_write) {
+            LOG(Error, "Readback failed for \"%s\": buffer is not CPU readable!", buffer.resource->name.c_str());
+            return;
+        }
+
+        if (destination == nullptr) {
+            LOG(Error, "Readback failed for \"%s\": destination pointer is null!", buffer.resource->name.c_str());
+            return;
+        }
+
+        if (buffer.resource->type != ResourceType::buffer) {
+            LOG(Error, "Readback failed for \"%s\": target resource is not a buffer!", buffer.resource->name.c_str());
+            return;
+        }
+
+        if (offset + n_bytes - 1 > buffer.resource->expect_buffer().size) {
+            LOG(Error, "Readback failed for \"%s\": max read range out of bounds! (range: %i - %i exceeds buffer size of %i bytes)", buffer.resource->name.c_str(), offset, offset + n_bytes - 1, buffer.resource->expect_buffer().size);
+            return;
+        }
+
+        char* mapped_buffer;
+        const D3D12_RANGE read_range = { offset, offset + n_bytes };
+        if (FAILED(buffer.resource->handle->Map(0, &read_range, (void**)&mapped_buffer))) {
+            LOG(Error, "Readback failed for \"%s\": failed to map buffer to CPU memory space!", buffer.resource->name.c_str());
+            return;
+        }
+        memcpy(destination, mapped_buffer + offset, n_bytes);
+        buffer.resource->handle->Unmap(0, nullptr);
+    }
+
     void Device::queue_unload_bindless_resource(ResourceHandlePair resource) {
         int fence_value = m_swapchain->current_frame_index() + 3;
         m_resources_to_unload.push_back({ resource, fence_value });

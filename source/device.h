@@ -80,6 +80,7 @@ namespace gfx {
         ResourceHandlePair create_depth_target(const std::string& name, uint32_t width, uint32_t height, PixelFormat pixel_format, float clear_value = 1.0f);
         void resize_texture(ResourceHandlePair& texture, const uint32_t width, const uint32_t height);
         void update_buffer(const ResourceHandlePair& buffer, const uint32_t offset, const uint32_t n_bytes, const void* data);
+        void readback_buffer(const ResourceHandlePair& buffer, const uint32_t offset, const uint32_t n_bytes, void* destination);
         void queue_unload_bindless_resource(ResourceHandlePair resource);
         void use_resource(const ResourceHandlePair& resource, const ResourceUsage usage = ResourceUsage::read);
         void use_resources(const std::initializer_list<ResourceTransitionInfo>& resources);
