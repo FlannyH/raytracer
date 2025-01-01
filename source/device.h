@@ -75,7 +75,7 @@ namespace gfx {
         // Resource management
         ResourceHandlePair load_texture(const std::string &name, uint32_t width, uint32_t height, uint32_t depth, void *data, PixelFormat pixel_format, TextureType type, ResourceUsage usage = ResourceUsage::none, int max_mip_levels = 1, int min_resolution = 1); // Load a texture from memory
         ResourceHandlePair load_mesh(const std::string& name, uint64_t n_triangles, Triangle* tris);
-        ResourceHandlePair create_buffer(const std::string& name, size_t size, void* data, bool cpu_visible, ResourceUsage usage = ResourceUsage::none);
+        ResourceHandlePair create_buffer(const std::string& name, size_t size, void* data, ResourceUsage usage = ResourceUsage::none);
         ResourceHandlePair create_render_target(const std::string& name, uint32_t width, uint32_t height, PixelFormat pixel_format, std::optional<glm::vec4> clear_color = glm::vec4(0.0f, 0.0f, 0.0f, 1.0f), ResourceUsage extra_usage = ResourceUsage::none);
         ResourceHandlePair create_depth_target(const std::string& name, uint32_t width, uint32_t height, PixelFormat pixel_format, float clear_value = 1.0f);
         void resize_texture(ResourceHandlePair& texture, const uint32_t width, const uint32_t height);

@@ -48,13 +48,13 @@ namespace gfx {
         m_pipeline_downsample = m_device->create_compute_pipeline("Downsample texture" ,"assets/shaders/downsample.cs.hlsl");
         
         LOG(Debug, "Creating buffers");
-        m_material_buffer = m_device->create_buffer("Material descriptions", MAX_MATERIAL_COUNT * sizeof(Material), nullptr, true);
-        m_lights_buffer = m_device->create_buffer("Lights buffer", 3 * sizeof(uint32_t) + MAX_LIGHTS_DIRECTIONAL * sizeof(LightDirectional), nullptr, true);
-        m_spherical_harmonics_buffer = m_device->create_buffer("Spherical harmonics coefficients buffer", MAX_CUBEMAP_SH * 3*sizeof(glm::mat4), nullptr, false, ResourceUsage::compute_write);
+        m_material_buffer = m_device->create_buffer("Material descriptions", MAX_MATERIAL_COUNT * sizeof(Material), nullptr, ResourceUsage::cpu_writable);
+        m_lights_buffer = m_device->create_buffer("Lights buffer", 3 * sizeof(uint32_t) + MAX_LIGHTS_DIRECTIONAL * sizeof(LightDirectional), nullptr, ResourceUsage::cpu_writable);
+        m_spherical_harmonics_buffer = m_device->create_buffer("Spherical harmonics coefficients buffer", MAX_CUBEMAP_SH * 3*sizeof(glm::mat4), nullptr, ResourceUsage::compute_write);
 
         // Create triple buffered draw packet buffer
         for (int i = 0; i < backbuffer_count; ++i) {
-            m_draw_packets[i] = m_device->create_buffer("Draw Packets", DRAW_PACKET_BUFFER_SIZE, nullptr, true);
+            m_draw_packets[i] = m_device->create_buffer("Draw Packets", DRAW_PACKET_BUFFER_SIZE, nullptr, ResourceUsage::cpu_writable);
         }
 
         LOG(Debug, "Precalculating IBL BRDF LUT");
@@ -170,12 +170,14 @@ namespace gfx {
             0, // todo: spot lights
         };
         m_device->update_buffer(m_lights_buffer, 0, sizeof(light_count), &light_count);
-        m_device->update_buffer(
-            m_lights_buffer,
-            sizeof(light_count),
-            sizeof(m_lights_directional[0]) * (uint32_t)m_lights_directional.size(),
-            m_lights_directional.data()
-        );
+        if (m_lights_directional.empty() == false) {
+            m_device->update_buffer(
+                m_lights_buffer,
+                sizeof(light_count),
+                sizeof(m_lights_directional[0]) * (uint32_t)m_lights_directional.size(),
+                m_lights_directional.data()
+            );
+        }
 
         // BRDF
         const uint32_t view_data_offset = create_draw_packet(&m_view_data, sizeof(m_view_data));
@@ -293,8 +295,8 @@ namespace gfx {
         return texture;
     }
 
-    ResourceHandlePair Renderer::create_buffer(const std::string& name, size_t size, void* data, bool cpu_visible) {
-        ResourceHandlePair buffer = m_device->create_buffer(name, size, data, cpu_visible);
+    ResourceHandlePair Renderer::create_buffer(const std::string& name, size_t size, void* data, ResourceUsage usage) {
+        ResourceHandlePair buffer = m_device->create_buffer(name, size, data, usage);
         m_resources[buffer.handle.id] = buffer.resource;
         return buffer;
     }
@@ -467,7 +469,7 @@ namespace gfx {
         auto coeff_buffer = m_device->create_buffer(
             "Spherical harmonics per-pixel coefficients buffer", 
             ibl_res * ibl_res * 6 * sizeof(glm::vec3) * 9, 
-            nullptr, false, ResourceUsage::compute_write
+            nullptr, ResourceUsage::compute_write
         );
         m_device->begin_compute_pass(m_pipeline_cubemap_to_diffuse, true);
         m_device->use_resources({
@@ -495,12 +497,12 @@ namespace gfx {
         auto scratch_buffer1 = m_device->create_buffer(
             "Spherical harmonics compute scratch buffer 1", 
             n_threadgroups * sizeof(glm::vec3) * 9, 
-            nullptr, false, ResourceUsage::compute_write
+            nullptr, ResourceUsage::compute_write
         );
         auto scratch_buffer2 = m_device->create_buffer(
             "Spherical harmonics compute scratch buffer 2", 
             n_threadgroups * sizeof(glm::vec3) * 9, 
-            nullptr, false, ResourceUsage::compute_write
+            nullptr, ResourceUsage::compute_write
         );
 
         // Pass 1

@@ -244,9 +244,9 @@ namespace gfx {
                     }
 
                     // Create buffers for them
-                    ResourceHandlePair vertex_buffer = renderer.create_buffer("Compressed Vertex buffer", compressed_vertices.size() * sizeof(compressed_vertices[0]), compressed_vertices.data(), false);
-                    ResourceHandlePair position_buffer = renderer.create_buffer("Position buffer", positions.size() * sizeof(positions[0]), positions.data(), false);
-                    ResourceHandlePair index_buffer = renderer.create_buffer("Index buffer", indices.size() * sizeof(indices[0]), indices.data(), false);
+                    ResourceHandlePair vertex_buffer = renderer.create_buffer("Compressed Vertex buffer", compressed_vertices.size() * sizeof(compressed_vertices[0]), compressed_vertices.data(), ResourceUsage::non_pixel_shader_read);
+                    ResourceHandlePair position_buffer = renderer.create_buffer("Position buffer", positions.size() * sizeof(positions[0]), positions.data(), ResourceUsage::non_pixel_shader_read);
+                    ResourceHandlePair index_buffer = renderer.create_buffer("Index buffer", indices.size() * sizeof(indices[0]), indices.data(), ResourceUsage::non_pixel_shader_read);
 
                     auto mesh_node = std::make_shared<SceneNode>();
                     mesh_node->type = SceneNodeType::Mesh;
