@@ -1121,13 +1121,36 @@ namespace gfx {
         throw std::runtime_error("todo: when resizing regular textures, resize and copy the data to a new texture");
     }
 
-    void Device::update_buffer(const ResourceHandlePair& buffer, const uint32_t offset, const uint32_t size_bytes, const void* data) {
+    void Device::update_buffer(const ResourceHandlePair& buffer, const uint32_t offset, const uint32_t n_bytes, const void* data) {
         // todo: handle case for buffers that are not visible from cpu
+        if ((buffer.resource->usage != ResourceUsage::cpu_read_write) && (buffer.resource->usage != ResourceUsage::cpu_writable)) {
+            LOG(Error, "Write failed for \"%s\": buffer is not CPU writable!", buffer.resource->name.c_str());
+            return;
+        }
+
+        if (data == nullptr) {
+            LOG(Error, "Write failed for \"%s\": source data pointer is null!", buffer.resource->name.c_str());
+            return;
+        }
+
+        if (buffer.resource->type != ResourceType::buffer) {
+            LOG(Error, "Write failed for \"%s\": target resource is not a buffer!", buffer.resource->name.c_str());
+            return;
+        }
+
+        if (offset + n_bytes - 1 > buffer.resource->expect_buffer().size) {
+            LOG(Error, "Write failed for \"%s\": write range out of bounds! (range: %i - %i exceeds buffer size of %i bytes)", buffer.resource->name.c_str(), offset, offset + n_bytes, buffer.resource->expect_buffer().size);
+            return;
+        }
+
         char* mapped_buffer;
-        const D3D12_RANGE read_range = { 0, 0 };
-        validate(buffer.resource->handle->Map(0, &read_range, (void**)&mapped_buffer));
-        memcpy(mapped_buffer + offset, data, size_bytes);
-        buffer.resource->handle->Unmap(0, &read_range);
+        const D3D12_RANGE write_range = { offset, offset + n_bytes };
+        if (FAILED(buffer.resource->handle->Map(0, &write_range, (void**)&mapped_buffer))) {
+            LOG(Error, "Write failed for \"%s\": failed to map buffer to CPU memory space!", buffer.resource->name.c_str());
+            return;
+        }
+        memcpy(mapped_buffer + offset, data, n_bytes);
+        buffer.resource->handle->Unmap(0, &write_range);
     }
 
     void Device::queue_unload_bindless_resource(ResourceHandlePair resource) {
