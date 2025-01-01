@@ -47,6 +47,8 @@ namespace gfx {
         compute_write,
         pixel_shader_read,
         non_pixel_shader_read,
+        cpu_writable,
+        cpu_read_write,
     };
 
     struct ResourceHandle {

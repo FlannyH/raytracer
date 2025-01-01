@@ -248,7 +248,7 @@ namespace gfx {
             query_heap_desc.Count = MAX_QUERY_COUNT * 2;
             query_heap_desc.Type = D3D12_QUERY_HEAP_TYPE_TIMESTAMP;
             device->CreateQueryHeap(&query_heap_desc, IID_PPV_ARGS(&m_query_heap));
-            m_query_buffer = create_buffer("GPU profiling query buffer", MAX_QUERY_COUNT * sizeof(uint64_t), nullptr, false);
+            m_query_buffer = create_buffer("GPU profiling query buffer", MAX_QUERY_COUNT * sizeof(uint64_t), nullptr, ResourceUsage::cpu_read_write);
         }
 
         input::init(m_window_glfw);
@@ -711,7 +711,7 @@ namespace gfx {
 
         // We need to copy the texture from an upload buffer
         if (data) {
-            const auto upload_buffer_id = create_buffer("Upload buffer", upload_size, data, true);
+            const auto upload_buffer_id = create_buffer("Upload buffer", upload_size, data, ResourceUsage::cpu_writable);
             queue_unload_bindless_resource(upload_buffer_id);
 
             const auto& upload_buffer = upload_buffer_id.resource;
@@ -783,7 +783,7 @@ namespace gfx {
     }
 
     ResourceHandlePair Device::load_mesh(const std::string& name, const uint64_t n_triangles, Triangle* tris) {
-        return create_buffer(name, n_triangles * sizeof(Triangle), tris, false);
+        return create_buffer(name, n_triangles * sizeof(Triangle), tris, ResourceUsage::non_pixel_shader_read);
     }
 
     void debug_scene_graph_nodes(SceneNode* node, int depth = 0) {
@@ -804,9 +804,10 @@ namespace gfx {
         }
     }
 
-    ResourceHandlePair Device::create_buffer(const std::string& name, const size_t size, void* data, bool cpu_visible, ResourceUsage usage) {
+    ResourceHandlePair Device::create_buffer(const std::string& name, const size_t size, void* data, ResourceUsage usage) {
         // Create engine resource
         const auto resource = std::make_shared<Resource>(ResourceType::buffer);
+        resource->usage = usage;
         resource->expect_buffer() = {
             .data = data,
             .size = size,
@@ -823,16 +824,11 @@ namespace gfx {
         resource_desc.SampleDesc.Count = 1;
         resource_desc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
         resource_desc.Flags = D3D12_RESOURCE_FLAG_NONE;
-        resource_desc.Flags |= (usage == ResourceUsage::compute_write) ? D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS : D3D12_RESOURCE_FLAG_NONE;
+        if (usage == ResourceUsage::compute_write) resource_desc.Flags |= D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
         
-        if (cpu_visible && usage == ResourceUsage::compute_write) {
-            LOG(Error, "Buffer \"%s\" creation failed: buffer can't be simultaneously CPU-visible and writable from a compute shader", name.c_str());
-            return {};
-        }
-
-        D3D12_HEAP_PROPERTIES heap_properties = {
-            .Type = (cpu_visible) ? (D3D12_HEAP_TYPE_UPLOAD) : (D3D12_HEAP_TYPE_DEFAULT),
-        };
+        D3D12_HEAP_PROPERTIES heap_properties = {.Type = D3D12_HEAP_TYPE_DEFAULT};
+        if      (usage == ResourceUsage::cpu_read_write) heap_properties.Type = D3D12_HEAP_TYPE_READBACK;
+        else if (usage == ResourceUsage::cpu_writable)   heap_properties.Type = D3D12_HEAP_TYPE_UPLOAD;
 
         resource->current_state = D3D12_RESOURCE_STATE_COMMON;
         validate(device->CreateCommittedResource(
@@ -881,7 +877,7 @@ namespace gfx {
             device->CreateUnorderedAccessView(resource->handle.Get(), nullptr, &uav_desc, uav_handle);
         }
 
-        if (data && cpu_visible) {
+        if (data && (usage == ResourceUsage::cpu_writable || usage == ResourceUsage::cpu_read_write)) {
             // Copy the buffer data to the GPU
             void* mapped_buffer = nullptr;
             D3D12_RANGE range = { 0, size };
@@ -889,9 +885,9 @@ namespace gfx {
             memcpy(mapped_buffer, data, size);
             resource->handle->Unmap(0, &range);
         }
-        else if (data && !cpu_visible) {
+        else if (data) {
             // Create upload buffer containing the data
-            const auto upload_buffer_id = create_buffer("Upload buffer", size, data, true);
+            const auto upload_buffer_id = create_buffer("Upload buffer", size, data, ResourceUsage::cpu_writable);
             const auto& upload_buffer = upload_buffer_id.resource;
             queue_unload_bindless_resource(upload_buffer_id);
 
