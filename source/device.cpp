@@ -19,6 +19,7 @@
 #include "fence.h"
 
 #define MAX_QUERY_COUNT 128
+#define DEBUG_PRINT_GPU_PROFILING 0
 
 namespace gfx {
     const char* breadcrumb_op_names[49] = {
@@ -377,17 +378,15 @@ namespace gfx {
                 total += pipeline_times[i];
             }
 
-#if 0 // let's not spam the console by default
-            LOG(Info, "----------------------------------------GPU PROFILING----------------------------------------");
+#if DEBUG_PRINT_GPU_PROFILING
+            LOG(Debug, "----------------------------------------GPU PROFILING----------------------------------------");
             for (int i = 0; i < m_query_labels.size(); ++i) {
-                LOG(Info, "%56s: %.3f ms (%2.1f%%)", m_query_labels[i].c_str(), pipeline_times[i] * 1000.f, 100.f * pipeline_times[i] / total);
+                LOG(Debug, "%56s: %.3f ms (%2.1f%%)", m_query_labels[i].c_str(), pipeline_times[i] * 1000.f, 100.f * pipeline_times[i] / total);
             }
 
             // Warn if we drop below 60 fps, error if we drop below 30 fps, cuz then there's 
-            if (total > (1.f / 30.f)) LOG(Error,   "Frame: %.3f ms (%.1f fps)", total * 1000.f, 1.0f / total);
-            if (total > (1.f / 60.f)) LOG(Warning, "Frame: %.3f ms (%.1f fps)", total * 1000.f, 1.0f / total);
-            else                      LOG(Info,    "Frame: %.3f ms (%.1f fps)", total * 1000.f, 1.0f / total);
-            LOG(Info, "---------------------------------------------------------------------------------------------\n");
+            LOG(Debug,    "Frame: %.3f ms (%.1f fps)", total * 1000.f, 1.0f / total);
+            LOG(Debug, "---------------------------------------------------------------------------------------------\n");
 #endif
             m_query_labels.clear();
         }
