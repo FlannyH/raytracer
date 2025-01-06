@@ -377,6 +377,7 @@ namespace gfx {
                 total += pipeline_times[i];
             }
 
+#if 0 // let's not spam the console by default
             LOG(Info, "----------------------------------------GPU PROFILING----------------------------------------");
             for (int i = 0; i < m_query_labels.size(); ++i) {
                 LOG(Info, "%56s: %.3f ms (%2.1f%%)", m_query_labels[i].c_str(), pipeline_times[i] * 1000.f, 100.f * pipeline_times[i] / total);
@@ -387,6 +388,7 @@ namespace gfx {
             if (total > (1.f / 60.f)) LOG(Warning, "Frame: %.3f ms (%.1f fps)", total * 1000.f, 1.0f / total);
             else                      LOG(Info,    "Frame: %.3f ms (%.1f fps)", total * 1000.f, 1.0f / total);
             LOG(Info, "---------------------------------------------------------------------------------------------\n");
+#endif
             m_query_labels.clear();
         }
     }
