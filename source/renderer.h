@@ -57,6 +57,7 @@ namespace gfx {
         ResourceHandlePair m_emissive_target = { ResourceHandle::none(), nullptr };
         ResourceHandlePair m_shaded_target = { ResourceHandle::none(), nullptr };
         ResourceHandlePair m_depth_target = { ResourceHandle::none(), nullptr };
+        ResourceHandlePair m_ssao_target = { ResourceHandle::none(), nullptr };
         ResourceHandlePair m_env_brdf_lut = { ResourceHandle::none(), nullptr };
         Cubemap m_curr_sky_cube = {};
         ResourceHandlePair m_spherical_harmonics_buffer = { ResourceHandle::none(), nullptr };
@@ -76,6 +77,7 @@ namespace gfx {
         std::shared_ptr<Pipeline> m_pipeline_prefilter_cubemap = nullptr;
         std::shared_ptr<Pipeline> m_pipeline_ibl_brdf_lut_gen = nullptr;
         std::shared_ptr<Pipeline> m_pipeline_downsample = nullptr;
+        std::shared_ptr<Pipeline> m_pipeline_ssao = nullptr;
         std::vector<int> m_material_indices_to_reuse;
         std::vector<Material> m_materials; // Should be uploaded to the GPU after modifying
         ResourceHandlePair m_material_buffer{}; // Buffer that contains all currently loaded materials
