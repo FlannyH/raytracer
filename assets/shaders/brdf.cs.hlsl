@@ -122,7 +122,7 @@ void main(uint3 dispatch_thread_id : SV_DispatchThreadID) {
     
     RWTexture2D<float4> output_texture = ResourceDescriptorHeap[NonUniformResourceIndex(root_constants.output_texture & MASK_ID)];
     Texture2D<float4> color_texture = ResourceDescriptorHeap[NonUniformResourceIndex(root_constants.color_texture & MASK_ID)];
-    Texture2D<float4> normal_texture = ResourceDescriptorHeap[NonUniformResourceIndex(root_constants.normal_texture & MASK_ID)];
+    Texture2D<float4> normal_texture = ResourceDescriptorHeap[NonUniformResourceIndex(root_constants.normal_texture & MASK_ID)]; // view space
     Texture2D<float4> metal_roughness_texture = ResourceDescriptorHeap[NonUniformResourceIndex(root_constants.metal_roughness_texture & MASK_ID)];
     Texture2D<float3> emissive_texture = ResourceDescriptorHeap[NonUniformResourceIndex(root_constants.emissive_texture & MASK_ID)];
     Texture2D<float2> env_brdf_lut = ResourceDescriptorHeap[NonUniformResourceIndex(root_constants.env_brdf_lut & MASK_ID)];
@@ -136,9 +136,8 @@ void main(uint3 dispatch_thread_id : SV_DispatchThreadID) {
     // Calculate view direction
     ByteAddressBuffer view_data_buffer = ResourceDescriptorHeap[NonUniformResourceIndex(root_constants.view_data_buffer & MASK_ID)];
     ViewData view_data = view_data_buffer.Load<ViewData>(root_constants.view_data_buffer_offset);
-
-    float3 view_direction = normalize(float3(view_data.viewport_size * float2(uv.x, -uv.y), -1.0f));
-    view_direction = rotate_vector_by_quaternion(view_direction, view_data.forward);
+    const float3 view_direction_vs = normalize(float3(view_data.viewport_size * float2(uv.x, -uv.y), -1.0f));
+    const float3 view_direction_ws = rotate_vector_by_quaternion(view_direction_vs, view_data.forward);
     
     // Color buffer alpha channel is < 0 if nothing was rendered
     if (color.a < -0.0001f) {
@@ -149,7 +148,7 @@ void main(uint3 dispatch_thread_id : SV_DispatchThreadID) {
         
         // Fetch texture and output
         TextureCube<float4> sky_texture = ResourceDescriptorHeap[NonUniformResourceIndex(root_constants.curr_sky_cube & MASK_ID)];
-        float3 pixel = sky_texture.SampleLevel(cube_sampler, normalize(view_direction), 0).rgb * FULLBRIGHT_NITS;
+        float3 pixel = sky_texture.SampleLevel(cube_sampler, normalize(view_direction_ws), 0).rgb * FULLBRIGHT_NITS;
         output_texture[dispatch_thread_id.xy] = float4(pixel, 1.0f);
         
         return;
@@ -167,10 +166,10 @@ void main(uint3 dispatch_thread_id : SV_DispatchThreadID) {
     
     // Process all directional lights
     float3 f0 = mix(0.04f, color.rgb, metallic);
-    float3 reflect_dir = reflect(view_direction, normal);
-    float3 half_vector = normalize(-view_direction + reflect_dir);
-    float v_dot_h = saturate(dot(half_vector, -view_direction));
-    float n_dot_v = saturate(dot(normal, -view_direction));
+    float3 reflect_dir = reflect(view_direction_vs, normal);
+    float3 half_vector = normalize(-view_direction_vs + reflect_dir);
+    float v_dot_h = saturate(dot(half_vector, -view_direction_vs));
+    float n_dot_v = saturate(dot(normal, -view_direction_vs));
     float3 specular_f = fresnel_schlick(v_dot_h, f0, roughness);
     float3 k_s = specular_f;
     float3 diffuse_mul = 1.0f - specular_f;
@@ -195,7 +194,7 @@ void main(uint3 dispatch_thread_id : SV_DispatchThreadID) {
     if (root_constants.spherical_harmonics_buffer & MASK_IS_LOADED) {
         ByteAddressBuffer sh_buffer = ResourceDescriptorHeap[NonUniformResourceIndex(root_constants.spherical_harmonics_buffer & MASK_ID)];
         SphericalHarmonicsMatrices sh_matrices = sh_buffer.Load<SphericalHarmonicsMatrices>(root_constants.curr_ibl_diffuse_sh_offset);
-        float4 n_t = float4(normalize(normal.xyz), 1.0);
+        float4 n_t = float4(normalize(rotate_vector_by_quaternion(normal.xyz, view_data.forward)), 1.0);
         float e_r = max(0.0, dot(mul(sh_matrices.r, n_t), n_t));
         float e_g = max(0.0, dot(mul(sh_matrices.g, n_t), n_t));
         float e_b = max(0.0, dot(mul(sh_matrices.b, n_t), n_t));
@@ -207,7 +206,7 @@ void main(uint3 dispatch_thread_id : SV_DispatchThreadID) {
     if (root_constants.curr_specular_ibl & MASK_IS_LOADED) {
         TextureCube<float4> ibl_texture = ResourceDescriptorHeap[NonUniformResourceIndex(root_constants.curr_specular_ibl & MASK_ID)];
         float mip_level = pow(roughness, 1.5f) * (root_constants.curr_specular_ibl_n_mips + 1);
-        float3 env_sample = ibl_texture.SampleLevel(cube_sampler, normalize(reflect_dir), mip_level).rgb;
+        float3 env_sample = ibl_texture.SampleLevel(cube_sampler, normalize(rotate_vector_by_quaternion(reflect_dir, view_data.forward)), mip_level).rgb;
         float2 env_brdf = env_brdf_lut.Sample(tex_sampler_clamp, float2(n_dot_v, roughness));
         float3 indirect_specular = env_sample * (specular_f * env_brdf.x + env_brdf.y);
         specular += specular_f * indirect_specular * FULLBRIGHT_NITS;
