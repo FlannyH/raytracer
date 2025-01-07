@@ -667,6 +667,10 @@ namespace gfx {
             };
             auto n_vertices = m_resources[draw_packet.vertex_buffer.id]->expect_buffer().size / sizeof(VertexCompressed);
             auto draw_packet_offset = create_draw_packet(&draw_packet, sizeof(draw_packet));
+            m_device->use_resources({
+                { m_draw_packets[m_device->frame_index() % backbuffer_count], ResourceUsage::non_pixel_shader_read, },
+                { m_material_buffer, ResourceUsage::non_pixel_shader_read },
+            });
             m_device->set_graphics_root_constants({
                 m_draw_packets[m_device->frame_index() % backbuffer_count].handle.as_u32(),
                 (uint32_t)m_camera_matrices_offset,
