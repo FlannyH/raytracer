@@ -256,7 +256,7 @@ namespace gfx {
             .projection_matrix = glm::perspectiveFov(glm::radians(70.f), m_resolution.x, m_resolution.y, 0.0001f, 1000.0f),
         };
 
-        m_view_data.rotation = { transform.rotation.x, transform.rotation.y, transform.rotation.z, transform.rotation.w };
+        m_view_data.rotation = transform.rotation;
         m_camera_matrices_offset = create_draw_packet(&camera_matrices, sizeof(camera_matrices));
     }
 
@@ -679,7 +679,7 @@ namespace gfx {
             m_lights_directional.push_back(LightDirectional{
                 .color = node->light.color,
                 .intensity = node->light.intensity,
-                .direction = glm::normalize(glm::vec3(node->cached_global_transform * glm::vec4(0.0, 0.0, -1.0, 0.0))),
+                .direction = glm::normalize(m_view_data.rotation * glm::vec3(node->cached_global_transform * glm::vec4(0.0, 0.0, -1.0, 0.0))),
             });
         }
         for (auto& node : node->children) {

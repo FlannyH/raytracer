@@ -17,8 +17,13 @@ struct RootConstants {
 };
 ConstantBuffer<RootConstants> root_constants : register(b0, space0);
 
+struct Quaternion {
+    float3 xyz;
+    float w;
+};
+
 struct ViewData {
-    float4 forward;
+    Quaternion forward;
     float2 viewport_size;
 };
 
@@ -45,7 +50,7 @@ struct SphericalHarmonicsMatrices {
 #define PI 3.14159265358979f
 #define FULLBRIGHT_NITS 200.0f
 
-float3 rotate_vector_by_quaternion(float3 vec, float4 quat) {
+float3 rotate_vector_by_quaternion(float3 vec, Quaternion quat) {
     float3 quat_vec = quat.xyz;
     float quat_scalar = quat.w;
     float3 rotated_vec = 2.0f * dot(quat_vec, vec) * quat_vec

@@ -1,10 +1,11 @@
 #pragma once
 #include <memory>
 #include "device.h"
+#include <glm/gtx/quaternion.hpp>
 
 namespace gfx {
     struct ViewData {
-        glm::vec4 rotation{};
+        glm::quat rotation{};
         glm::vec2 viewport_size{};
     };
 
