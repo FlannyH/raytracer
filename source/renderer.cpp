@@ -21,7 +21,7 @@ namespace gfx {
         m_device = std::make_unique<Device>(width, height, debug_layer_enabled, gpu_profiling_enabled);
 
         LOG(Debug, "Creating framebuffers");
-        m_position_target = m_device->create_render_target("Position framebuffer", width, height, PixelFormat::rgba32_float, {}, ResourceUsage::compute_write);
+        m_position_target = m_device->create_render_target("Position framebuffer", width, height, PixelFormat::rgba32_float, glm::vec4(0.0f, 0.0f, 9999999.0f, 0.0f), ResourceUsage::compute_write);
         m_color_target = m_device->create_render_target("Color framebuffer", width, height, PixelFormat::rgba16_float, glm::vec4(0.0f, 0.0f, 0.0f, -1.0f), ResourceUsage::compute_write);
         m_normal_target = m_device->create_render_target("Normal framebuffer", width, height, PixelFormat::rgba16_float, {}, ResourceUsage::compute_write);
         m_metallic_roughness_target = m_device->create_render_target("Metallic & roughness framebuffer", width, height, PixelFormat::rg8_unorm, {}, ResourceUsage::compute_write);
@@ -215,6 +215,7 @@ namespace gfx {
             { m_normal_target, ResourceUsage::non_pixel_shader_read },
             { m_metallic_roughness_target, ResourceUsage::non_pixel_shader_read },
             { m_emissive_target, ResourceUsage::non_pixel_shader_read },
+            { m_ssao_target, ResourceUsage::non_pixel_shader_read },
             { m_lights_buffer, ResourceUsage::non_pixel_shader_read },
             { m_spherical_harmonics_buffer, ResourceUsage::non_pixel_shader_read },
             { m_curr_sky_cube.sky, ResourceUsage::non_pixel_shader_read },
@@ -229,6 +230,7 @@ namespace gfx {
             m_normal_target.handle.as_u32(),
             m_metallic_roughness_target.handle.as_u32(),
             m_emissive_target.handle.as_u32(),
+            m_ssao_target.handle.as_u32(),
             m_lights_buffer.handle.as_u32(),
             m_spherical_harmonics_buffer.handle.as_u32(),
             m_curr_sky_cube.sky.handle.as_u32(),

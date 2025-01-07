@@ -5,6 +5,7 @@ struct RootConstants {
     uint normal_texture;
     uint metal_roughness_texture;
     uint emissive_texture;
+    uint ssao_texture;
     uint lights_buffer;
     uint spherical_harmonics_buffer;
     uint curr_sky_cube;
@@ -125,6 +126,7 @@ void main(uint3 dispatch_thread_id : SV_DispatchThreadID) {
     Texture2D<float4> normal_texture = ResourceDescriptorHeap[NonUniformResourceIndex(root_constants.normal_texture & MASK_ID)]; // view space
     Texture2D<float4> metal_roughness_texture = ResourceDescriptorHeap[NonUniformResourceIndex(root_constants.metal_roughness_texture & MASK_ID)];
     Texture2D<float3> emissive_texture = ResourceDescriptorHeap[NonUniformResourceIndex(root_constants.emissive_texture & MASK_ID)];
+    Texture2D<float> ssao_texture = ResourceDescriptorHeap[NonUniformResourceIndex(root_constants.ssao_texture & MASK_ID)];
     Texture2D<float2> env_brdf_lut = ResourceDescriptorHeap[NonUniformResourceIndex(root_constants.env_brdf_lut & MASK_ID)];
     float4 color = color_texture[dispatch_thread_id.xy];
 
@@ -156,6 +158,7 @@ void main(uint3 dispatch_thread_id : SV_DispatchThreadID) {
     
     float3 normal = normal_texture[dispatch_thread_id.xy].xyz;
     float3 emission = emissive_texture[dispatch_thread_id.xy];
+    float ssao = ssao_texture[dispatch_thread_id.xy];
     float2 metal_roughness = metal_roughness_texture[dispatch_thread_id.xy].rg;
     float metallic = metal_roughness.r;
     float roughness = pow(metal_roughness.g, 1.0f / 2.2f);
@@ -212,7 +215,7 @@ void main(uint3 dispatch_thread_id : SV_DispatchThreadID) {
         specular += specular_f * indirect_specular * FULLBRIGHT_NITS;
     }
     
-    out_value += diffuse * diffuse_mul;
+    out_value += diffuse * diffuse_mul * ssao;
     out_value += specular;
 
     output_texture[dispatch_thread_id.xy].rgb = out_value;
