@@ -27,6 +27,7 @@ namespace gfx {
         m_metallic_roughness_target = m_device->create_render_target("Metallic & roughness framebuffer", width, height, PixelFormat::rg8_unorm, {}, ResourceUsage::compute_write);
         m_emissive_target = m_device->create_render_target("Emissive framebuffer", width, height, PixelFormat::rg11_b10_float, {}, ResourceUsage::compute_write);
         m_shaded_target = m_device->load_texture("Shaded framebuffer", width, height, 1, nullptr, PixelFormat::rgba16_float, TextureType::tex_2d, ResourceUsage::compute_write);
+        m_ssao_target = m_device->load_texture("SSAO framebuffer", width, height, 1, nullptr, PixelFormat::r8_unorm, TextureType::tex_2d, ResourceUsage::compute_write);
         m_depth_target = m_device->create_depth_target("Depth framebuffer", width, height, PixelFormat::depth32_float);
         LOG(Debug, "Compiling shaders");
         m_pipeline_scene = m_device->create_raster_pipeline("Geometry pass"  ,"assets/shaders/geo_pass.vs.hlsl", "assets/shaders/geo_pass.ps.hlsl", {
@@ -46,6 +47,7 @@ namespace gfx {
         m_pipeline_prefilter_cubemap = m_device->create_compute_pipeline("Prefilter specular IBL cubemap" ,"assets/shaders/prefilter_cubemap.cs.hlsl");
         m_pipeline_ibl_brdf_lut_gen = m_device->create_compute_pipeline("Generate IBL BRDF LUT", "assets/shaders/ibl_brdf_lut_gen.cs.hlsl");
         m_pipeline_downsample = m_device->create_compute_pipeline("Downsample texture" ,"assets/shaders/downsample.cs.hlsl");
+        m_pipeline_ssao = m_device->create_compute_pipeline("SSAO" ,"assets/shaders/ssao.cs.hlsl");
         
         LOG(Debug, "Creating buffers");
         m_material_buffer = m_device->create_buffer("Material descriptions", MAX_MATERIAL_COUNT * sizeof(Material), nullptr, ResourceUsage::cpu_writable);
@@ -144,6 +146,7 @@ namespace gfx {
             resize_texture(m_emissive_target, (uint32_t)m_render_resolution.x, (uint32_t)m_render_resolution.y);
             resize_texture(m_shaded_target, (uint32_t)m_render_resolution.x, (uint32_t)m_render_resolution.y);
             resize_texture(m_depth_target, (uint32_t)m_render_resolution.x, (uint32_t)m_render_resolution.y);
+            resize_texture(m_ssao_target, (uint32_t)m_render_resolution.x, (uint32_t)m_render_resolution.y);
         }
         
         // Queue rendering scenes
@@ -178,6 +181,29 @@ namespace gfx {
                 m_lights_directional.data()
             );
         }
+
+        // SSAO
+        m_device->begin_compute_pass(m_pipeline_ssao);
+        m_device->use_resources({
+            { m_position_target, ResourceUsage::non_pixel_shader_read },
+            { m_normal_target, ResourceUsage::non_pixel_shader_read },
+            { m_ssao_target, ResourceUsage::compute_write },
+            { m_draw_packets[m_device->frame_index() % backbuffer_count], ResourceUsage::non_pixel_shader_read },
+        });
+        m_device->set_compute_root_constants({
+            (uint32_t)m_device->frame_index(),
+            m_position_target.handle.as_u32(),
+            m_normal_target.handle.as_u32(),
+            m_ssao_target.handle.as_u32_uav(),
+            m_draw_packets[m_device->frame_index() % backbuffer_count].handle.as_u32(),
+            m_camera_matrices_offset,
+        });
+        m_device->dispatch_threadgroups( // threadgroup size is 8x8
+            (uint32_t)(m_render_resolution.x / 8.0f),
+            (uint32_t)(m_render_resolution.y / 8.0f),
+            1
+        );
+        m_device->end_compute_pass();
 
         // BRDF
         const uint32_t view_data_offset = create_draw_packet(&m_view_data, sizeof(m_view_data));
