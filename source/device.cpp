@@ -1236,7 +1236,7 @@ namespace gfx {
 
     void Device::use_resources(const std::initializer_list<ResourceTransitionInfo>& resources) {
         for (auto& [resource, usage, subresource] : resources) {
-            transition_resource(m_curr_pass_cmd, resource.resource, resource_usage_to_dx12_state(usage), subresource);
+            if (resource.resource != nullptr) transition_resource(m_curr_pass_cmd, resource.resource, resource_usage_to_dx12_state(usage), subresource);
         }
         execute_resource_transitions(m_curr_pass_cmd);
     }
