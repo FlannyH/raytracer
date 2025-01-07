@@ -89,12 +89,14 @@ float4 main(in uint vertex_index : SV_VertexID, out VertexOut output) : SV_POSIT
     
     float4 vert_pos = mul(draw_packet.model_transform, float4(vert.position, 1));
     vert_pos = mul(camera_matrices.view_matrix, vert_pos);
+    output.position = vert_pos.xyz;
     vert_pos = mul(camera_matrices.projection_matrix, vert_pos);
     
-    output.position = vert.position;
     output.color = vert.color;
     output.normal = normalize(mul((float3x3)draw_packet.model_transform, vert.normal));
+    output.normal = normalize(mul((float3x3)camera_matrices.view_matrix, output.normal));
     output.tangent.xyz = normalize(mul((float3x3)draw_packet.model_transform, vert.tangent.xyz));
+    output.tangent.xyz = normalize(mul((float3x3)draw_packet.model_transform, output.tangent.xyz));
     output.bitangent = cross(output.normal.xyz, output.tangent.xyz) * vert.tangent.w;
     output.texcoord0_materialid.xy = vert.texcoord0;
     output.texcoord0_materialid.z = (float)vert_compressed.material_id;
