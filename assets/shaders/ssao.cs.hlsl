@@ -16,8 +16,9 @@ struct CameraMatricesPacket {
 #define MASK_ID ((1 << 27) - 1)
 #define PI 3.14159265358979f
 #define N_SAMPLES 64
-#define RADIUS 0.006f
+#define RADIUS 0.0065f
 #define BIAS 0.003f
+#define STRENGTH 2.30f
 
 sampler tex_sampler_clamp : register(s1);
 
@@ -103,5 +104,5 @@ void main(uint3 dispatch_thread_id : SV_DispatchThreadID) {
         occlusion += is_occluded * is_within_radius;
         weight += is_within_radius;
     }
-    output_texture[dispatch_thread_id.xy].rgb = (1.0 - (occlusion / weight));
+    output_texture[dispatch_thread_id.xy].rgb = pow((1.0 - (occlusion / weight)), STRENGTH);
 }
