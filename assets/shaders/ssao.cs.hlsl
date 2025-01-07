@@ -18,7 +18,7 @@ struct CameraMatricesPacket {
 #define N_SAMPLES 64
 #define RADIUS 0.0065f
 #define BIAS 0.003f
-#define STRENGTH 2.30f
+#define STRENGTH 1.50f
 
 sampler tex_sampler_clamp : register(s1);
 
@@ -79,8 +79,6 @@ void main(uint3 dispatch_thread_id : SV_DispatchThreadID) {
         uint sample_index = ((((dispatch_thread_id.x % 15731) * 15731) + (dispatch_thread_id.y % 789221)) * 789221 + i * 1376312589) + frame_index;
         const float scale = ((float(hash(sample_index) % 65536) / 65536.f) + 0.25f) / 1.25f;
         const float3 hemisphere_sample_vec = importance_sample_ggx(hammersley(hash(sample_index) % 60000, 60000), normal) * scale * RADIUS;
-        occlusion += hemisphere_sample_vec;
-        weight += 1.0f;
 
         // Offset the position of the current pixel by that vector
         const float3 view_sample_pos = pos + hemisphere_sample_vec;
