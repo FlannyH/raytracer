@@ -284,7 +284,6 @@ namespace gfx {
         m_queue_gfx.reset();
         m_upload_queue.reset();
         m_upload_queue_completion_fence.reset();
-        m_curr_depth_target.reset();
         m_heap_rtv.reset();
         m_heap_dsv.reset();
         m_heap_bindless.reset();
@@ -501,7 +500,6 @@ namespace gfx {
 
             transition_resource(m_curr_pass_cmd, texture, D3D12_RESOURCE_STATE_DEPTH_WRITE);
             dsv_handle = m_heap_dsv->fetch_cpu_handle(texture->expect_texture().dsv_handle);
-            m_curr_depth_target = texture;
             m_curr_pass_cmd->get()->ClearDepthStencilView(dsv_handle, D3D12_CLEAR_FLAG_DEPTH, texture->expect_texture().clear_color.x, 0, 0, nullptr);
 
             have_dsv = true;
