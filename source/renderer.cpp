@@ -85,9 +85,6 @@ namespace gfx {
                 .resource = resource
             });
         }
-
-        // Destroy device, which will wait for the GPU to finish, then unload the above resources
-        m_device.reset();
     }
 
     // Common rendering

@@ -106,7 +106,7 @@ namespace gfx {
             // Note: Errors will be printed in the Visual Studio output tab, and not in the console!
             dxgi_factory_flags |= DXGI_CREATE_FACTORY_DEBUG;
             validate(D3D12GetDebugInterface(IID_PPV_ARGS(&m_debug_layer)));
-            ID3D12Debug1* debug_interface = nullptr;
+            ComPtr<ID3D12Debug1> debug_interface = nullptr;
             validate(m_debug_layer->QueryInterface(IID_PPV_ARGS(&debug_interface)));
             debug_interface->EnableDebugLayer();
             debug_interface->SetEnableGPUBasedValidation(true);
@@ -116,9 +116,10 @@ namespace gfx {
 
 #ifdef _DEBUG
         ComPtr<ID3D12DeviceRemovedExtendedDataSettings1> dred_settings;
-        validate(D3D12GetDebugInterface(IID_PPV_ARGS(&dred_settings)));
-        dred_settings->SetAutoBreadcrumbsEnablement(D3D12_DRED_ENABLEMENT_FORCED_ON);
-        dred_settings->SetPageFaultEnablement(D3D12_DRED_ENABLEMENT_FORCED_ON);
+        if(SUCCEEDED(D3D12GetDebugInterface(IID_PPV_ARGS(&dred_settings)))) {
+            dred_settings->SetAutoBreadcrumbsEnablement(D3D12_DRED_ENABLEMENT_FORCED_ON);
+            dred_settings->SetPageFaultEnablement(D3D12_DRED_ENABLEMENT_FORCED_ON);
+        }
 #endif
 
         // Create factory
@@ -165,6 +166,7 @@ namespace gfx {
             info_queue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_CORRUPTION, true);
             info_queue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_ERROR, true);
             info_queue->RegisterMessageCallback(validation_message_callback, D3D12_MESSAGE_CALLBACK_FLAG_NONE, nullptr, &m_msg_callback_cookie);
+            info_queue->Release();
         }
 
         // Create descriptor heaps
@@ -216,7 +218,7 @@ namespace gfx {
             D3D12_DRED_PAGE_FAULT_OUTPUT DredPageFaultOutput;
             validate(pDred->GetAutoBreadcrumbsOutput(&DredAutoBreadcrumbsOutput));
             validate(pDred->GetPageFaultAllocationOutput(&DredPageFaultOutput));
-            LOG(Fatal, "Device removal detected! ");
+            LOG(Fatal, "Device removal detected!");
             printf("Breadcrumbs: \n");
             auto* curr_node = DredAutoBreadcrumbsOutput.pHeadAutoBreadcrumbNode;
             int node_index = 0;
@@ -266,6 +268,8 @@ namespace gfx {
             thread_shared_globals.should_shut_down = true;
             thread_shared_globals.device_lost_fence->cpu_signal(UINT64_MAX);
         }
+        // Wait for device removal thread to return
+        device_lost_thread.join();
 
         // Finish any queued uploads
         m_upload_queue_completion_fence->gpu_signal(m_upload_queue, m_upload_fence_value_when_done);
@@ -276,7 +280,11 @@ namespace gfx {
         m_swapchain->flush(m_queue_gfx);
 
         // Clean up in a certain order
-        clean_up_old_resources();
+        while (!m_resources_to_unload.empty() || !m_temp_upload_buffers.empty()) {
+            begin_frame();
+            end_frame();
+            clean_up_old_resources();
+        }
         m_temp_upload_buffers.clear();
         m_swapchain.reset();
         m_curr_bound_pipeline.reset();
@@ -287,12 +295,10 @@ namespace gfx {
         m_heap_rtv.reset();
         m_heap_dsv.reset();
         m_heap_bindless.reset();
-        device->Release();
-        factory->Release();
+        m_query_heap.Reset();
+        device.Reset();
+        factory.Reset();
         glfwDestroyWindow(m_window_glfw);
-
-        // Wait for device removal thread to return
-        device_lost_thread.join();
     }
 
     void Device::resize_window(const int width, const int height) const {
@@ -1373,7 +1379,6 @@ namespace gfx {
             if ((int)m_swapchain->current_fence_completed_value() < desired_completed_fence_value) break;
 
             // Destroy, Erase, Improve (memory usage) - good Meshuggah album btw, go listen to it
-            assert(resource.resource->handle != nullptr && "Critical error! Somehow the handle became null. Check the other code, this is sus.");
             m_resources_to_unload.pop_front();
         }
 
@@ -1386,7 +1391,6 @@ namespace gfx {
             if (m_upload_queue_completion_fence->reached_value(upload_data.upload_queue_fence_value) == false) break;
 
             // Destroy, Erase, Improve (memory usage) - good Meshuggah album btw, go listen to it
-            assert(upload_data.upload_buffer->handle != nullptr && "Critical error! Somehow the handle became null. Check the other code, this is sus.");
             m_temp_upload_buffers.pop_front();
         }
     }
