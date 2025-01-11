@@ -1,4 +1,8 @@
 struct RootConstants {
+    uint n_samples;
+    uint radius; // fixed point 65536 = 1.0
+    uint bias; // fixed point 65536 = 1.0
+    uint strength; // fixed point 65536 = 1.0
     uint frame_index;
     uint position_texture;
     uint normal_texture;
@@ -15,10 +19,6 @@ struct CameraMatricesPacket {
 
 #define MASK_ID ((1 << 27) - 1)
 #define PI 3.14159265358979f
-#define N_SAMPLES 64
-#define RADIUS 0.0065f
-#define BIAS 0.003f
-#define STRENGTH 1.50f
 
 sampler tex_sampler_clamp : register(s1);
 
@@ -66,6 +66,12 @@ void main(uint3 dispatch_thread_id : SV_DispatchThreadID) {
     ByteAddressBuffer packet_buffer = ResourceDescriptorHeap[NonUniformResourceIndex(root_constants.packet_buffer & MASK_ID)];
     CameraMatricesPacket camera_matrices = packet_buffer.Load<CameraMatricesPacket>(root_constants.camera_matrices_offset);
 
+    // Get parameters
+    const uint n_samples = root_constants.n_samples;
+    const float radius = float(root_constants.radius) / 65536.0f;
+    const float bias = float(root_constants.bias) / 65536.0f;
+    const float strength = float(root_constants.strength) / 65536.0f;
+
     // Get position and normal of current pixel (worldspace)
     const int frame_index = root_constants.frame_index;
     const float3 pos = position_texture[dispatch_thread_id.xy];
@@ -74,11 +80,11 @@ void main(uint3 dispatch_thread_id : SV_DispatchThreadID) {
     // Collect samples
     float3 occlusion = 0.0f;
     float weight = 0.0f;
-    for (uint i = 0; i < N_SAMPLES; ++i) {
+    for (uint i = 0; i < n_samples; ++i) {
         // Pick random vector on hemisphere around the normal vector (using the most scuffed way to generate a random sample index)
         uint sample_index = ((((dispatch_thread_id.x % 15731) * 15731) + (dispatch_thread_id.y % 789221)) * 789221 + i * 1376312589) + frame_index;
         const float scale = ((float(hash(sample_index) % 65536) / 65536.f) + 0.25f) / 1.25f;
-        const float3 hemisphere_sample_vec = importance_sample_ggx(hammersley(hash(sample_index) % 60000, 60000), normal) * scale * RADIUS;
+        const float3 hemisphere_sample_vec = importance_sample_ggx(hammersley(hash(sample_index) % 60000, 60000), normal) * scale * radius;
 
         // Offset the position of the current pixel by that vector
         const float3 view_sample_pos = pos + hemisphere_sample_vec;
@@ -93,14 +99,14 @@ void main(uint3 dispatch_thread_id : SV_DispatchThreadID) {
         const float sample_depth = position_texture.Sample(tex_sampler_clamp, screen_sample_pos).z;
 
         // If sample depth > current pixel depth, mark that sample as occluded
-        const float is_occluded = (sample_depth >= pos.z + BIAS) ? 1.0 : 0.0;
+        const float is_occluded = (sample_depth >= pos.z + bias) ? 1.0 : 0.0;
 
         // If the difference between the 2 depths is too big, ignore that sample
-        const float is_within_radius = smoothstep(0.0, 1.0, RADIUS / abs(pos.z - sample_depth));
+        const float is_within_radius = smoothstep(0.0, 1.0, radius / abs(pos.z - sample_depth));
         
         // Accumulate the result
         occlusion += is_occluded * is_within_radius;
         weight += is_within_radius;
     }
-    output_texture[dispatch_thread_id.xy].rgb = pow((1.0 - (occlusion / weight)), STRENGTH);
+    output_texture[dispatch_thread_id.xy].rgb = pow((1.0 - (occlusion / weight)), strength);
 }
