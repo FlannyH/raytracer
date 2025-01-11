@@ -15,6 +15,8 @@ constexpr UINT backbuffer_count = 3;
         throw std::exception(); \
     }
 
+#define to_fixed_16_16(n) (uint32_t)((n) * 65536)
+
 inline void read_file(const std::string& path, size_t& size_bytes, char*& data, const bool silent) {
     // Open file
     std::ifstream file_stream(path, std::ios::binary);
