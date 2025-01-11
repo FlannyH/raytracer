@@ -188,6 +188,10 @@ namespace gfx {
             { m_draw_packets[m_device->frame_index() % backbuffer_count], ResourceUsage::non_pixel_shader_read },
         });
         m_device->set_compute_root_constants({
+            64, // n_samples
+            to_fixed_16_16(0.0065f), // radius
+            to_fixed_16_16(0.003f), // bias
+            to_fixed_16_16(1.5f), // strength
             (uint32_t)m_device->frame_index(),
             m_position_target.handle.as_u32(),
             m_normal_target.handle.as_u32(),
