@@ -50,7 +50,6 @@ namespace gfx {
 
         std::unique_ptr<Device> m_device;
         std::unordered_map<uint32_t, std::shared_ptr<Resource>> m_resources; // Maps linking resource IDs and actual resource data
-        std::unordered_map<uint32_t, bool> m_resource_residence; // Maps linking resource IDs to a boolean representing whether the resource is loaded on the GPU
         std::vector<uint32_t> m_non_gpu_resource_handles_to_reuse; // Non-GPU resources are resources that are useful on the CPU side, but don't directly correspond to a single GPU descriptor
         uint32_t m_non_gpu_resource_handle_cursor = 0;
         ResourceHandlePair m_position_target = { ResourceHandle::none(), nullptr };
