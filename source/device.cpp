@@ -1418,4 +1418,14 @@ namespace gfx {
         cmd->get()->ResourceBarrier((UINT)m_resource_barriers.size(), m_resource_barriers.data());
         m_resource_barriers.clear();
     }
+    
+    ID3D12Device5* Device::device5() {
+        ID3D12Device5* device5;
+        HRESULT hr = device->QueryInterface(IID_PPV_ARGS(&device5));
+        if (FAILED(hr)) {
+            LOG(Error, "Failed to get ID3D12Device5* interface");
+            return nullptr;
+        }
+        return device5;
+    }
 }
