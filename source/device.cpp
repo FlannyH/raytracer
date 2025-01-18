@@ -17,6 +17,7 @@
 #include "scene.h"
 #include "input.h"
 #include "fence.h"
+#include <winerror.h>
 
 #define MAX_QUERY_COUNT 128
 #define DEBUG_PRINT_GPU_PROFILING 0
@@ -415,6 +416,22 @@ namespace gfx {
 
     int Device::frame_index() {
         return m_swapchain->current_frame_index();
+    }
+
+    bool Device::supports(RendererFeature feature) {
+        D3D12_FEATURE_DATA_D3D12_OPTIONS5 feature_opt5{};
+
+        switch (feature) {
+            case RendererFeature::raytracing:
+                if (FAILED(device->CheckFeatureSupport(
+                    D3D12_FEATURE_D3D12_OPTIONS5,
+                    &feature_opt5,
+                    sizeof(feature_opt5)
+                ))) return false;
+                return (feature_opt5.RaytracingTier != D3D12_RAYTRACING_TIER_NOT_SUPPORTED);
+            default: 
+                return false;
+        }
     }
 
     void Device::begin_raster_pass(std::shared_ptr<Pipeline> pipeline, RasterPassInfo&& render_pass_info) {
