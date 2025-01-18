@@ -100,6 +100,7 @@ namespace gfx {
         int find_dominant_monitor(); // Returns the index of the monitor the window overlaps with most
         void clean_up_old_resources();
         void execute_resource_transitions(std::shared_ptr<CommandBuffer> cmd);
+        ID3D12Device5* device5();
 
         // Device
         GLFWwindow* m_window_glfw = nullptr;
