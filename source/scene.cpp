@@ -258,7 +258,7 @@ namespace gfx {
                         mesh_node->mesh.blas = blas.handle;
                     }
 
-                    mesh_node->type = SceneNodeType::Mesh;
+                    mesh_node->type = SceneNodeType::mesh;
                     mesh_node->name = mesh.name;
                     mesh_node->cached_global_transform = global_matrix;
                     mesh_node->position_offset = offset;
@@ -272,7 +272,7 @@ namespace gfx {
             if (node.light != -1) {
                 const auto& light = model.lights[node.light];
                 auto light_node = std::make_shared<SceneNode>();
-                light_node->type = SceneNodeType::Light;
+                light_node->type = SceneNodeType::light;
                 light_node->name = light.name;
                 if (light.color.size() >= 3) {
                     light_node->light.color.r = (float)light.color[0];

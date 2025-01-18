@@ -837,13 +837,13 @@ namespace gfx {
     void debug_scene_graph_nodes(SceneNode* node, int depth = 0) {
         for (int i = 0; i < depth; ++i) LOG(Debug, "    ");
         switch (node->type) {
-            case gfx::SceneNodeType::Empty:
+            case gfx::SceneNodeType::empty:
                 LOG(Debug, "Node: %s", node->name.c_str());
                 break;
-            case gfx::SceneNodeType::Mesh:
+            case gfx::SceneNodeType::mesh:
                 LOG(Debug, "Mesh: (Vertex buffer: %i) %s", node->mesh.vertex_buffer.id, node->name.c_str());
                 break;
-            case gfx::SceneNodeType::Light:
+            case gfx::SceneNodeType::light:
                 LOG(Debug, "Light: %s", node->name.c_str());
                 break;
         }
