@@ -191,7 +191,7 @@ namespace gfx {
             64, // n_samples
             to_fixed_16_16(0.0065f), // radius
             to_fixed_16_16(0.003f), // bias
-            to_fixed_16_16(1.5f), // strength
+            to_fixed_16_16(1.0f), // strength
             (uint32_t)m_device->frame_index(),
             m_position_target.handle.as_u32(),
             m_normal_target.handle.as_u32(),
