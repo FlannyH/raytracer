@@ -701,7 +701,7 @@ namespace gfx {
     void Renderer::traverse_scene(SceneNode* node) {
         if (!node) return;
 
-        if (node->type == SceneNodeType::Mesh) {
+        if (node->type == SceneNodeType::mesh) {
             auto draw_packet = PacketDrawMesh{
                 .model_transform = node->cached_global_transform,
                 .position_offset = glm::vec4(node->position_offset, 0.0f),
@@ -722,7 +722,7 @@ namespace gfx {
                 });
             m_device->draw_vertices((uint32_t)n_vertices);
         }
-        else if (node->type == SceneNodeType::Light) {
+        else if (node->type == SceneNodeType::light) {
             m_lights_directional.push_back(LightDirectional{
                 .color = node->light.color,
                 .intensity = node->light.intensity,

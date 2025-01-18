@@ -21,9 +21,9 @@ namespace gfx {
     };
 
     enum class SceneNodeType : uint8_t {
-        Empty,
-        Mesh,
-        Light,
+        empty,
+        mesh,
+        light,
     };
 
     struct SceneNode {
