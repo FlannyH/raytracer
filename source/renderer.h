@@ -9,6 +9,11 @@ namespace gfx {
         glm::vec2 viewport_size{};
     };
 
+    enum class RendererFeature : int {
+        none =       0,
+        raytracing = 1,
+    };
+
     class Renderer {
     public:
         // Initialisation and state
@@ -28,6 +33,7 @@ namespace gfx {
         void set_resolution_scale(glm::vec2 scale);
 
         // Different rendering types
+        bool supports(RendererFeature feature);
         void render_rasterized();
 
         // Resource management

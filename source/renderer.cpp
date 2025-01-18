@@ -216,6 +216,22 @@ namespace gfx {
         resolution_scale = scale;
     }
 
+    bool Renderer::supports(RendererFeature feature) {
+        D3D12_FEATURE_DATA_D3D12_OPTIONS5 feature_opt5{};
+
+        switch (feature) {
+            case RendererFeature::raytracing:
+                if (FAILED(m_device->device->CheckFeatureSupport(
+                    D3D12_FEATURE_D3D12_OPTIONS5,
+                    &feature_opt5,
+                    sizeof(feature_opt5)
+                ))) return false;
+                return (feature_opt5.RaytracingTier != D3D12_RAYTRACING_TIER_NOT_SUPPORTED);
+            default: 
+                return false;
+        }
+    }
+
     void Renderer::render_rasterized() {
         // Queue rendering scenes
         m_device->begin_raster_pass(m_pipeline_scene, RasterPassInfo{
