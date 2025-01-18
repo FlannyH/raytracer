@@ -63,10 +63,9 @@ float3 rotate_vector_by_quaternion(float3 vec, Quaternion quat) {
 // Sources used for the following functions:
 // - https://de45xmedrsdbp.cloudfront.net/Resources/files/2013SiggraphPresentationsNotes-26915738.pdf
 // - https://learnopengl.com/PBR/Lighting (which has GLSL implementations of the above)
-float distribution_ggx(float3 n, float3 h, float roughness) {
+float distribution_ggx(float n_dot_h, float roughness) {
     float a = roughness*roughness;
     float a2 = a*a;
-    float n_dot_h = max(dot(n, h), 0.0f);
     float n_dot_h2 = n_dot_h * n_dot_h;
 	
     float num = a2;
@@ -86,20 +85,13 @@ float geometry_schlick_ggx(float n_dot_v, float roughness) {
     return num / denom;
 }
 
-float geometry_smith(float3 n, float3 v, float3 l, float roughness) {
-    float n_dot_v = max(dot(n, v), 0.0);
-    float n_dot_l = max(dot(n, l), 0.0);
-    float ggx2  = geometry_schlick_ggx(n_dot_v, roughness);
-    float ggx1  = geometry_schlick_ggx(n_dot_l, roughness);
-	
+float geometry_smith(float n_dot_v, float n_dot_l, float roughness) {
+    float ggx2 = geometry_schlick_ggx(n_dot_v, roughness);
+    float ggx1 = geometry_schlick_ggx(n_dot_l, roughness);
     return ggx1 * ggx2;
 }
 
 float3 fresnel_schlick(float v_dot_h, float3 f0, float roughness) {
-    // return f0 + (1.0f - f0) * pow(2.0, (-5.55473 * v_dot_h - 6.98316) * v_dot_h);
-    // return f0 + (1.0f - f0) * pow(1.0f - v_dot_h, 5.0f);
-
-    // return f0 + (max(vec3(1.0 - roughness), f0) - f0) * pow(2.0, (-5.55473 * v_dot_h - 6.98316) * v_dot_h);
     float smooth = 1.0 - roughness;
     float3 smooth3 = float3(smooth, smooth, smooth);
     return f0 + (max(smooth3, f0) - f0) * pow(1.0f - v_dot_h, 5.0f);
@@ -161,7 +153,7 @@ void main(uint3 dispatch_thread_id : SV_DispatchThreadID) {
     float ssao = ssao_texture[dispatch_thread_id.xy];
     float2 metal_roughness = metal_roughness_texture[dispatch_thread_id.xy].rg;
     float metallic = metal_roughness.r;
-    float roughness = pow(metal_roughness.g, 1.0f / 2.2f);
+    float roughness = max(0.05f, pow(metal_roughness.g, 1.0f / 2.2f));
     
     // Get light buffer
     ByteAddressBuffer packet_buffer = ResourceDescriptorHeap[NonUniformResourceIndex(root_constants.lights_buffer & MASK_ID)];
@@ -181,12 +173,20 @@ void main(uint3 dispatch_thread_id : SV_DispatchThreadID) {
     float3 diffuse = float3(0.0f, 0.0f, 0.0f);
     float3 specular = float3(0.0f, 0.0f, 0.0f);
     
-    // todo: specular
+    const float3 f = specular_f;
     for (int i = 0; i < light_counts.n_directional_lights; i++) {
-        // Diffuse
         LightDirectional light = packet_buffer.Load<LightDirectional>(12 + (28 * i));
-        float n_dot_l = saturate(dot(normal, -light.direction));
-        diffuse += color.xyz * n_dot_l * light.intensity;
+        float n_dot_l = dot(normal, -light.direction);
+        if (n_dot_l <= 0.0f) continue;
+        
+        diffuse += color.xyz * n_dot_l * light.intensity / PI;
+
+        float remapped_roughness = (roughness + 0.1f) / 1.1f;
+        const float3 h = normalize(-view_direction_vs + -light.direction);
+        const float n_dot_h = saturate(dot(normal, h));
+        const float d = distribution_ggx(n_dot_h, remapped_roughness);
+        const float g = geometry_smith(n_dot_v, n_dot_l, (remapped_roughness + 1.0f) / 2.0f);
+        specular += light.intensity * light.color * (d * g * f) / (0.0001f + (4.0f * n_dot_l * n_dot_v)) * n_dot_l;
     }
     
     // Add emission - The glTF spec has this to say about emissive textures:
