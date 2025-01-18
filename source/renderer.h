@@ -37,6 +37,7 @@ namespace gfx {
         ResourceHandlePair load_texture(const std::string& name, uint32_t width, uint32_t height, uint32_t depth, void* data, PixelFormat pixel_format, TextureType type, ResourceUsage usage, bool generate_mips); // Load a texture from memory
         ResourceHandlePair create_buffer(const std::string& name, size_t size, void* data, ResourceUsage usage);
         ResourceHandlePair create_blas(const std::string& name, const ResourceHandlePair& position_buffer, const ResourceHandlePair& index_buffer, const uint32_t vertex_count, const uint32_t index_count);
+        ResourceHandlePair create_tlas(const std::string& name, const std::vector<RaytracingInstance>& instances);
         ResourceHandlePair load_scene_gltf(const std::string& path);
         Cubemap load_environment_map(const std::string& path, const int sky_res = 1024, const int ibl_res = 256, const float quality = 1.0f);
         void resize_texture(ResourceHandlePair& texture, const uint32_t width, const uint32_t height);
