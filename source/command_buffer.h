@@ -19,6 +19,16 @@ namespace gfx {
             return m_command_list.Get();
         }
 
+        ID3D12GraphicsCommandList4* get_rt() {
+            ID3D12GraphicsCommandList4* cmd;
+            HRESULT hr = m_command_list->QueryInterface(IID_PPV_ARGS(&cmd));
+            if (FAILED(hr)) {
+                LOG(Error, "Failed to get ID3D12GraphicsCommandList4* interface");
+                return nullptr;
+            }
+            return cmd;
+        }
+
         void reset(ID3D12PipelineState* pipeline_state, uint64_t frame_index) {
             m_command_allocator->Reset();
             m_command_list->Reset(m_command_allocator.Get(), pipeline_state);
