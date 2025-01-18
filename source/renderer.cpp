@@ -712,7 +712,7 @@ namespace gfx {
             m_lights_directional.push_back(LightDirectional{
                 .color = node->light.color,
                 .intensity = node->light.intensity,
-                .direction = glm::normalize(m_view_data.rotation * glm::vec3(node->cached_global_transform * glm::vec4(0.0, 0.0, -1.0, 0.0))),
+                .direction = glm::normalize(glm::vec3(node->cached_global_transform * glm::vec4(0.0, 0.0, -1.0, 0.0)) * m_view_data.rotation),
             });
         }
         for (auto& node : node->children) {
