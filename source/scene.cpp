@@ -338,6 +338,22 @@ namespace gfx {
         return renderer.load_texture(texture_path);
     }
 
+    void get_rt_instances_from_scene_nodes(SceneNode* node, std::vector<RaytracingInstance>& instances) {
+        if (node->type == SceneNodeType::mesh) {
+            instances.emplace_back(RaytracingInstance{
+                .transform = glm::mat4x3(node->cached_global_transform),
+                .instance_id = 0, // todo
+                .instance_mask = 0, // todo
+                .instance_contribution_to_hitgroup_index = 0, // todo
+                .flags = 0, // todo
+                .blas = node->expect_mesh().blas
+            });
+        }
+        for (const auto& child : node->children) {
+            get_rt_instances_from_scene_nodes(child.get(), instances);
+        }
+    }
+
     SceneNode* create_scene_graph_from_gltf(Renderer& renderer, const std::string& path) {
         tinygltf::TinyGLTF loader;
         tinygltf::Model model;
@@ -397,6 +413,20 @@ namespace gfx {
 
         auto scene_node = new SceneNode(SceneNodeType::root);
         traverse_nodes(renderer, scene.nodes, model, glm::mat4(1.0f), scene_node, path, material_mapping);
+
+        if (renderer.supports(RendererFeature::raytracing)) {
+            std::vector<RaytracingInstance> instances;
+            get_rt_instances_from_scene_nodes(scene_node, instances);
+
+            if (!instances.empty()) {
+                auto tlas = renderer.create_tlas(scene.name.c_str(), instances);
+                scene_node->expect_root() = { .tlas = tlas };
+            }
+            else {
+                scene_node->expect_root() = { .tlas = {} };
+            }
+        }
+
         return scene_node;
     }
 

@@ -41,6 +41,15 @@ namespace gfx {
         uint32_t subresource_id = (uint32_t)-1;
     };
 
+    struct RaytracingInstance {
+        glm::mat4x3 transform;
+        uint32_t instance_id : 24;
+        uint32_t instance_mask : 8;
+        uint32_t instance_contribution_to_hitgroup_index : 24;
+        uint32_t flags : 8;
+        ResourceHandlePair blas;
+    };
+
     enum class RendererFeature : int {
         none =       0,
         raytracing = 1,
@@ -94,6 +103,7 @@ namespace gfx {
         // Raytracing resources
         ResourceHandlePair create_acceleration_structure(const std::string& name, const size_t size);
         ResourceHandlePair create_blas(const std::string& name, const ResourceHandlePair& position_buffer, const ResourceHandlePair& index_buffer, const uint32_t vertex_count, const uint32_t index_count);
+        ResourceHandlePair create_tlas(const std::string& name, const std::vector<RaytracingInstance>& instances);
 
         ComPtr<ID3D12Device> device = nullptr;
         ComPtr<IDXGIFactory4> factory = nullptr;

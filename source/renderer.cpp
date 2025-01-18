@@ -344,6 +344,12 @@ namespace gfx {
         return blas;
     }
 
+    ResourceHandlePair Renderer::create_tlas(const std::string& name, const std::vector<RaytracingInstance>& instances) {
+        ResourceHandlePair tlas = m_device->create_tlas(name, instances);
+        m_resources[tlas.handle.id] = tlas.resource;
+        return tlas;
+    }
+
     void Renderer::resize_texture(ResourceHandlePair& texture, const uint32_t width, const uint32_t height) {
         uint32_t padded_width = width;
         uint32_t padded_height = height;

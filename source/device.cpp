@@ -1368,6 +1368,52 @@ namespace gfx {
         return dest_acc_structure;
     }
 
+    ResourceHandlePair Device::create_tlas(const std::string& name, const std::vector<RaytracingInstance>& instances) {
+        ++m_upload_fence_value_when_done;
+
+        std::vector<D3D12_RAYTRACING_INSTANCE_DESC> dx12_instances;
+        dx12_instances.reserve(instances.size());
+        for (const auto& instance : instances) {
+            D3D12_RAYTRACING_INSTANCE_DESC instance_desc = {0};
+            for (int row = 0; row < 3; ++row) {
+                for (int col = 0; col < 4; ++col) {
+                    instance_desc.Transform[row][col] = instance.transform[col][row]; // glm uses column-major, DirectX uses row-major
+                }
+            }
+            instance_desc.AccelerationStructure = instance.blas.resource->handle->GetGPUVirtualAddress();
+            dx12_instances.emplace_back(instance_desc);
+        }
+
+        auto instance_descs = create_buffer(name + " (tlas instance descs)", sizeof(dx12_instances[0]) * dx12_instances.size(), dx12_instances.data(), ResourceUsage::non_pixel_shader_read);
+        m_upload_queue->execute();
+        m_upload_queue_completion_fence->gpu_signal(m_upload_queue, m_upload_fence_value_when_done);
+        m_upload_queue_completion_fence->cpu_wait(m_upload_fence_value_when_done);
+
+        const D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS build_acc_inputs = {
+            .Type = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL,
+            .Flags = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_PREFER_FAST_TRACE,
+            .NumDescs = (UINT)dx12_instances.size(),
+            .InstanceDescs = instance_descs.resource->handle->GetGPUVirtualAddress(),
+        };
+        D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO prebuild_info{};
+        device5()->GetRaytracingAccelerationStructurePrebuildInfo(&build_acc_inputs, &prebuild_info);
+
+        auto scratch_buffer = create_buffer(name + " (tlas scratch buffer)", prebuild_info.ScratchDataSizeInBytes, nullptr, ResourceUsage::compute_write);
+        auto dest_acc_structure = create_acceleration_structure(name + " (tlas)", prebuild_info.ResultDataMaxSizeInBytes);
+
+        const D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC build_acc_desc = {
+            .DestAccelerationStructureData = dest_acc_structure.resource->handle->GetGPUVirtualAddress(),
+            .Inputs = build_acc_inputs,
+            .ScratchAccelerationStructureData = scratch_buffer.resource->handle->GetGPUVirtualAddress(),
+        };
+
+        auto cmd = m_upload_queue->create_command_buffer(nullptr, m_upload_fence_value_when_done);
+        cmd->get_rt()->BuildRaytracingAccelerationStructure(&build_acc_desc, 0, nullptr);
+        m_temp_upload_buffers.push_back(UploadQueueKeepAlive{ m_upload_fence_value_when_done, scratch_buffer.resource });
+
+        return dest_acc_structure;
+    }
+
     void Device::transition_resource(std::shared_ptr<CommandBuffer> cmd, std::shared_ptr<Resource> resource, D3D12_RESOURCE_STATES new_state, uint32_t subresource) {
         auto current_state = (subresource == (uint32_t)-1 || subresource == 0) ? (resource->current_state) : (resource->subresource_states[subresource - 1]);
         if (current_state == new_state) return;
