@@ -40,7 +40,7 @@ namespace gfx {
             struct {
                 ResourceHandle position_buffer;
                 ResourceHandle vertex_buffer;
-                D3D12_RAYTRACING_GEOMETRY_TRIANGLES_DESC geometry;
+                ResourceHandle blas;
             } mesh;
             struct {
                 LightType type;

@@ -91,6 +91,10 @@ namespace gfx {
         void use_resource(const ResourceHandlePair& resource, const ResourceUsage usage = ResourceUsage::read);
         void use_resources(const std::initializer_list<ResourceTransitionInfo>& resources);
 
+        // Raytracing resources
+        ResourceHandlePair create_acceleration_structure(const std::string& name, const size_t size);
+        ResourceHandlePair create_blas(const std::string& name, const ResourceHandlePair& position_buffer, const ResourceHandlePair& index_buffer, const uint32_t vertex_count, const uint32_t index_count);
+
         ComPtr<ID3D12Device> device = nullptr;
         ComPtr<IDXGIFactory4> factory = nullptr;
         HWND window_hwnd = nullptr;
