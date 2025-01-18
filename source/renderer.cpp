@@ -146,6 +146,77 @@ namespace gfx {
             resize_texture(m_ssao_target, (uint32_t)m_render_resolution.x, (uint32_t)m_render_resolution.y);
         }
         
+        // Upload light info to the GPU
+        const uint32_t light_count[3] = {
+            (uint32_t)m_lights_directional.size(),
+            0, // todo: point lights
+            0, // todo: spot lights
+        };
+        m_device->update_buffer(m_lights_buffer, 0, sizeof(light_count), &light_count);
+        if (m_lights_directional.empty() == false) {
+            m_device->update_buffer(
+                m_lights_buffer,
+                sizeof(light_count),
+                sizeof(m_lights_directional[0]) * (uint32_t)m_lights_directional.size(),
+                m_lights_directional.data()
+            );
+        }
+
+        render_rasterized();
+
+        // Tonemapping
+        m_device->begin_compute_pass(m_pipeline_tonemapping);
+        m_device->use_resource(m_shaded_target, ResourceUsage::compute_write);
+        m_device->set_compute_root_constants({
+            m_shaded_target.handle.as_u32_uav(),
+        });
+        m_device->dispatch_threadgroups( // threadgroup size is 8x8
+            (uint32_t)(m_render_resolution.x / 8.0f),
+            (uint32_t)(m_render_resolution.y / 8.0f),
+            1
+        );
+        m_device->end_compute_pass();
+
+        // Final blit
+        m_device->begin_raster_pass(m_pipeline_final_blit, RasterPassInfo{
+            .color_targets = {}, // render to swapchain
+            .clear_on_begin = false, // We're blitting to the entire buffer, no need to clear first
+        });
+        m_device->use_resource(m_shaded_target, ResourceUsage::pixel_shader_read);
+        m_device->set_graphics_root_constants({
+            m_shaded_target.handle.as_u32(), // Texture to blit to screen
+        });
+        m_device->draw_vertices(3); // Triangle covering entire screen
+        m_device->end_raster_pass();
+
+        // API specific end frame
+        m_device->end_frame();
+    }
+
+    // todo: maybe make separate camera struct that holds the transform, fov, near and far plane, and also caches its matrices?
+    void Renderer::set_camera(Transform& transform) {
+        const PacketCamera camera_matrices = {
+            .view_matrix = transform.as_view_matrix(),
+            .projection_matrix = glm::perspectiveFov(glm::radians(70.f), m_resolution.x, m_resolution.y, 0.0001f, 1000.0f),
+        };
+
+        m_view_data.rotation = transform.rotation;
+        m_camera_matrices_offset = create_draw_packet(&camera_matrices, sizeof(camera_matrices));
+    }
+
+    void Renderer::set_skybox(Cubemap& sky) {
+        m_curr_sky_cube = sky;
+    }
+
+    void Renderer::draw_scene(ResourceHandlePair scene_handle) {
+        render_queue_scenes.push_back(scene_handle);
+    }
+
+    void Renderer::set_resolution_scale(glm::vec2 scale) {
+        resolution_scale = scale;
+    }
+
+    void Renderer::render_rasterized() {
         // Queue rendering scenes
         m_device->begin_raster_pass(m_pipeline_scene, RasterPassInfo{
             .color_targets = {
@@ -162,22 +233,6 @@ namespace gfx {
             render_scene(scene.handle);
         }
         m_device->end_raster_pass();
-
-        // Upload light info to the GPU
-        const uint32_t light_count[3] = {
-            (uint32_t)m_lights_directional.size(),
-            0, // todo: point lights
-            0, // todo: spot lights
-        };
-        m_device->update_buffer(m_lights_buffer, 0, sizeof(light_count), &light_count);
-        if (m_lights_directional.empty() == false) {
-            m_device->update_buffer(
-                m_lights_buffer,
-                sizeof(light_count),
-                sizeof(m_lights_directional[0]) * (uint32_t)m_lights_directional.size(),
-                m_lights_directional.data()
-            );
-        }
 
         // SSAO
         m_device->begin_compute_pass(m_pipeline_ssao);
@@ -248,57 +303,6 @@ namespace gfx {
             1
         );
         m_device->end_compute_pass();
-
-        // Tonemapping
-        m_device->begin_compute_pass(m_pipeline_tonemapping);
-        m_device->use_resource(m_shaded_target, ResourceUsage::compute_write);
-        m_device->set_compute_root_constants({
-            m_shaded_target.handle.as_u32_uav(),
-        });
-        m_device->dispatch_threadgroups( // threadgroup size is 8x8
-            (uint32_t)(m_render_resolution.x / 8.0f),
-            (uint32_t)(m_render_resolution.y / 8.0f),
-            1
-        );
-        m_device->end_compute_pass();
-
-        // Final blit
-        m_device->begin_raster_pass(m_pipeline_final_blit, RasterPassInfo{
-            .color_targets = {}, // render to swapchain
-            .clear_on_begin = false, // We're blitting to the entire buffer, no need to clear first
-        });
-        m_device->use_resource(m_shaded_target, ResourceUsage::pixel_shader_read);
-        m_device->set_graphics_root_constants({
-            m_shaded_target.handle.as_u32(), // Texture to blit to screen
-        });
-        m_device->draw_vertices(3); // Triangle covering entire screen
-        m_device->end_raster_pass();
-
-        // API specific end frame
-        m_device->end_frame();
-    }
-
-    // todo: maybe make separate camera struct that holds the transform, fov, near and far plane, and also caches its matrices?
-    void Renderer::set_camera(Transform& transform) {
-        const PacketCamera camera_matrices = {
-            .view_matrix = transform.as_view_matrix(),
-            .projection_matrix = glm::perspectiveFov(glm::radians(70.f), m_resolution.x, m_resolution.y, 0.0001f, 1000.0f),
-        };
-
-        m_view_data.rotation = transform.rotation;
-        m_camera_matrices_offset = create_draw_packet(&camera_matrices, sizeof(camera_matrices));
-    }
-
-    void Renderer::set_skybox(Cubemap& sky) {
-        m_curr_sky_cube = sky;
-    }
-
-    void Renderer::draw_scene(ResourceHandlePair scene_handle) {
-        render_queue_scenes.push_back(scene_handle);
-    }
-
-    void Renderer::set_resolution_scale(glm::vec2 scale) {
-        resolution_scale = scale;
     }
 
     void Renderer::unload_resource(ResourceHandlePair& resource) {
