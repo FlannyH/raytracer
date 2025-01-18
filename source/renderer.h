@@ -27,6 +27,9 @@ namespace gfx {
         void draw_scene(ResourceHandlePair scene_handle);
         void set_resolution_scale(glm::vec2 scale);
 
+        // Different rendering types
+        void render_rasterized();
+
         // Resource management
         void unload_resource(ResourceHandlePair& resource);
         ResourceHandlePair load_texture(const std::string& path, bool free_after_upload = true); // Load a texture from a file
