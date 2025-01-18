@@ -706,7 +706,7 @@ namespace gfx {
                 .model_transform = node->cached_global_transform,
                 .position_offset = glm::vec4(node->position_offset, 0.0f),
                 .position_scale = glm::vec4(node->position_scale, 0.0f),
-                .vertex_buffer = node->mesh.vertex_buffer,
+                .vertex_buffer = node->expect_mesh().vertex_buffer,
             };
             auto n_vertices = m_resources[draw_packet.vertex_buffer.id]->expect_buffer().size / sizeof(VertexCompressed);
             auto draw_packet_offset = create_draw_packet(&draw_packet, sizeof(draw_packet));
@@ -724,8 +724,8 @@ namespace gfx {
         }
         else if (node->type == SceneNodeType::light) {
             m_lights_directional.push_back(LightDirectional{
-                .color = node->light.color,
-                .intensity = node->light.intensity,
+                .color = node->expect_light().color,
+                .intensity = node->expect_light().intensity,
                 .direction = glm::normalize(glm::vec3(node->cached_global_transform * glm::vec4(0.0, 0.0, -1.0, 0.0)) * m_view_data.rotation),
             });
         }

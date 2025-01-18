@@ -189,7 +189,7 @@ namespace gfx {
             glm::mat4 global_matrix = local_transform * local_matrix;
 
             // Make a child node 
-            auto scene_node = std::make_shared<SceneNode>();
+            auto scene_node = std::make_shared<SceneNode>(SceneNodeType::empty);
             scene_node->name = node.name;
             scene_node->cached_global_transform = global_matrix;
 
@@ -247,15 +247,15 @@ namespace gfx {
                     ResourceHandlePair vertex_buffer = renderer.create_buffer(node.name + " (compressed vertex buffer)", compressed_vertices.size() * sizeof(compressed_vertices[0]), compressed_vertices.data(), ResourceUsage::non_pixel_shader_read);
                     ResourceHandlePair index_buffer = renderer.create_buffer(node.name + " (index buffer)", indices.size() * sizeof(indices[0]), indices.data(), ResourceUsage::non_pixel_shader_read);
 
-                    auto mesh_node = std::make_shared<SceneNode>();
+                    auto mesh_node = std::make_shared<SceneNode>(SceneNodeType::mesh);
                     
                     if (renderer.supports(RendererFeature::raytracing)) {
                         // Create geometry
                         ResourceHandlePair position_buffer = renderer.create_buffer(node.name + " (position buffer)", positions.size() * sizeof(positions[0]), positions.data(), ResourceUsage::non_pixel_shader_read);
                         ResourceHandlePair blas = renderer.create_blas(node.name, position_buffer, index_buffer, vertices.size(), indices.size());
                         
-                        mesh_node->mesh.position_buffer = position_buffer.handle;
-                        mesh_node->mesh.blas = blas.handle;
+                        mesh_node->expect_mesh().position_buffer = position_buffer.handle;
+                        mesh_node->expect_mesh().blas = blas;
                     }
 
                     mesh_node->type = SceneNodeType::mesh;
@@ -263,7 +263,7 @@ namespace gfx {
                     mesh_node->cached_global_transform = global_matrix;
                     mesh_node->position_offset = offset;
                     mesh_node->position_scale = scale;
-                    mesh_node->mesh.vertex_buffer = vertex_buffer.handle;
+                    mesh_node->expect_mesh().vertex_buffer = vertex_buffer.handle;
                     scene_node->add_child_node(mesh_node);
                 }
             }
@@ -271,17 +271,17 @@ namespace gfx {
             // If it has a light, process it
             if (node.light != -1) {
                 const auto& light = model.lights[node.light];
-                auto light_node = std::make_shared<SceneNode>();
+                auto light_node = std::make_shared<SceneNode>(SceneNodeType::light);
                 light_node->type = SceneNodeType::light;
                 light_node->name = light.name;
                 if (light.color.size() >= 3) {
-                    light_node->light.color.r = (float)light.color[0];
-                    light_node->light.color.g = (float)light.color[1];
-                    light_node->light.color.b = (float)light.color[2];
+                    light_node->expect_light().color.r = (float)light.color[0];
+                    light_node->expect_light().color.g = (float)light.color[1];
+                    light_node->expect_light().color.b = (float)light.color[2];
                 }
-                light_node->light.intensity = (float)light.intensity;
+                light_node->expect_light().intensity = (float)light.intensity;
                 if (light.type == "directional") {
-                    light_node->light.type = LightType::Directional;
+                    light_node->expect_light().type = LightType::Directional;
                 }
                 light_node->cached_global_transform = global_matrix;
                 scene_node->add_child_node(light_node);
@@ -395,7 +395,7 @@ namespace gfx {
         auto& scene = model.scenes[model.defaultScene];
         LOG(Info, "Loading scene \"%s\" from file \"%s\"", scene.name.c_str(), path.c_str());
 
-        auto scene_node = new SceneNode();
+        auto scene_node = new SceneNode(SceneNodeType::root);
         traverse_nodes(renderer, scene.nodes, model, glm::mat4(1.0f), scene_node, path, material_mapping);
         return scene_node;
     }

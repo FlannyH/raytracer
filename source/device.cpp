@@ -840,8 +840,11 @@ namespace gfx {
             case gfx::SceneNodeType::empty:
                 LOG(Debug, "Node: %s", node->name.c_str());
                 break;
+            case gfx::SceneNodeType::root:
+                LOG(Debug, "Root: %s", node->name.c_str());
+                break;
             case gfx::SceneNodeType::mesh:
-                LOG(Debug, "Mesh: (Vertex buffer: %i) %s", node->mesh.vertex_buffer.id, node->name.c_str());
+                LOG(Debug, "Mesh: (Vertex buffer: %i) %s", node->expect_mesh().vertex_buffer.id, node->name.c_str());
                 break;
             case gfx::SceneNodeType::light:
                 LOG(Debug, "Light: %s", node->name.c_str());

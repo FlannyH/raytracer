@@ -22,11 +22,34 @@ namespace gfx {
 
     enum class SceneNodeType : uint8_t {
         empty,
+        root,
         mesh,
         light,
     };
 
+    struct SceneNodeMesh {
+        ResourceHandle position_buffer;
+        ResourceHandle vertex_buffer;
+        ResourceHandlePair blas;
+    };
+    struct SceneNodeLight {
+        LightType type;
+        glm::vec3 color;
+        float intensity;
+    };
+    struct SceneNodeRoot {
+        ResourceHandlePair tlas;
+    };
+
     struct SceneNode {
+        SceneNode(SceneNodeType node_type) {
+            switch (node_type) {
+                case SceneNodeType::empty:                         type = node_type; break;
+                case SceneNodeType::mesh:  data = SceneNodeMesh{}; type = node_type; break;
+                case SceneNodeType::light: data = SceneNodeLight{}; type = node_type; break;
+                case SceneNodeType::root:  data = SceneNodeRoot{}; type = node_type; break;
+            }
+        }
         Transform local_transform;
         glm::mat4 cached_global_transform;
         glm::vec3 position_offset;
@@ -36,20 +59,22 @@ namespace gfx {
         std::string name;
 
         SceneNodeType type;
-        union {
-            struct {
-                ResourceHandle position_buffer;
-                ResourceHandle vertex_buffer;
-                ResourceHandle blas;
-            } mesh;
-            struct {
-                LightType type;
-                glm::vec3 color;
-                float intensity;
-            } light;
-        };
-
         void add_child_node(std::shared_ptr<SceneNode> new_child);
+        auto& expect_mesh() { 
+            assert(type == SceneNodeType::mesh);
+            return std::get<SceneNodeMesh>(data); 
+        }
+        auto& expect_light() { 
+            assert(type == SceneNodeType::light);
+            return std::get<SceneNodeLight>(data); 
+        }
+        auto& expect_root() { 
+            assert(type == SceneNodeType::root);
+            return std::get<SceneNodeRoot>(data); 
+        }
+
+    private:
+        std::variant<SceneNodeMesh, SceneNodeLight, SceneNodeRoot> data;
     };
 
     SceneNode* create_scene_graph_from_gltf(Renderer& renderer, const std::string& path);
