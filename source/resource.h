@@ -38,6 +38,7 @@ namespace gfx {
         texture,
         buffer,
         scene,
+        acceleration_structure
     };
     inline const char* _resource_type_names[] = { "None", "Texture", "Buffer"};
 
@@ -51,6 +52,7 @@ namespace gfx {
         non_pixel_shader_read,
         cpu_writable,
         cpu_read_write,
+        acceleration_structure
     };
 
     struct ResourceHandle {
@@ -99,6 +101,10 @@ namespace gfx {
         SceneNode* root;
     };
 
+    struct AccelerationStructureResource {
+        uint64_t size;
+    };
+
     struct BufferWithOffset {
         ResourceHandle buffer;
         uint32_t offset;
@@ -140,9 +146,10 @@ namespace gfx {
     struct Resource {
         Resource(ResourceType resource_type) {
             switch (resource_type) {
-                case ResourceType::texture: resource = TextureResource{}; type = resource_type; break;
-                case ResourceType::buffer:  resource = BufferResource{};  type = resource_type; break;
-                case ResourceType::scene:   resource = SceneResource{};   type = resource_type; break;
+                case ResourceType::texture:                resource = TextureResource{};               type = resource_type; break;
+                case ResourceType::buffer:                 resource = BufferResource{};                type = resource_type; break;
+                case ResourceType::scene:                  resource = SceneResource{};                 type = resource_type; break;
+                case ResourceType::acceleration_structure: resource = AccelerationStructureResource{}; type = resource_type; break;
             }
         }
         TextureResource& expect_texture() {
@@ -157,6 +164,10 @@ namespace gfx {
             assert(type == ResourceType::scene);
             return std::get<SceneResource>(resource);
         }
+        AccelerationStructureResource& expect_acceleration_structure() {
+            assert(type == ResourceType::acceleration_structure);
+            return std::get<AccelerationStructureResource>(resource);
+        }
 
         ResourceType type = ResourceType::none;
         ResourceUsage usage = ResourceUsage::none;
@@ -168,7 +179,7 @@ namespace gfx {
         std::vector<ResourceHandle> subresource_handles;
         std::vector<D3D12_RESOURCE_STATES> subresource_states;
      private:
-        std::variant<TextureResource, BufferResource, SceneResource> resource;
+        std::variant<TextureResource, BufferResource, SceneResource, AccelerationStructureResource> resource;
     }; 
 
     struct ResourceHandlePair {

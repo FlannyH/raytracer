@@ -244,18 +244,26 @@ namespace gfx {
                     }
 
                     // Create buffers for them
-                    ResourceHandlePair vertex_buffer = renderer.create_buffer("Compressed Vertex buffer", compressed_vertices.size() * sizeof(compressed_vertices[0]), compressed_vertices.data(), ResourceUsage::non_pixel_shader_read);
-                    ResourceHandlePair position_buffer = renderer.create_buffer("Position buffer", positions.size() * sizeof(positions[0]), positions.data(), ResourceUsage::non_pixel_shader_read);
-                    ResourceHandlePair index_buffer = renderer.create_buffer("Index buffer", indices.size() * sizeof(indices[0]), indices.data(), ResourceUsage::non_pixel_shader_read);
+                    ResourceHandlePair vertex_buffer = renderer.create_buffer(node.name + " (compressed vertex buffer)", compressed_vertices.size() * sizeof(compressed_vertices[0]), compressed_vertices.data(), ResourceUsage::non_pixel_shader_read);
+                    ResourceHandlePair index_buffer = renderer.create_buffer(node.name + " (index buffer)", indices.size() * sizeof(indices[0]), indices.data(), ResourceUsage::non_pixel_shader_read);
 
                     auto mesh_node = std::make_shared<SceneNode>();
+                    
+                    if (renderer.supports(RendererFeature::raytracing)) {
+                        // Create geometry
+                        ResourceHandlePair position_buffer = renderer.create_buffer(node.name + " (position buffer)", positions.size() * sizeof(positions[0]), positions.data(), ResourceUsage::non_pixel_shader_read);
+                        ResourceHandlePair blas = renderer.create_blas(node.name, position_buffer, index_buffer, vertices.size(), indices.size());
+                        
+                        mesh_node->mesh.position_buffer = position_buffer.handle;
+                        mesh_node->mesh.blas = blas.handle;
+                    }
+
                     mesh_node->type = SceneNodeType::Mesh;
                     mesh_node->name = mesh.name;
                     mesh_node->cached_global_transform = global_matrix;
                     mesh_node->position_offset = offset;
                     mesh_node->position_scale = scale;
                     mesh_node->mesh.vertex_buffer = vertex_buffer.handle;
-                    mesh_node->mesh.position_buffer = position_buffer.handle;
                     scene_node->add_child_node(mesh_node);
                 }
             }

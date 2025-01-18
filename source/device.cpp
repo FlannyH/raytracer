@@ -1246,6 +1246,7 @@ namespace gfx {
             case ResourceUsage::depth_target: return D3D12_RESOURCE_STATE_DEPTH_WRITE;
             case ResourceUsage::pixel_shader_read: return D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
             case ResourceUsage::non_pixel_shader_read: return D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE;
+            case ResourceUsage::acceleration_structure: return D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE;
         }
         return D3D12_RESOURCE_STATE_COMMON;
     }
@@ -1260,6 +1261,108 @@ namespace gfx {
             if (resource.resource != nullptr) transition_resource(m_curr_pass_cmd, resource.resource, resource_usage_to_dx12_state(usage), subresource);
         }
         execute_resource_transitions(m_curr_pass_cmd);
+    }
+
+    ResourceHandlePair Device::create_acceleration_structure(const std::string& name, const size_t size) {
+        // Create engine resource
+        const auto resource = std::make_shared<Resource>(ResourceType::acceleration_structure);
+        resource->usage = ResourceUsage::acceleration_structure;
+        resource->expect_acceleration_structure() = {
+            .size = size,
+        };
+
+        // Create Dx12 resource
+        D3D12_RESOURCE_DESC resource_desc = {};
+        resource_desc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
+        resource_desc.Width = resource->expect_acceleration_structure().size;
+        resource_desc.Height = 1;
+        resource_desc.DepthOrArraySize = 1;
+        resource_desc.MipLevels = 1;
+        resource_desc.Format = DXGI_FORMAT_UNKNOWN;
+        resource_desc.SampleDesc.Count = 1;
+        resource_desc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
+        resource_desc.Flags = D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
+        
+        D3D12_HEAP_PROPERTIES heap_properties = {.Type = D3D12_HEAP_TYPE_DEFAULT};
+
+        resource->current_state = D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE;
+        validate(device->CreateCommittedResource(
+            &heap_properties,
+            D3D12_HEAP_FLAG_NONE,
+            &resource_desc,
+            resource->current_state,
+            nullptr,
+            IID_PPV_ARGS(&resource->handle)
+        ));
+
+        // Allocate and create a shader resource view in the bindless descriptor heap
+        const D3D12_SHADER_RESOURCE_VIEW_DESC srv_desc {
+            .Format = DXGI_FORMAT_UNKNOWN,
+            .ViewDimension = D3D12_SRV_DIMENSION_RAYTRACING_ACCELERATION_STRUCTURE,
+            .Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING,
+            .RaytracingAccelerationStructure = {
+                .Location = resource->handle->GetGPUVirtualAddress()
+            }
+        };
+
+        auto id = m_heap_bindless->alloc_descriptor(ResourceType::acceleration_structure);
+        const auto handle = m_heap_bindless->fetch_cpu_handle(id);
+        device->CreateShaderResourceView(nullptr, &srv_desc, handle);
+
+        auto name_str = std::wstring(name.begin(), name.end());
+        resource->handle->SetName(name_str.c_str());
+        resource->name = name;
+
+        // Store the resource data in the device struct
+        id.is_loaded = true;
+
+        return ResourceHandlePair{ id, resource };
+    }
+
+    ResourceHandlePair Device::create_blas(const std::string& name, const ResourceHandlePair& position_buffer, const ResourceHandlePair& index_buffer, const uint32_t vertex_count, const uint32_t index_count) {
+        ++m_upload_fence_value_when_done;
+        auto cmd = m_upload_queue->create_command_buffer(nullptr, m_upload_fence_value_when_done);
+
+        const D3D12_RAYTRACING_GEOMETRY_DESC geo_desc = {
+            .Type = D3D12_RAYTRACING_GEOMETRY_TYPE_TRIANGLES,
+            .Flags = D3D12_RAYTRACING_GEOMETRY_FLAG_NONE,
+            .Triangles = {
+                .Transform3x4 = 0,
+                .IndexFormat = DXGI_FORMAT_R32_UINT,
+                .VertexFormat = DXGI_FORMAT_R32G32B32_FLOAT,
+                .IndexCount = index_count,
+                .VertexCount = vertex_count,
+                .IndexBuffer = index_buffer.resource->handle->GetGPUVirtualAddress(),
+                .VertexBuffer = {
+                    .StartAddress = position_buffer.resource->handle->GetGPUVirtualAddress(),
+                    .StrideInBytes = sizeof(glm::vec3)
+                }
+            }
+        };
+
+        const D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS build_acc_inputs = {
+            .Type = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL,
+            .Flags = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_PREFER_FAST_TRACE,
+            .NumDescs = 1,
+            .DescsLayout = D3D12_ELEMENTS_LAYOUT_ARRAY,
+            .pGeometryDescs = &geo_desc
+        };
+        D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO prebuild_info{};
+        device5()->GetRaytracingAccelerationStructurePrebuildInfo(&build_acc_inputs, &prebuild_info);
+
+        auto scratch_buffer = create_buffer(name + " (blas scratch buffer)", prebuild_info.ScratchDataSizeInBytes, nullptr, ResourceUsage::compute_write);
+        auto dest_acc_structure = create_acceleration_structure(name + " (blas)", prebuild_info.ResultDataMaxSizeInBytes);
+
+        const D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC build_acc_desc = {
+            .DestAccelerationStructureData = dest_acc_structure.resource->handle->GetGPUVirtualAddress(),
+            .Inputs = build_acc_inputs,
+            .ScratchAccelerationStructureData = scratch_buffer.resource->handle->GetGPUVirtualAddress(),
+        };
+
+        cmd->get_rt()->BuildRaytracingAccelerationStructure(&build_acc_desc, 0, nullptr);
+        m_temp_upload_buffers.push_back(UploadQueueKeepAlive{ m_upload_fence_value_when_done, scratch_buffer.resource });
+
+        return dest_acc_structure;
     }
 
     void Device::transition_resource(std::shared_ptr<CommandBuffer> cmd, std::shared_ptr<Resource> resource, D3D12_RESOURCE_STATES new_state, uint32_t subresource) {

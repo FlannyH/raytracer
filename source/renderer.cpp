@@ -338,6 +338,12 @@ namespace gfx {
         return buffer;
     }
 
+    ResourceHandlePair Renderer::create_blas(const std::string& name, const ResourceHandlePair& position_buffer, const ResourceHandlePair& index_buffer, const uint32_t vertex_count, const uint32_t index_count) {
+        ResourceHandlePair blas = m_device->create_blas(name, position_buffer, index_buffer, vertex_count, index_count);
+        m_resources[blas.handle.id] = blas.resource;
+        return blas;
+    }
+
     void Renderer::resize_texture(ResourceHandlePair& texture, const uint32_t width, const uint32_t height) {
         uint32_t padded_width = width;
         uint32_t padded_height = height;
