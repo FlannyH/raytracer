@@ -41,6 +41,11 @@ namespace gfx {
         uint32_t subresource_id = (uint32_t)-1;
     };
 
+    enum class RendererFeature : int {
+        none =       0,
+        raytracing = 1,
+    };
+
     struct Device {
     public:
         // Initialization
@@ -59,6 +64,7 @@ namespace gfx {
         void set_graphics_root_constants(const std::vector<uint32_t>& constants);
         void set_compute_root_constants(const std::vector<uint32_t>& constants);
         int frame_index();
+        bool supports(RendererFeature feature);
 
         // Rasterization
         std::shared_ptr<Pipeline> create_raster_pipeline(const std::string& name, const std::string& vertex_shader_path, const std::string& pixel_shader_path, const std::initializer_list<ResourceHandlePair> render_targets, const ResourceHandlePair depth_target = { ResourceHandle::none(), nullptr });

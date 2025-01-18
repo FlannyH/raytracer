@@ -9,11 +9,6 @@ namespace gfx {
         glm::vec2 viewport_size{};
     };
 
-    enum class RendererFeature : int {
-        none =       0,
-        raytracing = 1,
-    };
-
     class Renderer {
     public:
         // Initialisation and state
