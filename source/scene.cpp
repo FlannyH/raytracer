@@ -392,7 +392,7 @@ namespace gfx {
         return scene_node;
     }
 
-    int size_of_gltf_component(int gltf_component) {
+    constexpr int size_of_gltf_component(const int gltf_component) {
         switch (gltf_component) {
             case TINYGLTF_COMPONENT_TYPE_BYTE: return 1;
             case TINYGLTF_COMPONENT_TYPE_UNSIGNED_BYTE: return 1;
@@ -406,7 +406,7 @@ namespace gfx {
         }
     }
 
-    int number_of_components(int gltf_type) {
+    constexpr int number_of_components(const int gltf_type) {
         switch (gltf_type) {
         case TINYGLTF_TYPE_VEC2: return 2;
         case TINYGLTF_TYPE_VEC3: return 3;
