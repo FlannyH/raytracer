@@ -11,6 +11,7 @@
 
 namespace gfx {
     struct SceneNode;
+    struct Resource;
 
     enum class PixelFormat {
         none = 0,
@@ -80,6 +81,11 @@ namespace gfx {
         }
     };
 
+    struct ResourceHandlePair {
+        ResourceHandle handle = ResourceHandle::none();
+        std::shared_ptr<Resource> resource = nullptr;
+    };
+
     struct TextureResource {
         void* data;
         uint32_t width, height, depth;
@@ -102,6 +108,7 @@ namespace gfx {
     };
 
     struct AccelerationStructureResource {
+        ResourceHandlePair instance_descs;
         uint64_t size;
     };
 
@@ -181,11 +188,6 @@ namespace gfx {
      private:
         std::variant<TextureResource, BufferResource, SceneResource, AccelerationStructureResource> resource;
     }; 
-
-    struct ResourceHandlePair {
-        ResourceHandle handle = ResourceHandle::none();
-        std::shared_ptr<Resource> resource = nullptr;
-    };
 
     struct Vertex {
         glm::vec3 position;

@@ -48,6 +48,7 @@ namespace gfx {
         m_pipeline_ibl_brdf_lut_gen = m_device->create_compute_pipeline("Generate IBL BRDF LUT", "assets/shaders/pre/ibl_brdf_lut_gen.cs.hlsl");
         m_pipeline_downsample = m_device->create_compute_pipeline("Downsample texture" ,"assets/shaders/pre/downsample.cs.hlsl");
         m_pipeline_ssao = m_device->create_compute_pipeline("SSAO" ,"assets/shaders/post/ssao.cs.hlsl");
+        m_pipeline_pathtrace = m_device->create_compute_pipeline("Pathtrace" ,"assets/shaders/pathtraced/pathtrace.cs.hlsl");
         
         LOG(Debug, "Creating buffers");
         m_material_buffer = m_device->create_buffer("Material descriptions", MAX_MATERIAL_COUNT * sizeof(Material), nullptr, ResourceUsage::cpu_writable);
@@ -162,7 +163,8 @@ namespace gfx {
             );
         }
 
-        render_rasterized();
+        // render_rasterized();
+        render_pathtraced();
 
         // Tonemapping
         m_device->begin_compute_pass(m_pipeline_tonemapping);
@@ -201,6 +203,7 @@ namespace gfx {
         };
 
         m_view_data.rotation = transform.rotation;
+        m_view_data.camera_world_position = transform.position;
         m_camera_matrices_offset = create_draw_packet(&camera_matrices, sizeof(camera_matrices));
     }
 
@@ -234,7 +237,7 @@ namespace gfx {
             .clear_on_begin = true,
         });
         for (auto& scene : render_queue_scenes) {
-            render_scene(scene.handle);
+            render_scene_raster(scene.handle);
         }
         m_device->end_raster_pass();
 
@@ -307,6 +310,33 @@ namespace gfx {
             1
         );
         m_device->end_compute_pass();
+    }
+
+    void Renderer::render_pathtraced() {
+        const uint32_t view_data_offset = create_draw_packet(&m_view_data, sizeof(m_view_data));
+        
+        // todo: unhardcode
+        const auto& scene_handle = render_queue_scenes.begin();
+        SceneNode* scene = render_queue_scenes.begin()->resource->expect_scene().root;
+
+        m_device->begin_compute_pass(m_pipeline_pathtrace);
+        m_device->use_resources({
+            { scene->expect_root().tlas, ResourceUsage::acceleration_structure },
+            { m_shaded_target, ResourceUsage::compute_write },
+            { m_draw_packets[m_device->frame_index() % backbuffer_count], ResourceUsage::non_pixel_shader_read }
+        });
+        m_device->set_compute_root_constants({
+            scene->expect_root().tlas.handle.as_u32(),
+            m_shaded_target.handle.as_u32_uav(),
+            m_draw_packets[m_device->frame_index() % backbuffer_count].handle.as_u32(),
+            view_data_offset,
+        });
+        m_device->dispatch_threadgroups( // threadgroup size is 8x8
+            (uint32_t)(m_render_resolution.x / 8.0f),
+            (uint32_t)(m_render_resolution.y / 8.0f),
+            1
+        );
+        m_device->end_compute_pass();    
     }
 
     void Renderer::unload_resource(ResourceHandlePair& resource) {
@@ -704,7 +734,7 @@ namespace gfx {
         return start;
     }
 
-    void Renderer::traverse_scene(SceneNode* node) {
+    void Renderer::traverse_scene_raster(SceneNode* node) {
         if (!node) return;
 
         if (node->type == SceneNodeType::mesh) {
@@ -736,13 +766,13 @@ namespace gfx {
             });
         }
         for (auto& node : node->children) {
-            traverse_scene(node.get());
+            traverse_scene_raster(node.get());
         }
     }
 
-    void Renderer::render_scene(ResourceHandle scene_handle) {
+    void Renderer::render_scene_raster(ResourceHandle scene_handle) {
         std::shared_ptr<Resource> resource = m_resources[scene_handle.id];
         SceneNode* scene = m_resources[scene_handle.id]->expect_scene().root;
-        traverse_scene(scene);
+        traverse_scene_raster(scene);
     }
 }

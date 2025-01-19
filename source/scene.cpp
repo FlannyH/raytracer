@@ -343,9 +343,9 @@ namespace gfx {
             instances.emplace_back(RaytracingInstance{
                 .transform = glm::mat4x3(node->cached_global_transform),
                 .instance_id = 0, // todo
-                .instance_mask = 0, // todo
+                .instance_mask = 0xFF, // todo
                 .instance_contribution_to_hitgroup_index = 0, // todo
-                .flags = 0, // todo
+                .flags = D3D12_RAYTRACING_INSTANCE_FLAG_TRIANGLE_CULL_DISABLE, // todo
                 .blas = node->expect_mesh().blas
             });
         }

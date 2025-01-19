@@ -1284,7 +1284,7 @@ namespace gfx {
         resource_desc.Format = DXGI_FORMAT_UNKNOWN;
         resource_desc.SampleDesc.Count = 1;
         resource_desc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
-        resource_desc.Flags = D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
+        resource_desc.Flags = D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS | D3D12_RESOURCE_FLAG_RAYTRACING_ACCELERATION_STRUCTURE;
         
         D3D12_HEAP_PROPERTIES heap_properties = {.Type = D3D12_HEAP_TYPE_DEFAULT};
 
@@ -1328,7 +1328,7 @@ namespace gfx {
 
         const D3D12_RAYTRACING_GEOMETRY_DESC geo_desc = {
             .Type = D3D12_RAYTRACING_GEOMETRY_TYPE_TRIANGLES,
-            .Flags = D3D12_RAYTRACING_GEOMETRY_FLAG_NONE,
+            .Flags = D3D12_RAYTRACING_GEOMETRY_FLAG_OPAQUE,
             .Triangles = {
                 .Transform3x4 = 0,
                 .IndexFormat = DXGI_FORMAT_R32_UINT,
@@ -1380,6 +1380,8 @@ namespace gfx {
                     instance_desc.Transform[row][col] = instance.transform[col][row]; // glm uses column-major, DirectX uses row-major
                 }
             }
+            instance_desc.InstanceMask = 0xFF;
+            instance_desc.Flags = D3D12_RAYTRACING_INSTANCE_FLAG_TRIANGLE_CULL_DISABLE | D3D12_RAYTRACING_INSTANCE_FLAG_FORCE_OPAQUE;
             instance_desc.AccelerationStructure = instance.blas.resource->handle->GetGPUVirtualAddress();
             dx12_instances.emplace_back(instance_desc);
         }
@@ -1397,9 +1399,12 @@ namespace gfx {
         };
         D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO prebuild_info{};
         device5()->GetRaytracingAccelerationStructurePrebuildInfo(&build_acc_inputs, &prebuild_info);
+        instance_descs.resource->current_state = D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE;
 
         auto scratch_buffer = create_buffer(name + " (tlas scratch buffer)", prebuild_info.ScratchDataSizeInBytes, nullptr, ResourceUsage::compute_write);
         auto dest_acc_structure = create_acceleration_structure(name + " (tlas)", prebuild_info.ResultDataMaxSizeInBytes);
+        
+        dest_acc_structure.resource->expect_acceleration_structure().instance_descs = instance_descs;
 
         const D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC build_acc_desc = {
             .DestAccelerationStructureData = dest_acc_structure.resource->handle->GetGPUVirtualAddress(),
