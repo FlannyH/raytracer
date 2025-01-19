@@ -1380,8 +1380,9 @@ namespace gfx {
                     instance_desc.Transform[row][col] = instance.transform[col][row]; // glm uses column-major, DirectX uses row-major
                 }
             }
-            instance_desc.InstanceMask = 0xFF;
-            instance_desc.Flags = D3D12_RAYTRACING_INSTANCE_FLAG_TRIANGLE_CULL_DISABLE | D3D12_RAYTRACING_INSTANCE_FLAG_FORCE_OPAQUE;
+            instance_desc.InstanceID = instance.instance_id;
+            instance_desc.InstanceMask = instance.instance_mask;
+            instance_desc.Flags = instance.flags;
             instance_desc.AccelerationStructure = instance.blas.resource->handle->GetGPUVirtualAddress();
             dx12_instances.emplace_back(instance_desc);
         }

@@ -340,12 +340,15 @@ namespace gfx {
 
     void get_rt_instances_from_scene_nodes(SceneNode* node, std::vector<RaytracingInstance>& instances) {
         if (node->type == SceneNodeType::mesh) {
-            instances.emplace_back(RaytracingInstance{
+            // If we set the instance id to the vertex buffer handle, we can fetch this in the shader
+            // later using CommittedInstanceID(), and then combine it with CandidatePrimitiveIndex() 
+            // to fetch that triangle's data for shading.
+            instances.emplace_back(RaytracingInstance {
                 .transform = glm::mat4x3(node->cached_global_transform),
-                .instance_id = 0, // todo
-                .instance_mask = 0xFF, // todo
-                .instance_contribution_to_hitgroup_index = 0, // todo
-                .flags = D3D12_RAYTRACING_INSTANCE_FLAG_TRIANGLE_CULL_DISABLE, // todo
+                .instance_id = node->expect_mesh().vertex_buffer.id,
+                .instance_mask = 0xFF,
+                .instance_contribution_to_hitgroup_index = 0,
+                .flags = D3D12_RAYTRACING_INSTANCE_FLAG_TRIANGLE_CULL_DISABLE, 
                 .blas = node->expect_mesh().blas
             });
         }
