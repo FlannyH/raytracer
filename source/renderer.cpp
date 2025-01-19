@@ -330,11 +330,13 @@ namespace gfx {
             { scene->expect_root().tlas, ResourceUsage::acceleration_structure },
             { m_material_buffer, ResourceUsage::non_pixel_shader_read },
             { m_shaded_target, ResourceUsage::compute_write },
+            { m_curr_sky_cube.sky, ResourceUsage::non_pixel_shader_read },
             { m_draw_packets[m_device->frame_index() % backbuffer_count], ResourceUsage::non_pixel_shader_read }
         });
         m_device->set_compute_root_constants({
             scene->expect_root().tlas.handle.as_u32(),
             m_shaded_target.handle.as_u32_uav(),
+            m_curr_sky_cube.sky.handle.as_u32(),
             m_material_buffer.handle.as_u32(),
             m_draw_packets[m_device->frame_index() % backbuffer_count].handle.as_u32(),
             view_data_offset,
