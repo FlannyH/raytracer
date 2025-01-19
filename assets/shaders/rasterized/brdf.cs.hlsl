@@ -26,6 +26,7 @@ struct Quaternion {
 struct ViewData {
     Quaternion forward;
     float2 viewport_size;
+    float3 camera_world_position;
 };
 
 struct LightCounts {

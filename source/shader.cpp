@@ -68,6 +68,7 @@ namespace gfx {
         args.emplace_back(L"-Qstrip_debug");
         args.emplace_back(L"-Qstrip_reflect");
         args.emplace_back(L"-HV 2021");
+        args.emplace_back(L"-res-may-alias");
         args.emplace_back(DXC_ARG_WARNINGS_ARE_ERRORS); //-WX
 #ifdef _DEBUG
         args.emplace_back(DXC_ARG_DEBUG); //-Zi

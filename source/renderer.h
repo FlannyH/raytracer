@@ -7,6 +7,7 @@ namespace gfx {
     struct ViewData {
         glm::quat rotation{};
         glm::vec2 viewport_size{};
+        glm::vec3 camera_world_position{};
     };
 
     class Renderer {
@@ -30,6 +31,7 @@ namespace gfx {
         // Different rendering types
         bool supports(RendererFeature feature);
         void render_rasterized();
+        void render_pathtraced();
 
         // Resource management
         void unload_resource(ResourceHandlePair& resource);
@@ -45,8 +47,8 @@ namespace gfx {
         friend SceneNode* create_scene_graph_from_gltf(Renderer& renderer, const std::string& path);
 
     private:
-        void traverse_scene(SceneNode* node);
-        void render_scene(ResourceHandle scene_handle);
+        void traverse_scene_raster(SceneNode* node);
+        void render_scene_raster(ResourceHandle scene_handle);
         std::pair<int, Material*> allocate_material_slot();
         ResourceHandle allocate_non_gpu_resource_handle(ResourceType type);
         uint32_t create_draw_packet(const void* data, uint32_t size_bytes); // Returns the byte offset into the `m_draw_packets` buffer where this new draw packet was allocated
@@ -83,6 +85,7 @@ namespace gfx {
         std::shared_ptr<Pipeline> m_pipeline_ibl_brdf_lut_gen = nullptr;
         std::shared_ptr<Pipeline> m_pipeline_downsample = nullptr;
         std::shared_ptr<Pipeline> m_pipeline_ssao = nullptr;
+        std::shared_ptr<Pipeline> m_pipeline_pathtrace = nullptr;
         std::vector<int> m_material_indices_to_reuse;
         std::vector<Material> m_materials; // Should be uploaded to the GPU after modifying
         ResourceHandlePair m_material_buffer{}; // Buffer that contains all currently loaded materials
