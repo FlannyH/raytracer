@@ -20,97 +20,7 @@ namespace gfx {
             return;
         }
 
-        // Create global root signature
-        D3D12_ROOT_PARAMETER1 root_parameters[1] = {
-            {
-                .ParameterType = D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS,
-                .Constants = {
-                    .ShaderRegister = 0,
-                    .RegisterSpace = 0,
-                    .Num32BitValues = 4,
-                },
-                .ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL,
-            },
-        };
-
-        D3D12_STATIC_SAMPLER_DESC samplers[3] = {
-            { // Regular texture
-                .Filter = D3D12_FILTER_ANISOTROPIC,
-                .AddressU = D3D12_TEXTURE_ADDRESS_MODE_WRAP,
-                .AddressV = D3D12_TEXTURE_ADDRESS_MODE_WRAP,
-                .AddressW = D3D12_TEXTURE_ADDRESS_MODE_WRAP,
-                .MipLODBias = 0.0f,
-                .MaxAnisotropy = 16,
-                .ComparisonFunc = D3D12_COMPARISON_FUNC_NEVER,
-                .BorderColor = D3D12_STATIC_BORDER_COLOR_OPAQUE_BLACK,
-                .MinLOD = 0.0f,
-                .MaxLOD = 100000.0f,
-                .ShaderRegister = 0,
-                .RegisterSpace = 0,
-                .ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL,
-            },
-            { // Lookup texture (clamp)
-                .Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR,
-                .AddressU = D3D12_TEXTURE_ADDRESS_MODE_CLAMP,
-                .AddressV = D3D12_TEXTURE_ADDRESS_MODE_CLAMP,
-                .AddressW = D3D12_TEXTURE_ADDRESS_MODE_CLAMP,
-                .MipLODBias = 0.0f,
-                .MaxAnisotropy = 16,
-                .ComparisonFunc = D3D12_COMPARISON_FUNC_NEVER,
-                .BorderColor = D3D12_STATIC_BORDER_COLOR_OPAQUE_BLACK,
-                .MinLOD = 0.0f,
-                .MaxLOD = 100000.0f,
-                .ShaderRegister = 1,
-                .RegisterSpace = 0,
-                .ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL,
-            },
-            { // Cubemap
-                .Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR,
-                .AddressU = D3D12_TEXTURE_ADDRESS_MODE_CLAMP,
-                .AddressV = D3D12_TEXTURE_ADDRESS_MODE_CLAMP,
-                .AddressW = D3D12_TEXTURE_ADDRESS_MODE_CLAMP,
-                .MipLODBias = 0.0f,
-                .MaxAnisotropy = 16,
-                .ComparisonFunc = D3D12_COMPARISON_FUNC_NEVER,
-                .BorderColor = D3D12_STATIC_BORDER_COLOR_OPAQUE_BLACK,
-                .MinLOD = 0.0f,
-                .MaxLOD = 100000.0f,
-                .ShaderRegister = 2,
-                .RegisterSpace = 0,
-                .ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL,
-            }
-        };
-
-        const D3D12_VERSIONED_ROOT_SIGNATURE_DESC root_signature_desc = {
-            .Version = D3D_ROOT_SIGNATURE_VERSION_1_1,
-            .Desc_1_1 = {
-                .NumParameters = 1,
-                .pParameters = root_parameters,
-                .NumStaticSamplers = 3,
-                .pStaticSamplers = samplers,
-                .Flags = D3D12_ROOT_SIGNATURE_FLAG_CBV_SRV_UAV_HEAP_DIRECTLY_INDEXED,
-            }
-        };
-
-        ComPtr<ID3DBlob> signature;
-        ComPtr<ID3DBlob> error;
-        try {
-            validate(D3D12SerializeVersionedRootSignature(&root_signature_desc, &signature, &error));
-            validate(device.device->CreateRootSignature(0, signature->GetBufferPointer(),
-                signature->GetBufferSize(), IID_PPV_ARGS(&root_signature)));
-            root_signature->SetName(L"Bindless Root Signature");
-        }
-        catch ([[maybe_unused]] std::exception& e) {
-            const auto err_str = static_cast<const char*>(error->GetBufferPointer());
-            LOG(Error, "Error creating root signature: %s", err_str);
-            error->Release();
-            error = nullptr;
-        }
-
-        if (signature) {
-            signature->Release();
-            signature = nullptr;
-        }
+        create_global_root_signature(device);
 
         D3D12_GRAPHICS_PIPELINE_STATE_DESC pipeline_state_desc {
             .pRootSignature = root_signature.Get(),
@@ -176,10 +86,25 @@ namespace gfx {
 
         // Make sure it worked
         if (cs.shader_blob.Get() == nullptr) {
-            LOG(Error, "Failed to create compute pipeline: shader compilation failed");
+            LOG(Error, "");
             return;
         }
 
+        create_global_root_signature(device);
+
+        D3D12_COMPUTE_PIPELINE_STATE_DESC pipeline_state_desc {
+            .pRootSignature = root_signature.Get(),
+            .CS = {
+                cs.shader_blob->GetBufferPointer(),
+                cs.shader_blob->GetBufferSize()
+            },
+        };
+
+        validate(device.device->CreateComputePipelineState(&pipeline_state_desc, IID_PPV_ARGS(&pipeline_state)));
+        validate(pipeline_state->SetName(L"Compute Pipeline State")); // todo: add customizable name with default parameter
+    }
+    
+    void Pipeline::create_global_root_signature(const gfx::Device &device) {
         // Create global root signature
         D3D12_ROOT_PARAMETER1 root_parameters[1] = {
             {
@@ -271,16 +196,5 @@ namespace gfx {
             signature->Release();
             signature = nullptr;
         }
-
-        D3D12_COMPUTE_PIPELINE_STATE_DESC pipeline_state_desc {
-            .pRootSignature = root_signature.Get(),
-            .CS = {
-                cs.shader_blob->GetBufferPointer(),
-                cs.shader_blob->GetBufferSize()
-            },
-        };
-
-        validate(device.device->CreateComputePipelineState(&pipeline_state_desc, IID_PPV_ARGS(&pipeline_state)));
-        validate(pipeline_state->SetName(L"Compute Pipeline State")); // todo: add customizable name with default parameter
     }
 }
