@@ -1,6 +1,7 @@
 struct RootConstants {
     uint tlas;
     uint output_texture;
+    uint curr_sky_cube;
     uint material_buffer;
     uint view_data_buffer;
     uint view_data_buffer_offset;
@@ -68,7 +69,11 @@ struct Material {
 };
 
 sampler tex_sampler : register(s0);
+sampler tex_sampler_clamp : register(s1);
+sampler cube_sampler : register(s2);
+
 #define MASK_ID ((1 << 27) - 1)
+#define MASK_IS_LOADED (1 << 27)
 #define PI 3.14159265358979f
 #define FULLBRIGHT_NITS 200.0f
 
@@ -159,6 +164,16 @@ void main(uint3 dispatch_thread_id : SV_DispatchThreadID) {
         output_texture[dispatch_thread_id.xy] = output * FULLBRIGHT_NITS;
     }
     else {
-        output_texture[dispatch_thread_id.xy] = 0;
+        if ((root_constants.curr_sky_cube & MASK_IS_LOADED) == false) {
+            output_texture[dispatch_thread_id.xy].rgb = 0.0f;
+            return;
+        }
+        
+        // Fetch texture and output
+        TextureCube<float4> sky_texture = ResourceDescriptorHeap[NonUniformResourceIndex(root_constants.curr_sky_cube & MASK_ID)];
+        float3 pixel = sky_texture.SampleLevel(cube_sampler, normalize(view_direction_ws), 0).rgb * FULLBRIGHT_NITS;
+        output_texture[dispatch_thread_id.xy] = pixel;
+        
+        return;
     }
 }
