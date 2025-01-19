@@ -75,6 +75,7 @@ namespace gfx {
         m_device->end_compute_pass();
 
         LOG(Info, "Renderer initialized (DirectX 12)");
+        LOG(Debug, "Raytracing support: %s", supports(RendererFeature::raytracing) ? "yes" : "no");
     }
 
     Renderer::~Renderer() {

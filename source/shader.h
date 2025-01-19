@@ -12,6 +12,9 @@ namespace gfx {
         vertex,
         pixel,
         compute,
+        ray_gen,
+        closest_hit,
+        miss,
     };
 
     std::string profile_from_shader_type(ShaderType type);

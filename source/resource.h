@@ -144,6 +144,16 @@ namespace gfx {
                 case ResourceType::buffer:  resource = BufferResource{};  type = resource_type; break;
                 case ResourceType::scene:   resource = SceneResource{};   type = resource_type; break;
             }
+            if (type == ResourceType::texture) LOG(Info, "texture constructed: %s", name.c_str());
+            if (type == ResourceType::buffer) LOG(Info, "buffer constructed: %s", name.c_str());
+            if (type == ResourceType::scene) LOG(Info, "scene constructed: %s", name.c_str());
+            if (type == ResourceType::acceleration_structure) LOG(Info, "acceleration structure constructed: %s", name.c_str());
+        }
+        ~Resource() {
+            if (type == ResourceType::texture) LOG(Info, "texture destroyed: %s", name.c_str());
+            if (type == ResourceType::buffer) LOG(Info, "buffer destroyed: %s", name.c_str());
+            if (type == ResourceType::scene) LOG(Info, "scene destroyed: %s", name.c_str());
+            if (type == ResourceType::acceleration_structure) LOG(Info, "acceleration structure destroyed: %s", name.c_str());
         }
         TextureResource& expect_texture() {
             assert(type == ResourceType::texture);

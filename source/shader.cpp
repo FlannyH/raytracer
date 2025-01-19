@@ -15,6 +15,10 @@ namespace gfx {
             return "ps_6_6";
         case ShaderType::compute:
             return "cs_6_6";
+        case ShaderType::ray_gen:
+        case ShaderType::closest_hit:
+        case ShaderType::miss:
+            return "lib_6_6";
         default:
             return "";
         }

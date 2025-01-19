@@ -180,6 +180,35 @@ namespace gfx {
             return;
         }
 
+        create_global_root_signature(device);
+
+        D3D12_COMPUTE_PIPELINE_STATE_DESC pipeline_state_desc {
+            .pRootSignature = root_signature.Get(),
+            .CS = {
+                cs.shader_blob->GetBufferPointer(),
+                cs.shader_blob->GetBufferSize()
+            },
+        };
+
+        validate(device.device->CreateComputePipelineState(&pipeline_state_desc, IID_PPV_ARGS(&pipeline_state)));
+        validate(pipeline_state->SetName(L"Compute Pipeline State")); // todo: add customizable name with default parameter
+    }
+    
+    // Pipeline::Pipeline(const Device& device, const std::string& name, const std::vector<std::pair<std::string, std::string>>) {
+    //     const auto rgen_shader = Shader(raygen_shader_path, "main", ShaderType::ray_gen);
+    //     const auto chit_shader = Shader(closest_hit_shader_path, "main", ShaderType::closest_hit);
+    //     const auto miss_shader = Shader(miss_shader_path, "main", ShaderType::miss);
+
+    //     if (rgen_shader.shader_blob.Get() == nullptr) LOG(Error, "Failed to create ray tracing pipeline: ray generation shader compilation failed");
+    //     if (chit_shader.shader_blob.Get() == nullptr) LOG(Error, "Failed to create ray tracing pipeline: closest hit shader compilation failed");
+    //     if (miss_shader.shader_blob.Get() == nullptr) LOG(Error, "Failed to create ray tracing pipeline: miss shader compilation failed");
+
+    //     create_global_root_signature(device);
+
+    //     D3D12_COMPUTE_PIPELINE_STATE_DESC
+    // }
+    
+    void Pipeline::create_global_root_signature(const gfx::Device& device) {
         // Create global root signature
         D3D12_ROOT_PARAMETER1 root_parameters[1] = {
             {
