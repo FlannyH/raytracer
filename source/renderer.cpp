@@ -7,6 +7,7 @@
 #include <glm/trigonometric.hpp>
 
 #include <algorithm>
+#include "input.h"
 
 namespace gfx {
     #define MAX_MATERIAL_COUNT 1024
@@ -163,8 +164,13 @@ namespace gfx {
             );
         }
 
-        // render_rasterized();
-        render_pathtraced();
+        static int mode = 0;
+        if (input::key_held(input::Key::_1)) mode = 0;
+        if (input::key_held(input::Key::_2)) mode = 1;
+        switch (mode) {
+        case 0: render_rasterized(); break;
+        case 1: render_pathtraced(); break;
+        }
 
         // Tonemapping
         m_device->begin_compute_pass(m_pipeline_tonemapping);
