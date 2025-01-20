@@ -288,15 +288,17 @@ void main(uint3 dispatch_thread_id : SV_DispatchThreadID) {
             // todo: implement roughness and metalness
             // todo: unscuffificate this
             uint sample_index = 0;
+            const uint n_accum_frames = 10240;
+            uint n_sample_indices = 67 * 67 * root_constants.n_bounces * root_constants.n_samples * n_accum_frames;
             sample_index = (sample_index * 0)                        + (dispatch_thread_id.x % 67);
             sample_index = (sample_index * 67)                       + (dispatch_thread_id.y % 67);
-            sample_index = (sample_index * 67)                       + (root_constants.frame_index);
             sample_index = (sample_index * root_constants.n_bounces) + (i);
             sample_index = (sample_index * root_constants.n_samples) + (s);
+            sample_index = (sample_index * n_accum_frames)           + (root_constants.frame_index);
             sample_index = pcg_hash(sample_index);
             ray.Origin += ray_query.CommittedRayT() * ray.Direction;
             ray.Origin += info.normal * 0.00001; // Bias against self intersection
-            ray.Direction = cosine_weighted_sample_hemisphere(hammersley(sample_index % 65536, 65536), info.normal);
+            ray.Direction = cosine_weighted_sample_hemisphere(hammersley(sample_index % n_sample_indices, n_sample_indices), info.normal);
         }
     }
 
