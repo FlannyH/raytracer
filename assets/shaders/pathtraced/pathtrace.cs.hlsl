@@ -1,10 +1,15 @@
 struct RootConstants {
+    uint reset_acc_buffer;
+    uint n_samples;
+    uint n_bounces;
     uint tlas;
+    uint accumulation_texture;
     uint output_texture;
     uint curr_sky_cube;
     uint material_buffer;
     uint view_data_buffer;
     uint view_data_buffer_offset;
+    uint frame_index;
 };
 ConstantBuffer<RootConstants> root_constants : register(b0, space0);
 
@@ -19,12 +24,12 @@ struct ViewData {
     float3 camera_world_position;
 };
 
-struct Vertex {
-    float3 position;
-    float3 normal;
-    float4 tangent;
+struct SurfaceInfo {
     float4 color;
-    float2 texcoord0;
+    float3 normal;
+    float roughness;
+    float3 emissive;
+    float metallic;
 };
 
 struct VertexCompressed {
@@ -68,6 +73,15 @@ struct Material {
     uint reserved1;
 };
 
+struct Vertex {
+    float3 position;
+    float3 normal;
+    float3 tangent;
+    float3 bitangent;
+    float4 color;
+    float2 texcoord0;
+};
+
 sampler tex_sampler : register(s0);
 sampler tex_sampler_clamp : register(s1);
 sampler cube_sampler : register(s2);
@@ -76,6 +90,45 @@ sampler cube_sampler : register(s2);
 #define MASK_IS_LOADED (1 << 27)
 #define PI 3.14159265358979f
 #define FULLBRIGHT_NITS 200.0f
+
+float radical_inverse_vdc(uint bits) {
+    bits = (bits << 16u) | (bits >> 16u);
+    bits = ((bits & 0x55555555u) << 1u) | ((bits & 0xAAAAAAAAu) >> 1u);
+    bits = ((bits & 0x33333333u) << 2u) | ((bits & 0xCCCCCCCCu) >> 2u);
+    bits = ((bits & 0x0F0F0F0Fu) << 4u) | ((bits & 0xF0F0F0F0u) >> 4u);
+    bits = ((bits & 0x00FF00FFu) << 8u) | ((bits & 0xFF00FF00u) >> 8u); 
+    return float(bits) * 2.3283064365386963e-10; // / 0x100000000
+}
+
+// https://www.reedbeta.com/blog/hash-functions-for-gpu-rendering/
+uint pcg_hash(uint input) {
+    uint state = input * 747796405u + 2891336453u;
+    uint word = ((state >> ((state >> 28u) + 4u)) ^ state) * 277803737u;
+    return (word >> 22u) ^ word;
+}
+
+
+// http://holger.dammertz.org/stuff/notes_HammersleyOnHemisphere.html
+float2 hammersley(uint i, uint n) {
+    return float2(float(i)/float(n), radical_inverse_vdc(i));
+}
+
+float3 cosine_weighted_sample_hemisphere(float2 xi, float3 n) {
+    const float phi = 2 * PI * xi.x;
+    const float cos_theta = sqrt(1.0f - xi.y);
+    const float sin_theta = sqrt(xi.y);
+
+    const float3 h = float3(
+        sin_theta * cos(phi),
+        sin_theta * sin(phi),
+        cos_theta
+    );
+
+    const float3 up = (abs(n.z) < 0.999) ? (float3(0, 0, 1)) : (float3(1, 0, 0));
+    const float3 tangent_x = normalize(cross(up, n));
+    const float3 tangent_y = cross(n, tangent_x);
+    return (tangent_x * h.x) + (tangent_y * h.y) + (n * h.z);
+}
 
 float3 rotate_vector_by_quaternion(float3 vec, Quaternion quat) {
     float3 quat_vec = quat.xyz;
@@ -86,10 +139,100 @@ float3 rotate_vector_by_quaternion(float3 vec, Quaternion quat) {
     return rotated_vec;
 }
 
+SurfaceInfo get_surface_info(uint triangle_index, uint mesh_handle, float2 barycentric_coords, float3x4 obj_to_world_matrix) {
+    uint vertex_index = triangle_index * 3;
+    ByteAddressBuffer vertex_buffer = ResourceDescriptorHeap[NonUniformResourceIndex(mesh_handle)];
+    
+    // Decompress vertices
+    Vertex verts[3];
+    uint material_id = 0;
+    for (uint i = 0; i < 3; ++i) {
+        VertexCompressed vert_compressed = vertex_buffer.Load<VertexCompressed>((vertex_index + i) * sizeof(VertexCompressed));
+        verts[i].normal.x = ((float)vert_compressed.normal_x - 127.0f) / 127.0f;
+        verts[i].normal.y = ((float)vert_compressed.normal_y - 127.0f) / 127.0f;
+        verts[i].normal.z = ((float)vert_compressed.normal_z - 127.0f) / 127.0f;
+        verts[i].tangent.x = ((float)vert_compressed.tangent_x - 127.0f) / 127.0f;
+        verts[i].tangent.y = ((float)vert_compressed.tangent_y - 127.0f) / 127.0f;
+        verts[i].tangent.z = ((float)vert_compressed.tangent_z - 127.0f) / 127.0f;
+        float tangent_sign = ((float)vert_compressed.flags1_tangent_sign * 2.0f) - 1.0f;
+        verts[i].bitangent = cross(verts[i].normal.xyz, verts[i].tangent.xyz) * tangent_sign;
+        verts[i].color.r = (float) vert_compressed.color_r / 1023.0f;
+        verts[i].color.g = (float) vert_compressed.color_g / 1023.0f;
+        verts[i].color.b = (float) vert_compressed.color_b / 1023.0f;
+        verts[i].color.a = (float) vert_compressed.color_a / 1023.0f;
+        verts[i].texcoord0 = vert_compressed.texcoord0;
+        if (i == 0) material_id = vert_compressed.material_id;
+    }
+
+    // Interpolate vertices
+    SurfaceInfo info;
+    float2 bary = barycentric_coords;
+    float2 texcoord0 = verts[0].texcoord0 + ((verts[1].texcoord0 - verts[0].texcoord0) * bary.x) + ((verts[2].texcoord0 - verts[0].texcoord0) * bary.y);
+    float3 bitangent = verts[0].bitangent + ((verts[1].bitangent - verts[0].bitangent) * bary.x) + ((verts[2].bitangent - verts[0].bitangent) * bary.y);
+    float3 tangent   = verts[0].tangent   + ((verts[1].tangent   - verts[0].tangent)   * bary.x) + ((verts[2].tangent   - verts[0].tangent)   * bary.y);
+    info.normal      = verts[0].normal    + ((verts[1].normal    - verts[0].normal)    * bary.x) + ((verts[2].normal    - verts[0].normal)    * bary.y);
+    info.color       = verts[0].color     + ((verts[1].color     - verts[0].color)     * bary.x) + ((verts[2].color     - verts[0].color)     * bary.y);
+    info.metallic  = 0.0f;
+    info.roughness = 1.0f;
+    info.emissive  = 0.0f;
+    
+    // Transform to world space
+    info.normal = mul(obj_to_world_matrix, float4(info.normal, 0)).xyz;
+    tangent     = mul(obj_to_world_matrix, float4(tangent,     0)).xyz;
+    bitangent   = mul(obj_to_world_matrix, float4(bitangent,   0)).xyz;
+
+    // Apply material
+    if (material_id >= 0) {
+        ByteAddressBuffer material_buffer = ResourceDescriptorHeap[NonUniformResourceIndex(root_constants.material_buffer & MASK_ID)];
+        Material material = material_buffer.Load<Material>(((uint) round(material_id)) * 64);
+
+        // Color
+        if (material.color_texture.is_loaded != 0) {
+            Texture2D<float4> tex = ResourceDescriptorHeap[NonUniformResourceIndex(material.color_texture.id)];
+            float4 tex_color = tex.Sample(tex_sampler, texcoord0);
+            info.color *= tex_color;
+        }
+
+        // Normal
+        if (material.normal_texture.is_loaded != 0) {
+            Texture2D<float3> tex = ResourceDescriptorHeap[NonUniformResourceIndex(material.normal_texture.id)];
+            float3 tex_normal = (tex.Sample(tex_sampler, texcoord0) * 2.0f) - 1.0f;
+            float3 default_normal = float3(0.0f, 0.0f, 1.0f);
+            float3 interpolated_normal = lerp(default_normal, tex_normal, material.normal_intensity);
+            float3x3 tbn = transpose(float3x3(tangent, bitangent, info.normal));
+            info.normal = normalize(mul(tbn, interpolated_normal));
+        }
+
+        // Metal & roughness
+        info.metallic  = material.metallic_multiplier;
+        info.roughness = material.roughness_multiplier;
+        
+        if (material.metal_roughness_texture.is_loaded != 0) {
+            Texture2D<float4> tex = ResourceDescriptorHeap[NonUniformResourceIndex(material.metal_roughness_texture.id)];
+            float2 metal_roughness = tex.Sample(tex_sampler, texcoord0).zy;
+            info.metallic  *= metal_roughness.x;
+            info.roughness *= metal_roughness.y;
+        }
+
+        // Emissive
+        if (material.emissive_texture.is_loaded != 0) {
+            Texture2D<float4> tex = ResourceDescriptorHeap[NonUniformResourceIndex(material.emissive_texture.id)];
+            float3 tex_emissive = tex.Sample(tex_sampler, texcoord0).xyz;
+            info.emissive = tex_emissive * material.emissive_multiplier;
+        }
+    }
+
+    return info;
+}
+
 [numthreads(8, 8, 1)]
 void main(uint3 dispatch_thread_id : SV_DispatchThreadID) {
-    RWTexture2D<float3> output_texture = ResourceDescriptorHeap[NonUniformResourceIndex(root_constants.output_texture & MASK_ID)];
-    RaytracingAccelerationStructure tlas = ResourceDescriptorHeap[root_constants.tlas & MASK_ID];
+    RWTexture2D<float3> output_texture       = ResourceDescriptorHeap[NonUniformResourceIndex(root_constants.output_texture       & MASK_ID)];
+    RWTexture2D<float4> accumulation_texture = ResourceDescriptorHeap[NonUniformResourceIndex(root_constants.accumulation_texture & MASK_ID)];
+
+    if (root_constants.reset_acc_buffer) {
+        accumulation_texture[dispatch_thread_id.xy] = float4(0.0, 0.0, 0.0, 0.0);
+    }
 
     // Get normalized screen UV coordinates, from -1.0 to +1.0
     float2 resolution;
@@ -102,78 +245,65 @@ void main(uint3 dispatch_thread_id : SV_DispatchThreadID) {
     const float3 view_direction_vs = normalize(float3(view_data.viewport_size * float2(uv.x, -uv.y), -1.0f));
     const float3 view_direction_ws = normalize(rotate_vector_by_quaternion(view_direction_vs, view_data.forward));
 
-    // Trace ray
+    TextureCube<float4> sky_texture = ResourceDescriptorHeap[NonUniformResourceIndex(root_constants.curr_sky_cube & MASK_ID)];
+    RaytracingAccelerationStructure tlas = ResourceDescriptorHeap[root_constants.tlas & MASK_ID];
     RayDesc ray;
-    ray.Origin = view_data.camera_world_position;
-    ray.Direction = view_direction_ws;
     ray.TMin = 0.000;
     ray.TMax = 100000.0;
+    float3 light = 0.0;
+    bool primary_hit_sky = false;
 
-    RayQuery<RAY_FLAG_FORCE_OPAQUE> ray_query;
-    ray_query.TraceRayInline(tlas, 0, 0xFF, ray);
-    while(ray_query.Proceed());
+    for (uint s = 0; s < root_constants.n_samples; ++s) {
+        float3 ray_tint = 1.0;
+        ray.Origin = view_data.camera_world_position;
+        ray.Direction = view_direction_ws;
+        ray.TMin = 0.000;
+        ray.TMax = 100000.0;
 
-    // Shade pixel
-    if (ray_query.CommittedStatus() != COMMITTED_NOTHING) {
-        uint triangle_index = ray_query.CandidatePrimitiveIndex();
-        uint vertex_index = triangle_index * 3;
-        uint vertex_buffer_handle = ray_query.CommittedInstanceID();
-        ByteAddressBuffer vertex_buffer = ResourceDescriptorHeap[NonUniformResourceIndex(vertex_buffer_handle)];
-        
-        // Decompress vertices
-        Vertex verts[3];
-        uint material_id = 0;
-        for (uint i = 0; i < 3; ++i) {
-            VertexCompressed vert_compressed = vertex_buffer.Load<VertexCompressed>((vertex_index + i) * sizeof(VertexCompressed));
-            verts[i].normal.x = ((float)vert_compressed.normal_x - 127.0f) / 127.0f;
-            verts[i].normal.y = ((float)vert_compressed.normal_y - 127.0f) / 127.0f;
-            verts[i].normal.z = ((float)vert_compressed.normal_z - 127.0f) / 127.0f;
-            verts[i].tangent.x = (float)vert_compressed.tangent_x - 127.0f;
-            verts[i].tangent.y = (float)vert_compressed.tangent_y - 127.0f;
-            verts[i].tangent.z = (float)vert_compressed.tangent_z - 127.0f;
-            verts[i].tangent.w = ((float)vert_compressed.flags1_tangent_sign * 2.0f) - 1.0f;
-            verts[i].color.r = (float) vert_compressed.color_r / 1023.0f;
-            verts[i].color.g = (float) vert_compressed.color_g / 1023.0f;
-            verts[i].color.b = (float) vert_compressed.color_b / 1023.0f;
-            verts[i].color.a = (float) vert_compressed.color_a / 1023.0f;
-            verts[i].texcoord0 = vert_compressed.texcoord0;
-            if (i == 0) material_id = vert_compressed.material_id;
-        }
+        for (uint i = 0; i < root_constants.n_bounces; ++i) {
+            // Trace
+            RayQuery<RAY_FLAG_FORCE_OPAQUE> ray_query;
+            ray_query.TraceRayInline(tlas, 0, 0xFF, ray);
+            while(ray_query.Proceed());
 
-        // Interpolate vertices
-        float2 bary = ray_query.CandidateTriangleBarycentrics();
-        float2 texcoord0 = verts[0].texcoord0 + ((verts[1].texcoord0 - verts[0].texcoord0) * bary.x) + ((verts[2].texcoord0 - verts[0].texcoord0) * bary.y);
-        float3 normal = verts[0].normal + ((verts[1].normal - verts[0].normal) * bary.x) + ((verts[2].normal - verts[0].normal) * bary.y);
-        float4 color = verts[0].color + ((verts[1].color - verts[0].color) * bary.x) + ((verts[2].color - verts[0].color) * bary.y);
-        normal = mul(ray_query.CommittedObjectToWorld3x4(), float4(normal, 0)).xyz;
-
-        // Apply material
-        float3 output = 1;
-        if (material_id >= 0) {
-            ByteAddressBuffer material_buffer = ResourceDescriptorHeap[NonUniformResourceIndex(root_constants.material_buffer & MASK_ID)];
-            Material material = material_buffer.Load<Material>(((uint) round(material_id)) * 64);
-
-            // Color
-            if (material.color_texture.is_loaded != 0) {
-                Texture2D<float4> tex = ResourceDescriptorHeap[NonUniformResourceIndex(material.color_texture.id)];
-                float4 tex_color = tex.Sample(tex_sampler, texcoord0);
-                output *= tex_color.rgb;
+            // Miss? Sample sky
+            if (ray_query.CommittedStatus() == COMMITTED_NOTHING) {
+                float3 sky = sky_texture.SampleLevel(cube_sampler, normalize(ray.Direction), 0).rgb;
+                light += sky * ray_tint;
+                break;
             }
-        }
 
-        output_texture[dispatch_thread_id.xy] = output * FULLBRIGHT_NITS;
-    }
-    else {
-        if ((root_constants.curr_sky_cube & MASK_IS_LOADED) == false) {
-            output_texture[dispatch_thread_id.xy].rgb = 0.0f;
-            return;
+            // Get vertex attributes
+            uint triangle_index = ray_query.CandidatePrimitiveIndex();
+            uint vertex_buffer_handle = ray_query.CommittedInstanceID();
+            SurfaceInfo info = get_surface_info(triangle_index, vertex_buffer_handle, ray_query.CandidateTriangleBarycentrics(), ray_query.CommittedObjectToWorld3x4());
+
+            // Add contribution and pick a random direction along the normal for the next ray
+            light += info.emissive * ray_tint * saturate(dot(info.normal, -ray.Direction));
+            ray_tint *= info.color.xyz;
+            
+            // todo: transparency
+
+            // Pick random vector on hemisphere around the normal vector (using the most scuffed way to generate a random sample index)
+            // todo: implement roughness and metalness
+            // todo: unscuffificate this
+            uint sample_index = 0;
+            sample_index = (sample_index * 0)                        + (dispatch_thread_id.x % 67);
+            sample_index = (sample_index * 67)                       + (dispatch_thread_id.y % 67);
+            sample_index = (sample_index * 67)                       + (root_constants.frame_index);
+            sample_index = (sample_index * root_constants.n_bounces) + (i);
+            sample_index = (sample_index * root_constants.n_samples) + (s);
+            sample_index = pcg_hash(sample_index);
+            ray.Origin += ray_query.CommittedRayT() * ray.Direction;
+            ray.Origin += info.normal * 0.00001; // Bias against self intersection
+            ray.Direction = cosine_weighted_sample_hemisphere(hammersley(sample_index % 65536, 65536), info.normal);
         }
-        
-        // Fetch texture and output
-        TextureCube<float4> sky_texture = ResourceDescriptorHeap[NonUniformResourceIndex(root_constants.curr_sky_cube & MASK_ID)];
-        float3 pixel = sky_texture.SampleLevel(cube_sampler, normalize(view_direction_ws), 0).rgb * FULLBRIGHT_NITS;
-        output_texture[dispatch_thread_id.xy] = pixel;
-        
-        return;
     }
+
+    accumulation_texture[dispatch_thread_id.xy].xyz += light / root_constants.n_samples;
+    accumulation_texture[dispatch_thread_id.xy].w += 1;
+
+    output_texture[dispatch_thread_id.xy] = FULLBRIGHT_NITS * accumulation_texture[dispatch_thread_id.xy].xyz / accumulation_texture[dispatch_thread_id.xy].w;
+    // output_texture[dispatch_thread_id.xy] = accumulation_texture[dispatch_thread_id.xy].xyz / accumulation_texture[dispatch_thread_id.xy].w;
+    // output_texture[dispatch_thread_id.xy] = saturate(light / root_constants.n_samples) * 200;
 }
