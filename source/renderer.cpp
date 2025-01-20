@@ -29,6 +29,7 @@ namespace gfx {
         m_emissive_target = m_device->create_render_target("Emissive framebuffer", width, height, PixelFormat::rg11_b10_float, {}, ResourceUsage::compute_write);
         m_shaded_target = m_device->load_texture("Shaded framebuffer", width, height, 1, nullptr, PixelFormat::rgba16_float, TextureType::tex_2d, ResourceUsage::compute_write);
         m_ssao_target = m_device->load_texture("SSAO framebuffer", width, height, 1, nullptr, PixelFormat::r8_unorm, TextureType::tex_2d, ResourceUsage::compute_write);
+        m_accumulation_target = m_device->load_texture("Accumulation framebuffer", width, height, 1, nullptr, PixelFormat::rgba32_float, TextureType::tex_2d, ResourceUsage::compute_write);
         m_depth_target = m_device->create_depth_target("Depth framebuffer", width, height, PixelFormat::depth32_float);
         LOG(Debug, "Compiling shaders");
         m_pipeline_scene = m_device->create_raster_pipeline("Geometry pass"  ,"assets/shaders/rasterized/geo_pass.vs.hlsl", "assets/shaders/rasterized/geo_pass.ps.hlsl", {
@@ -146,6 +147,7 @@ namespace gfx {
             resize_texture(m_shaded_target, (uint32_t)m_render_resolution.x, (uint32_t)m_render_resolution.y);
             resize_texture(m_depth_target, (uint32_t)m_render_resolution.x, (uint32_t)m_render_resolution.y);
             resize_texture(m_ssao_target, (uint32_t)m_render_resolution.x, (uint32_t)m_render_resolution.y);
+            resize_texture(m_accumulation_target, (uint32_t)m_render_resolution.x, (uint32_t)m_render_resolution.y);
         }
         
         // Upload light info to the GPU
@@ -329,17 +331,23 @@ namespace gfx {
         m_device->use_resources({
             { scene->expect_root().tlas, ResourceUsage::acceleration_structure },
             { m_material_buffer, ResourceUsage::non_pixel_shader_read },
+            { m_accumulation_target, ResourceUsage::compute_write },
             { m_shaded_target, ResourceUsage::compute_write },
             { m_curr_sky_cube.sky, ResourceUsage::non_pixel_shader_read },
             { m_draw_packets[m_device->frame_index() % backbuffer_count], ResourceUsage::non_pixel_shader_read }
         });
         m_device->set_compute_root_constants({
+            (uint32_t)input::mouse_button(input::MouseButton::right), // reset accumulation buffer
+            4, // rays per pixel
+            4, // bounces per ray
             scene->expect_root().tlas.handle.as_u32(),
+            m_accumulation_target.handle.as_u32_uav(),
             m_shaded_target.handle.as_u32_uav(),
             m_curr_sky_cube.sky.handle.as_u32(),
             m_material_buffer.handle.as_u32(),
             m_draw_packets[m_device->frame_index() % backbuffer_count].handle.as_u32(),
             view_data_offset,
+            (uint32_t)m_device->frame_index(),
         });
         m_device->dispatch_threadgroups( // threadgroup size is 8x8
             (uint32_t)(m_render_resolution.x / 8.0f),
