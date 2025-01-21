@@ -168,8 +168,6 @@ SurfaceInfo get_surface_info(uint triangle_index, uint mesh_handle, float2 baryc
     SurfaceInfo info;
     float2 bary = barycentric_coords;
     float2 texcoord0 = verts[0].texcoord0 + ((verts[1].texcoord0 - verts[0].texcoord0) * bary.x) + ((verts[2].texcoord0 - verts[0].texcoord0) * bary.y);
-    float3 bitangent = verts[0].bitangent + ((verts[1].bitangent - verts[0].bitangent) * bary.x) + ((verts[2].bitangent - verts[0].bitangent) * bary.y);
-    float3 tangent   = verts[0].tangent   + ((verts[1].tangent   - verts[0].tangent)   * bary.x) + ((verts[2].tangent   - verts[0].tangent)   * bary.y);
     info.normal      = verts[0].normal    + ((verts[1].normal    - verts[0].normal)    * bary.x) + ((verts[2].normal    - verts[0].normal)    * bary.y);
     info.color       = verts[0].color     + ((verts[1].color     - verts[0].color)     * bary.x) + ((verts[2].color     - verts[0].color)     * bary.y);
     info.metallic  = 0.0f;
@@ -178,8 +176,6 @@ SurfaceInfo get_surface_info(uint triangle_index, uint mesh_handle, float2 baryc
     
     // Transform to world space
     info.normal = mul(obj_to_world_matrix, float4(info.normal, 0)).xyz;
-    tangent     = mul(obj_to_world_matrix, float4(tangent,     0)).xyz;
-    bitangent   = mul(obj_to_world_matrix, float4(bitangent,   0)).xyz;
 
     // Apply material
     if (material_id >= 0) {
@@ -195,13 +191,18 @@ SurfaceInfo get_surface_info(uint triangle_index, uint mesh_handle, float2 baryc
 
         // Normal
         if (material.normal_texture.is_loaded != 0) {
+            float3 bitangent = verts[0].bitangent + ((verts[1].bitangent - verts[0].bitangent) * bary.x) + ((verts[2].bitangent - verts[0].bitangent) * bary.y);
+            float3 tangent   = verts[0].tangent   + ((verts[1].tangent   - verts[0].tangent)   * bary.x) + ((verts[2].tangent   - verts[0].tangent)   * bary.y);
+            tangent     = mul(obj_to_world_matrix, float4(tangent,     0)).xyz;
+            bitangent   = mul(obj_to_world_matrix, float4(bitangent,   0)).xyz;
             Texture2D<float3> tex = ResourceDescriptorHeap[NonUniformResourceIndex(material.normal_texture.id)];
             float3 tex_normal = (tex.Sample(tex_sampler, texcoord0) * 2.0f) - 1.0f;
             float3 default_normal = float3(0.0f, 0.0f, 1.0f);
             float3 interpolated_normal = lerp(default_normal, tex_normal, material.normal_intensity);
             float3x3 tbn = transpose(float3x3(tangent, bitangent, info.normal));
-            info.normal = normalize(mul(tbn, interpolated_normal));
+            info.normal = mul(tbn, interpolated_normal);
         }
+        info.normal = normalize(info.normal);
 
         // Metal & roughness
         info.metallic  = material.metallic_multiplier;

@@ -98,9 +98,6 @@ float3 fresnel_schlick(float v_dot_h, float3 f0, float roughness) {
     return f0 + (max(smooth3, f0) - f0) * pow(1.0f - v_dot_h, 5.0f);
 }
 
-float3 reflect(float3 i, float3 n) {
-    return i - 2.0 * dot(n, i) * n;     
-}
 
 float3 mix(float3 x, float3 y, float a) {
     return x * (1-a) + y * a;
