@@ -338,6 +338,7 @@ namespace gfx {
         });
         m_device->set_compute_root_constants({
             (uint32_t)input::mouse_button(input::MouseButton::right), // reset accumulation buffer
+            1, // enable anti aliasing
             4, // rays per pixel
             4, // bounces per ray
             scene->expect_root().tlas.handle.as_u32(),

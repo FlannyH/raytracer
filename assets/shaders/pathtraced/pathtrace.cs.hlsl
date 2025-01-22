@@ -1,5 +1,6 @@
 struct RootConstants {
     uint reset_acc_buffer;
+    uint enable_anti_aliasing;
     uint n_samples;
     uint n_bounces;
     uint tlas;
@@ -263,6 +264,15 @@ SurfaceInfo get_surface_info(uint triangle_index, uint mesh_handle, float2 baryc
 
 [numthreads(8, 8, 1)]
 void main(uint3 dispatch_thread_id : SV_DispatchThreadID) {
+    // Generate random number for this pixel
+    uint sample_index = 0;
+    const uint n_accum_frames = 10240;
+    uint n_sample_indices = 67 * 67 * root_constants.n_bounces * root_constants.n_samples * n_accum_frames;
+    sample_index = (sample_index * 0)                        + (dispatch_thread_id.x % 67);
+    sample_index = (sample_index * 67)                       + (dispatch_thread_id.y % 67);
+    sample_index = (sample_index * n_accum_frames)           + (root_constants.frame_index);
+    sample_index = pcg_hash(sample_index);
+
     RWTexture2D<float3> output_texture       = ResourceDescriptorHeap[NonUniformResourceIndex(root_constants.output_texture       & MASK_ID)];
     RWTexture2D<float4> accumulation_texture = ResourceDescriptorHeap[NonUniformResourceIndex(root_constants.accumulation_texture & MASK_ID)];
 
@@ -273,7 +283,14 @@ void main(uint3 dispatch_thread_id : SV_DispatchThreadID) {
     // Get normalized screen UV coordinates, from -1.0 to +1.0
     float2 resolution;
     output_texture.GetDimensions(resolution.x, resolution.y);
-    float2 uv = ((float2(dispatch_thread_id.xy) + 0.5) / resolution) * 2.0 - 1.0;
+    float2 jitter = 0.0;
+    if (root_constants.enable_anti_aliasing) {
+        jitter = float2(
+            float((sample_index >> 0) % 256) / 256.0,
+            float((sample_index >> 8) % 256) / 256.0
+        );
+    }
+    float2 uv = ((float2(dispatch_thread_id.xy) + jitter) / resolution) * 2.0 - 1.0;
     
     // Calculate view direction
     ByteAddressBuffer view_data_buffer = ResourceDescriptorHeap[NonUniformResourceIndex(root_constants.view_data_buffer & MASK_ID)];
@@ -297,6 +314,11 @@ void main(uint3 dispatch_thread_id : SV_DispatchThreadID) {
         ray.TMax = 100000.0;
         
         for (uint i = 0; i < root_constants.n_bounces * 2; ++i) {
+            // Get new random number
+            sample_index = (sample_index * root_constants.n_bounces) + (i);
+            sample_index = (sample_index * root_constants.n_samples) + (s);
+            sample_index = pcg_hash(sample_index);
+
             // Trace
             RayQuery<RAY_FLAG_FORCE_OPAQUE> ray_query;
             ray_query.TraceRayInline(tlas, 0, 0xFF, ray);
@@ -322,20 +344,6 @@ void main(uint3 dispatch_thread_id : SV_DispatchThreadID) {
             light += info.emissive * ray_tint * saturate(dot(info.normal_pbr, -ray.Direction));
             
             // todo: transparency
-
-            // Pick random vector on hemisphere around the normal vector (using the most scuffed way to generate a random sample index)
-            // todo: implement roughness and metalness
-            // todo: unscuffificate this
-            uint sample_index = 0;
-            const uint n_accum_frames = 10240;
-            uint n_sample_indices = 67 * 67 * root_constants.n_bounces * root_constants.n_samples * n_accum_frames;
-            sample_index = (sample_index * 0)                        + (dispatch_thread_id.x % 67);
-            sample_index = (sample_index * 67)                       + (dispatch_thread_id.y % 67);
-            sample_index = (sample_index * root_constants.n_bounces) + (i);
-            sample_index = (sample_index * root_constants.n_samples) + (s);
-            sample_index = (sample_index * n_accum_frames)           + (root_constants.frame_index);
-            sample_index = pcg_hash(sample_index);
-
             ray.Origin += ray_query.CommittedRayT() * ray.Direction;
 
             float3 metal3 = info.metallic;
