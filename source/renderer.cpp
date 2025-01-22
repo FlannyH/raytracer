@@ -166,7 +166,7 @@ namespace gfx {
             );
         }
 
-        static int mode = 0;
+        static int mode = 1;
         if (input::key_held(input::Key::_1)) mode = 0;
         if (input::key_held(input::Key::_2)) mode = 1;
         switch (mode) {
