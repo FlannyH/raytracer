@@ -8,12 +8,17 @@
 int main(int n_args, char** args) {
     const auto renderer = std::make_unique<gfx::Renderer>(1280, 720, true, true);
     auto scene = renderer->load_scene_gltf("assets/models/ABeautifulGame/ABeautifulGame.gltf");
-    auto cubemap = renderer->load_environment_map("assets/textures/resting_place_2_4k.hdr", 2048, 256, 1.0f);
+    auto cubemap = renderer->load_environment_map("assets/textures/hangar_interior_8k.hdr", 2048, 256, 1.0f);
     auto lights = renderer->load_scene_gltf("assets/models/lights_test.glb");
     renderer->set_skybox(cubemap);
 
     gfx::Transform camera;
+    camera.position = glm::vec3(-0.306728, 0.141196, 0.140617);
+
     glm::vec3 camera_euler_angles(0.0f);
+    camera_euler_angles = glm::vec3(-0.140000, -1.076000, 0.000000);
+    camera.rotation = glm::quat(camera_euler_angles);
+
     float move_speed = 1.0f;
     float mouse_sensitivity = 0.004f;
 
