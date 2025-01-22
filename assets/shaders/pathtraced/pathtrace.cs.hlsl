@@ -26,7 +26,8 @@ struct ViewData {
 
 struct SurfaceInfo {
     float4 color;
-    float3 normal;
+    float3 normal_pbr;
+    float3 normal_geo;
     float roughness;
     float3 emissive;
     float metallic;
@@ -91,6 +92,11 @@ sampler cube_sampler : register(s2);
 #define PI 3.14159265358979f
 #define FULLBRIGHT_NITS 200.0f
 
+template<typename T>
+T mix(T x, T y, T a) {
+    return x * (1 - a) + y * a;
+}
+
 float radical_inverse_vdc(uint bits) {
     bits = (bits << 16u) | (bits >> 16u);
     bits = ((bits & 0x55555555u) << 1u) | ((bits & 0xAAAAAAAAu) >> 1u);
@@ -113,7 +119,7 @@ float2 hammersley(uint i, uint n) {
     return float2(float(i)/float(n), radical_inverse_vdc(i));
 }
 
-float3 cosine_weighted_sample_hemisphere(float2 xi, float3 n) {
+float3 cosine_weighted_sample_diffuse(float2 xi, float3 n) {
     const float phi = 2 * PI * xi.x;
     const float cos_theta = sqrt(1.0f - xi.y);
     const float sin_theta = sqrt(xi.y);
@@ -128,6 +134,30 @@ float3 cosine_weighted_sample_hemisphere(float2 xi, float3 n) {
     const float3 tangent_x = normalize(cross(up, n));
     const float3 tangent_y = cross(n, tangent_x);
     return (tangent_x * h.x) + (tangent_y * h.y) + (n * h.z);
+}
+
+float3 cosine_weighted_sample_specular(float2 xi, float3 r, float roughness) {
+    const float a = roughness;
+
+    const float phi = 2 * PI * xi.x;
+    const float cos_theta = sqrt((1 - xi.y) / (1 + (a*a - 1) * xi.y));
+    const float sin_theta = sqrt(1 - cos_theta * cos_theta);
+
+    const float3 h = float3(
+        sin_theta * cos(phi),
+        sin_theta * sin(phi),
+        cos_theta
+    );
+
+    const float3 up = (abs(r.z) < 0.999) ? (float3(0, 0, 1)) : (float3(1, 0, 0));
+    const float3 tangent_x = normalize(cross(up, r));
+    const float3 tangent_y = cross(r, tangent_x);
+    return (tangent_x * h.x) + (tangent_y * h.y) + (r * h.z);
+}
+
+float3 fresnel_schlick(float cos_theta, float3 f0, float roughness) {
+    float3 smooth = 1.0 - roughness;
+    return f0 + (max(smooth, f0) - f0) * pow(1.0f - cos_theta, 5.0f);
 }
 
 float3 rotate_vector_by_quaternion(float3 vec, Quaternion quat) {
@@ -168,14 +198,14 @@ SurfaceInfo get_surface_info(uint triangle_index, uint mesh_handle, float2 baryc
     SurfaceInfo info;
     float2 bary = barycentric_coords;
     float2 texcoord0 = verts[0].texcoord0 + ((verts[1].texcoord0 - verts[0].texcoord0) * bary.x) + ((verts[2].texcoord0 - verts[0].texcoord0) * bary.y);
-    info.normal      = verts[0].normal    + ((verts[1].normal    - verts[0].normal)    * bary.x) + ((verts[2].normal    - verts[0].normal)    * bary.y);
+    info.normal_geo  = verts[0].normal    + ((verts[1].normal    - verts[0].normal)    * bary.x) + ((verts[2].normal    - verts[0].normal)    * bary.y);
     info.color       = verts[0].color     + ((verts[1].color     - verts[0].color)     * bary.x) + ((verts[2].color     - verts[0].color)     * bary.y);
     info.metallic  = 0.0f;
     info.roughness = 1.0f;
     info.emissive  = 0.0f;
     
     // Transform to world space
-    info.normal = mul(obj_to_world_matrix, float4(info.normal, 0)).xyz;
+    info.normal_geo = mul(obj_to_world_matrix, float4(info.normal_geo, 0)).xyz;
 
     // Apply material
     if (material_id >= 0) {
@@ -193,16 +223,21 @@ SurfaceInfo get_surface_info(uint triangle_index, uint mesh_handle, float2 baryc
         if (material.normal_texture.is_loaded != 0) {
             float3 bitangent = verts[0].bitangent + ((verts[1].bitangent - verts[0].bitangent) * bary.x) + ((verts[2].bitangent - verts[0].bitangent) * bary.y);
             float3 tangent   = verts[0].tangent   + ((verts[1].tangent   - verts[0].tangent)   * bary.x) + ((verts[2].tangent   - verts[0].tangent)   * bary.y);
-            tangent     = mul(obj_to_world_matrix, float4(tangent,     0)).xyz;
-            bitangent   = mul(obj_to_world_matrix, float4(bitangent,   0)).xyz;
+            tangent   = mul(obj_to_world_matrix, float4(tangent,   0)).xyz;
+            bitangent = mul(obj_to_world_matrix, float4(bitangent, 0)).xyz;
+
             Texture2D<float3> tex = ResourceDescriptorHeap[NonUniformResourceIndex(material.normal_texture.id)];
             float3 tex_normal = (tex.Sample(tex_sampler, texcoord0) * 2.0f) - 1.0f;
             float3 default_normal = float3(0.0f, 0.0f, 1.0f);
             float3 interpolated_normal = lerp(default_normal, tex_normal, material.normal_intensity);
-            float3x3 tbn = transpose(float3x3(tangent, bitangent, info.normal));
-            info.normal = mul(tbn, interpolated_normal);
+            float3x3 tbn = transpose(float3x3(tangent, bitangent, info.normal_geo));
+            info.normal_pbr = mul(tbn, interpolated_normal);
         }
-        info.normal = normalize(info.normal);
+        else {
+            info.normal_pbr = info.normal_geo;
+        }
+        info.normal_geo = normalize(info.normal_geo);
+        info.normal_pbr = normalize(info.normal_pbr);
 
         // Metal & roughness
         info.metallic  = material.metallic_multiplier;
@@ -260,7 +295,7 @@ void main(uint3 dispatch_thread_id : SV_DispatchThreadID) {
         ray.Direction = view_direction_ws;
         ray.TMin = 0.000;
         ray.TMax = 100000.0;
-
+        
         for (uint i = 0; i < root_constants.n_bounces; ++i) {
             // Trace
             RayQuery<RAY_FLAG_FORCE_OPAQUE> ray_query;
@@ -269,7 +304,7 @@ void main(uint3 dispatch_thread_id : SV_DispatchThreadID) {
 
             // Miss? Sample sky
             if (ray_query.CommittedStatus() == COMMITTED_NOTHING) {
-                float3 sky = sky_texture.SampleLevel(cube_sampler, normalize(ray.Direction), 0).rgb;
+                float3 sky = sky_texture.SampleLevel(cube_sampler, normalize(ray.Direction), 1).rgb;
                 light += sky * ray_tint;
                 break;
             }
@@ -279,8 +314,11 @@ void main(uint3 dispatch_thread_id : SV_DispatchThreadID) {
             uint vertex_buffer_handle = ray_query.CommittedInstanceID();
             SurfaceInfo info = get_surface_info(triangle_index, vertex_buffer_handle, ray_query.CandidateTriangleBarycentrics(), ray_query.CommittedObjectToWorld3x4());
 
+            // output_texture[dispatch_thread_id.xy].xyz = info.normal_pbr;
+            // return;
+
             // Add contribution and pick a random direction along the normal for the next ray
-            light += info.emissive * ray_tint * saturate(dot(info.normal, -ray.Direction));
+            light += info.emissive * ray_tint * saturate(dot(info.normal_pbr, -ray.Direction));
             ray_tint *= info.color.xyz;
             
             // todo: transparency
@@ -297,9 +335,23 @@ void main(uint3 dispatch_thread_id : SV_DispatchThreadID) {
             sample_index = (sample_index * root_constants.n_samples) + (s);
             sample_index = (sample_index * n_accum_frames)           + (root_constants.frame_index);
             sample_index = pcg_hash(sample_index);
+
             ray.Origin += ray_query.CommittedRayT() * ray.Direction;
-            ray.Origin += info.normal * 0.00001; // Bias against self intersection
-            ray.Direction = cosine_weighted_sample_hemisphere(hammersley(sample_index % n_sample_indices, n_sample_indices), info.normal);
+            // Diffuse
+            // ray.Direction = cosine_weighted_sample_diffuse(hammersley(sample_index % n_sample_indices, n_sample_indices), info.normal);
+
+            // Specular
+            float3 reflection = reflect(ray.Direction, info.normal_pbr);
+            float roughness = clamp(info.roughness, 0.00125, 1.0); // Low roughness values cause float precision issues
+            ray.Direction = cosine_weighted_sample_specular(hammersley(sample_index % n_sample_indices, n_sample_indices), reflection, roughness);
+            ray.Origin += ray.Direction * 0.0001; // Bias against self intersection
+
+            // fresnel for specular
+            float3 metal3 = info.metallic;
+            float3 f0_dielectric = 0.04f;
+            float3 f0 = mix(f0_dielectric, info.color.rgb, metal3);
+            float n_dot_d = saturate(dot(ray.Direction, info.normal_pbr));
+            ray_tint *= fresnel_schlick(n_dot_d, f0, roughness * roughness);
         }
     }
 
