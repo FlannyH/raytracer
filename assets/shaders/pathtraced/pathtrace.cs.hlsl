@@ -136,7 +136,7 @@ float3 cosine_weighted_sample_diffuse(float2 xi, float3 n) {
     return (tangent_x * h.x) + (tangent_y * h.y) + (n * h.z);
 }
 
-float3 cosine_weighted_sample_specular(float2 xi, float3 r, float roughness) {
+float3 importance_sample_ggx(float2 xi, float3 r, float roughness) {
     const float a = roughness;
 
     const float phi = 2 * PI * xi.x;
@@ -343,7 +343,12 @@ void main(uint3 dispatch_thread_id : SV_DispatchThreadID) {
             // Specular
             float3 reflection = reflect(ray.Direction, info.normal_pbr);
             float roughness = clamp(info.roughness, 0.00125, 1.0); // Low roughness values cause float precision issues
-            ray.Direction = cosine_weighted_sample_specular(hammersley(sample_index % n_sample_indices, n_sample_indices), reflection, roughness);
+            float2 xi = hammersley(sample_index % n_sample_indices, n_sample_indices);
+            const float3 h = importance_sample_ggx(xi, reflection, roughness);
+            float n_dot_h = saturate(dot(info.normal_pbr, h));
+            ray_tint *= n_dot_h;
+            
+            ray.Direction = h;
             ray.Origin += ray.Direction * 0.0001; // Bias against self intersection
 
             // fresnel for specular
@@ -359,6 +364,4 @@ void main(uint3 dispatch_thread_id : SV_DispatchThreadID) {
     accumulation_texture[dispatch_thread_id.xy].w += 1;
 
     output_texture[dispatch_thread_id.xy] = FULLBRIGHT_NITS * accumulation_texture[dispatch_thread_id.xy].xyz / accumulation_texture[dispatch_thread_id.xy].w;
-    // output_texture[dispatch_thread_id.xy] = accumulation_texture[dispatch_thread_id.xy].xyz / accumulation_texture[dispatch_thread_id.xy].w;
-    // output_texture[dispatch_thread_id.xy] = saturate(light / root_constants.n_samples) * 200;
 }
