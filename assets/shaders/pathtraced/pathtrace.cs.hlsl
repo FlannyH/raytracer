@@ -305,7 +305,8 @@ void main(uint3 dispatch_thread_id : SV_DispatchThreadID) {
             // Miss? Sample sky
             if (ray_query.CommittedStatus() == COMMITTED_NOTHING) {
                 float3 sky = sky_texture.SampleLevel(cube_sampler, normalize(ray.Direction), 1).rgb;
-                light += sky * ray_tint;
+                float multiplier = (i == 0) ? (0.5f) : (1.0f);
+                light += sky * ray_tint * multiplier;
                 break;
             }
 
@@ -319,7 +320,6 @@ void main(uint3 dispatch_thread_id : SV_DispatchThreadID) {
 
             // Add contribution and pick a random direction along the normal for the next ray
             light += info.emissive * ray_tint * saturate(dot(info.normal_pbr, -ray.Direction));
-            ray_tint *= info.color.xyz;
             
             // todo: transparency
 
@@ -338,15 +338,23 @@ void main(uint3 dispatch_thread_id : SV_DispatchThreadID) {
 
             ray.Origin += ray_query.CommittedRayT() * ray.Direction;
 
-            if ((dispatch_thread_id.x % 2) ^ (dispatch_thread_id.y % 2) ^ (root_constants.frame_index % 2)) {
+            float3 metal3 = info.metallic;
+            float3 f0_dielectric = 0.04f;
+            float3 f0 = mix(f0_dielectric, info.color.rgb, metal3);
+
+            uint jittered_checkerboard = ((dispatch_thread_id.x % 2) ^ (dispatch_thread_id.y % 2) ^ (root_constants.frame_index % 2));
+            float random_float = float(sample_index % 65536) / 65536.0;
+
+            if (jittered_checkerboard && random_float > info.metallic) {
                 // Diffuse
                 ray.Direction = cosine_weighted_sample_diffuse(hammersley(sample_index % n_sample_indices, n_sample_indices), info.normal_pbr);
-                ray.Origin += ray.Direction * 0.0001; // Bias against self intersection
+                ray.Origin += info.normal_geo * 0.0001; // Bias against self intersection
+                ray_tint *= info.color.rgb;
             }
             else {
                 // Specular
-                float3 reflection = reflect(ray.Direction, info.normal_pbr);
                 float roughness = clamp(info.roughness, 0.00125, 1.0); // Low roughness values cause float precision issues
+                float3 reflection = reflect(ray.Direction, info.normal_pbr);
                 float2 xi = hammersley(sample_index % n_sample_indices, n_sample_indices);
                 const float3 h = importance_sample_ggx(xi, reflection, roughness);
                 float n_dot_h = saturate(dot(info.normal_pbr, h));
@@ -356,11 +364,9 @@ void main(uint3 dispatch_thread_id : SV_DispatchThreadID) {
                 ray.Origin += ray.Direction * 0.0001; // Bias against self intersection
 
                 // fresnel for specular
-                float3 metal3 = info.metallic;
-                float3 f0_dielectric = 0.04f;
-                float3 f0 = mix(f0_dielectric, info.color.rgb, metal3);
                 float n_dot_d = saturate(dot(ray.Direction, info.normal_pbr));
-                ray_tint *= fresnel_schlick(n_dot_d, f0, roughness * roughness);
+                float3 specular_f = fresnel_schlick(n_dot_d, f0, roughness * roughness);
+                ray_tint *= specular_f;
             }
         }
     }
