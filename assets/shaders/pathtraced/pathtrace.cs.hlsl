@@ -296,7 +296,7 @@ void main(uint3 dispatch_thread_id : SV_DispatchThreadID) {
         ray.TMin = 0.000;
         ray.TMax = 100000.0;
         
-        for (uint i = 0; i < root_constants.n_bounces; ++i) {
+        for (uint i = 0; i < root_constants.n_bounces * 2; ++i) {
             // Trace
             RayQuery<RAY_FLAG_FORCE_OPAQUE> ray_query;
             ray_query.TraceRayInline(tlas, 0, 0xFF, ray);
@@ -337,30 +337,36 @@ void main(uint3 dispatch_thread_id : SV_DispatchThreadID) {
             sample_index = pcg_hash(sample_index);
 
             ray.Origin += ray_query.CommittedRayT() * ray.Direction;
-            // Diffuse
-            // ray.Direction = cosine_weighted_sample_diffuse(hammersley(sample_index % n_sample_indices, n_sample_indices), info.normal);
 
-            // Specular
-            float3 reflection = reflect(ray.Direction, info.normal_pbr);
-            float roughness = clamp(info.roughness, 0.00125, 1.0); // Low roughness values cause float precision issues
-            float2 xi = hammersley(sample_index % n_sample_indices, n_sample_indices);
-            const float3 h = importance_sample_ggx(xi, reflection, roughness);
-            float n_dot_h = saturate(dot(info.normal_pbr, h));
-            ray_tint *= n_dot_h;
-            
-            ray.Direction = h;
-            ray.Origin += ray.Direction * 0.0001; // Bias against self intersection
+            if ((dispatch_thread_id.x % 2) ^ (dispatch_thread_id.y % 2) ^ (root_constants.frame_index % 2)) {
+                // Diffuse
+                ray.Direction = cosine_weighted_sample_diffuse(hammersley(sample_index % n_sample_indices, n_sample_indices), info.normal_pbr);
+                ray.Origin += ray.Direction * 0.0001; // Bias against self intersection
+            }
+            else {
+                // Specular
+                float3 reflection = reflect(ray.Direction, info.normal_pbr);
+                float roughness = clamp(info.roughness, 0.00125, 1.0); // Low roughness values cause float precision issues
+                float2 xi = hammersley(sample_index % n_sample_indices, n_sample_indices);
+                const float3 h = importance_sample_ggx(xi, reflection, roughness);
+                float n_dot_h = saturate(dot(info.normal_pbr, h));
+                ray_tint *= n_dot_h;
+                
+                ray.Direction = h;
+                ray.Origin += ray.Direction * 0.0001; // Bias against self intersection
 
-            // fresnel for specular
-            float3 metal3 = info.metallic;
-            float3 f0_dielectric = 0.04f;
-            float3 f0 = mix(f0_dielectric, info.color.rgb, metal3);
-            float n_dot_d = saturate(dot(ray.Direction, info.normal_pbr));
-            ray_tint *= fresnel_schlick(n_dot_d, f0, roughness * roughness);
+                // fresnel for specular
+                float3 metal3 = info.metallic;
+                float3 f0_dielectric = 0.04f;
+                float3 f0 = mix(f0_dielectric, info.color.rgb, metal3);
+                float n_dot_d = saturate(dot(ray.Direction, info.normal_pbr));
+                ray_tint *= fresnel_schlick(n_dot_d, f0, roughness * roughness);
+            }
         }
     }
 
-    accumulation_texture[dispatch_thread_id.xy].xyz += light / root_constants.n_samples;
+    // * 2 because we split the diffuse and specular terms
+    accumulation_texture[dispatch_thread_id.xy].xyz += 2 * light / root_constants.n_samples;
     accumulation_texture[dispatch_thread_id.xy].w += 1;
 
     output_texture[dispatch_thread_id.xy] = FULLBRIGHT_NITS * accumulation_texture[dispatch_thread_id.xy].xyz / accumulation_texture[dispatch_thread_id.xy].w;
