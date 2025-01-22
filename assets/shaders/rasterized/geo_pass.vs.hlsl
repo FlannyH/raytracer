@@ -77,9 +77,9 @@ float4 main(in uint vertex_index : SV_VertexID, out VertexOut output) : SV_POSIT
     vert.normal.x = ((float)vert_compressed.normal_x - 127.0f) / 127.0f;
     vert.normal.y = ((float)vert_compressed.normal_y - 127.0f) / 127.0f;
     vert.normal.z = ((float)vert_compressed.normal_z - 127.0f) / 127.0f;
-    vert.tangent.x = (float)vert_compressed.tangent_x - 127.0f;
-    vert.tangent.y = (float)vert_compressed.tangent_y - 127.0f;
-    vert.tangent.z = (float)vert_compressed.tangent_z - 127.0f;
+    vert.tangent.x = (float)(vert_compressed.tangent_x - 127.0f) / 127.f;
+    vert.tangent.y = (float)(vert_compressed.tangent_y - 127.0f) / 127.f;
+    vert.tangent.z = (float)(vert_compressed.tangent_z - 127.0f) / 127.f;
     vert.tangent.w = ((float)vert_compressed.flags1_tangent_sign * 2.0f) - 1.0f;
     vert.color.r = (float) vert_compressed.color_r / 1023.0f;
     vert.color.g = (float) vert_compressed.color_g / 1023.0f;
