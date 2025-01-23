@@ -38,7 +38,7 @@ void main(uint3 dispatch_thread_id : SV_DispatchThreadID) {
     float spherical_u = atan2(dir.z, dir.x) / (2.0f * PI) + 0.5f;
     float spherical_v = asin(dir.y) / PI + 0.5f;
 
-    float4 pixel = hdri.SampleLevel(tex_sampler, float2(spherical_u, spherical_v), 0);
+    float4 pixel = hdri.SampleLevel(tex_sampler, float2(1.0 - spherical_u, spherical_v), 0);
     pixel.r = min(pixel.r, 16000.0f); // some HDRIs have very high values
     pixel.g = min(pixel.g, 16000.0f); // so to avoid blowing out the values
     pixel.b = min(pixel.b, 16000.0f); // let's clamp them to a reasonable limit
