@@ -161,6 +161,16 @@ float3 fresnel_schlick(float cos_theta, float3 f0, float roughness) {
     return f0 + (max(smooth, f0) - f0) * pow(1.0f - cos_theta, 5.0f);
 }
 
+float geometry_schlick_ggx(float n_dot_v, float roughness) {
+    float r = (roughness + 1.0);
+    float k = (r * r) / 8.0;
+
+    float num   = n_dot_v;
+    float denom = n_dot_v * (1.0 - k) + k;
+	
+    return num / denom;
+}
+
 float3 rotate_vector_by_quaternion(float3 vec, Quaternion quat) {
     float3 quat_vec = quat.xyz;
     float quat_scalar = quat.w;
@@ -374,7 +384,10 @@ void main(uint3 dispatch_thread_id : SV_DispatchThreadID) {
                 float n_dot_d = saturate(dot(ray.Direction, info.normal_pbr));
                 float3 specular_f = fresnel_schlick(n_dot_d, f0, roughness2);
 
-                ray_tint *= specular_f;
+                // Geometry
+                float g = geometry_schlick_ggx(n_dot_d, roughness2);
+
+                ray_tint *= specular_f * g;
             }
         }
     }
