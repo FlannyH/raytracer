@@ -310,10 +310,11 @@ void main(uint3 dispatch_thread_id : SV_DispatchThreadID) {
         float3 ray_tint = 1.0;
         ray.Origin = view_data.camera_world_position;
         ray.Direction = view_direction_ws;
-        ray.TMin = 0.000;
-        ray.TMax = 100000.0;
         
-        for (uint i = 0; i < root_constants.n_bounces * 2; ++i) {
+        for (uint i = 0; i < root_constants.n_bounces; ++i) {
+            ray.TMin = 0.000;
+            ray.TMax = 100000.0;
+
             // Get new random number
             sample_index = (sample_index * root_constants.n_bounces) + (i);
             sample_index = (sample_index * root_constants.n_samples) + (s);
@@ -326,7 +327,7 @@ void main(uint3 dispatch_thread_id : SV_DispatchThreadID) {
 
             // Miss? Sample sky
             if (ray_query.CommittedStatus() == COMMITTED_NOTHING) {
-                float3 sky = sky_texture.SampleLevel(cube_sampler, normalize(ray.Direction), 1).rgb;
+                float3 sky = sky_texture.SampleLevel(cube_sampler, normalize(ray.Direction), 0).rgb;
                 float multiplier = (i == 0) ? (0.5f) : (1.0f);
                 light += sky * ray_tint * multiplier;
                 break;
@@ -361,19 +362,18 @@ void main(uint3 dispatch_thread_id : SV_DispatchThreadID) {
             }
             else {
                 // Specular
-                float roughness = clamp(info.roughness, 0.00125, 1.0); // Low roughness values cause float precision issues
                 float3 reflection = reflect(ray.Direction, info.normal_pbr);
                 float2 xi = hammersley(sample_index % n_sample_indices, n_sample_indices);
-                const float3 h = importance_sample_ggx(xi, reflection, roughness);
-                float n_dot_h = saturate(dot(info.normal_pbr, h));
-                ray_tint *= n_dot_h;
-                
-                ray.Direction = h;
+
+                // Low roughness values cause float precision issues, which results in NaNs
+                float roughness2 = clamp(info.roughness * info.roughness, 0.01, 1.0); 
+                ray.Direction = importance_sample_ggx(xi, reflection, roughness2);
                 ray.Origin += ray.Direction * 0.0001; // Bias against self intersection
 
-                // fresnel for specular
+                // Fresnel
                 float n_dot_d = saturate(dot(ray.Direction, info.normal_pbr));
-                float3 specular_f = fresnel_schlick(n_dot_d, f0, roughness * roughness);
+                float3 specular_f = fresnel_schlick(n_dot_d, f0, roughness2);
+
                 ray_tint *= specular_f;
             }
         }
