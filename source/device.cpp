@@ -19,7 +19,7 @@
 #include "fence.h"
 #include <winerror.h>
 
-#define MAX_QUERY_COUNT 128
+#define MAX_QUERY_COUNT 1024
 #define DEBUG_PRINT_GPU_PROFILING 0
 
 namespace gfx {

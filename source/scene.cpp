@@ -327,8 +327,8 @@ namespace gfx {
                 (void*)image_gltf->image.data(),
                 pixel_format_from_gltf_image(*image_gltf),
                 TextureType::tex_2d,
-                ResourceUsage::none,
-                false // todo: implement mipmapping and set this to true
+                ResourceUsage::compute_write, // in case we want to do any corrections
+                true
             );
         }
         
@@ -387,6 +387,13 @@ namespace gfx {
             auto normal_texture = upload_texture_from_gltf(path, model, renderer, model_material.normalTexture.index);
             auto metal_roughness_texture = upload_texture_from_gltf(path, model, renderer, model_material.pbrMetallicRoughness.metallicRoughnessTexture.index);
             auto emissive_texture = upload_texture_from_gltf(path, model, renderer, model_material.emissiveTexture.index);
+
+            if (normal_texture.handle.is_loaded) renderer.reconstruct_normal_map(normal_texture);
+
+            renderer.generate_mipmaps(color_texture);
+            renderer.generate_mipmaps(normal_texture);
+            renderer.generate_mipmaps(metal_roughness_texture);
+            renderer.generate_mipmaps(emissive_texture);
 
             // Populate material struct
             if (model_material.pbrMetallicRoughness.baseColorFactor.size() == 4) {

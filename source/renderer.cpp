@@ -51,6 +51,7 @@ namespace gfx {
         m_pipeline_downsample = m_device->create_compute_pipeline("Downsample texture" ,"assets/shaders/pre/downsample.cs.hlsl");
         m_pipeline_ssao = m_device->create_compute_pipeline("SSAO" ,"assets/shaders/post/ssao.cs.hlsl");
         m_pipeline_pathtrace = m_device->create_compute_pipeline("Pathtrace" ,"assets/shaders/pathtraced/pathtrace.cs.hlsl");
+        m_pipeline_reconstruct_normal_map = m_device->create_compute_pipeline("Reconstruct normal map Z component" ,"assets/shaders/pre/reconstruct_normal_map.cs.hlsl");
         
         LOG(Debug, "Creating buffers");
         m_material_buffer = m_device->create_buffer("Material descriptions", MAX_MATERIAL_COUNT * sizeof(Material), nullptr, ResourceUsage::cpu_writable);
@@ -370,13 +371,13 @@ namespace gfx {
         stbi__vertically_flip_on_load = 0;
         int width, height, channels;
         uint8_t* data = stbi_load(path.c_str(), &width, &height, &channels, 4);
-        auto texture = load_texture(path, width, height, 1, data, PixelFormat::rgba8_unorm, TextureType::tex_2d, ResourceUsage::none, false); // todo: implement mipmapping and set this to true
+        auto texture = load_texture(path, width, height, 1, data, PixelFormat::rgba8_unorm, TextureType::tex_2d, ResourceUsage::compute_write, true); // todo: implement mipmapping and set this to true
         stbi_image_free(data);
         return texture;
     }
 
-    ResourceHandlePair Renderer::load_texture(const std::string& name, uint32_t width, uint32_t height, uint32_t depth, void* data, PixelFormat pixel_format, TextureType type, ResourceUsage usage, bool generate_mips) {
-        ResourceHandlePair texture = m_device->load_texture(name, width, height, depth, data, pixel_format, type, usage, generate_mips);
+    ResourceHandlePair Renderer::load_texture(const std::string& name, uint32_t width, uint32_t height, uint32_t depth, void* data, PixelFormat pixel_format, TextureType type, ResourceUsage usage, bool allocate_mips) {
+        ResourceHandlePair texture = m_device->load_texture(name, width, height, depth, data, pixel_format, type, usage, allocate_mips ? 999 : 1);
         m_resources[texture.handle.id] = texture.resource;
         return texture;
     }
@@ -405,6 +406,71 @@ namespace gfx {
         add_and_align(padded_width, (uint32_t)0, (uint32_t)8);
         add_and_align(padded_height, (uint32_t)0, (uint32_t)8);
         m_device->resize_texture(texture, padded_width, padded_height);
+    }
+
+    void Renderer::generate_mipmaps(ResourceHandlePair& texture) {
+            if (!texture.handle.is_loaded) return;
+
+            // Downsample base texture to mip 1
+            uint32_t target_width = texture.resource->expect_texture().width / 2;
+            uint32_t target_height = texture.resource->expect_texture().height / 2;
+            
+            uint32_t target_depth = texture.resource->expect_texture().depth;
+            if (target_depth > 1) {
+                LOG(Warning, "Mip generation only supported for 2D textures for now!");
+            }
+            m_device->begin_compute_pass(m_pipeline_downsample, true);
+            m_device->use_resources({
+                { texture, ResourceUsage::non_pixel_shader_read, 0 },
+                { texture, ResourceUsage::compute_write, 1 }
+            });
+            m_device->set_compute_root_constants({
+                texture.handle.as_u32_uav(),
+                texture.resource->subresource_handles[0].as_u32_uav(),
+                target_width, target_height,
+                4, // RGBA, so 4 components
+                0, // only support 2D for now
+            });
+            m_device->dispatch_threadgroups((target_width + 7) / 8, (target_height + 7) / 8, 1);
+
+            uint32_t i = 0;
+            while (true) {
+                target_width /= 2;
+                target_height /= 2;
+                ++i;
+                if (target_width <= 1 && target_height <= 1) break;
+                if (i >= texture.resource->subresource_handles.size()) break;
+
+                m_device->use_resources({
+                    { texture, ResourceUsage::non_pixel_shader_read, i },
+                    { texture, ResourceUsage::compute_write, i+1 }
+                });
+                m_device->set_compute_root_constants({
+                    texture.resource->subresource_handles[i-1].as_u32_uav(),
+                    texture.resource->subresource_handles[i].as_u32_uav(),
+                    target_width, target_height,
+                    4, // RGBA, so 4 components
+                    0, // only support 2D for now
+                });
+                m_device->dispatch_threadgroups((target_width + 7) / 8, (target_height + 7) / 8, 1);
+            }
+
+            m_device->end_compute_pass();
+    }
+
+    void Renderer::reconstruct_normal_map(ResourceHandlePair& texture) {
+        const uint32_t width = texture.resource->expect_texture().width;
+        const uint32_t height = texture.resource->expect_texture().height;
+        m_device->begin_compute_pass(m_pipeline_reconstruct_normal_map, true);
+        m_device->use_resources({
+            { texture, ResourceUsage::compute_write }
+        });
+        m_device->set_compute_root_constants({
+            texture.handle.as_u32_uav(),
+            width, height
+        });
+        m_device->dispatch_threadgroups((width + 7 / 8), (height + 7 / 8), 1);
+        m_device->end_compute_pass();
     }
 
     std::pair<int, Material*> Renderer::allocate_material_slot() {
