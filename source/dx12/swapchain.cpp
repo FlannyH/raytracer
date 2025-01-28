@@ -7,7 +7,7 @@
 #include "fence.h"
 
 namespace gfx {
-    Swapchain::Swapchain(const Device& device, const CommandQueue& queue, DescriptorHeap& rtv_heap, PixelFormat format) {
+    Swapchain::Swapchain(const DeviceDx12& device, const CommandQueue& queue, DescriptorHeap& rtv_heap, PixelFormat format) {
         device.get_window_size(m_width, m_height);
 
         const DXGI_SWAP_CHAIN_DESC1 swapchain_desc = {
@@ -134,7 +134,7 @@ namespace gfx {
         m_fence->cpu_wait(m_frame_index + 1);
     }
 
-    void Swapchain::resize(Device& device, std::shared_ptr<CommandQueue> queue, DescriptorHeap& rtv_heap, uint32_t width, uint32_t height, PixelFormat format) {
+    void Swapchain::resize(DeviceDx12& device, std::shared_ptr<CommandQueue> queue, DescriptorHeap& rtv_heap, uint32_t width, uint32_t height, PixelFormat format) {
         LOG(Debug, "Resizing swapchain: %ix%i -> %ix%i", m_width, m_height, width, height);
         m_width = width;
         m_height = height;
@@ -144,7 +144,7 @@ namespace gfx {
         get_back_buffers(device, rtv_heap);
     }
 
-    void Swapchain::get_back_buffers(const Device& device, DescriptorHeap& rtv_heap) {
+    void Swapchain::get_back_buffers(const DeviceDx12& device, DescriptorHeap& rtv_heap) {
         // Create render targets
         for (UINT i = 0; i < backbuffer_count; i++) {
             // Allocate descriptor

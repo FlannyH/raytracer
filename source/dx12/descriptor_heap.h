@@ -2,14 +2,14 @@
 #include <d3d12.h>
 #include <queue>
 
-#include "common.h"
-#include "resource.h"
+#include "../common.h"
+#include "../resource.h"
 
 namespace gfx {
-    struct Device;
+    struct DeviceDx12;
 
     struct DescriptorHeap {
-        DescriptorHeap(const Device& device, D3D12_DESCRIPTOR_HEAP_TYPE type, D3D12_DESCRIPTOR_HEAP_FLAGS flags, uint32_t n_descriptors);
+        DescriptorHeap(const DeviceDx12& device, D3D12_DESCRIPTOR_HEAP_TYPE type, D3D12_DESCRIPTOR_HEAP_FLAGS flags, uint32_t n_descriptors);
         ResourceHandle alloc_descriptor(ResourceType type);
         void free_descriptor(ResourceHandle id);
         D3D12_CPU_DESCRIPTOR_HANDLE fetch_cpu_handle(const ResourceHandle& id);

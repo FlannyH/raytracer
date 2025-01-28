@@ -5,7 +5,7 @@
 #include <dxgi1_6.h>
 #include <wrl.h>
 
-#include "common.h"
+#include "../common.h"
 #include "pipeline.h"
 #include "command_buffer.h"
 

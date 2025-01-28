@@ -1,14 +1,14 @@
 #pragma once
 #include <d3d12.h>
 
-#include "common.h"
+#include "../common.h"
 
 namespace gfx {
     struct CommandQueue;
-    struct Device;
+    struct DeviceDx12;
 
     struct Fence {
-        explicit Fence(const Device& device);
+        explicit Fence(const DeviceDx12& device);
         ~Fence();
         void cpu_wait(size_t value);
         void cpu_signal(size_t value) const;

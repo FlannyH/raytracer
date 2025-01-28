@@ -3,7 +3,7 @@
 #include <deque>
 #include <memory>
 
-#include "common.h"
+#include "../common.h"
 
 namespace gfx {
     struct Device;

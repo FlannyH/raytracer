@@ -60,55 +60,52 @@ namespace gfx {
     struct Device {
     public:
         // Initialization
-        Device(int width, int height, bool debug_layer_enabled, bool gpu_profiling_enabled);
-        ~Device();
+        Device() = default;
+        virtual ~Device() = default;
         Device(const Device&) = delete;
-        Device& operator=(const Device&) = delete;
-        void resize_window(int width, int height) const;
-        void get_window_size(int& width, int& height) const;
+        virtual Device& operator=(const Device&) = delete;
+        virtual void resize_window(int width, int height) const = 0;
+        virtual void get_window_size(int& width, int& height) const = 0;
 
         // Common rendering
-        bool should_stay_open();
-        void set_full_screen(bool full_screen);
-        void begin_frame();
-        void end_frame();
-        void set_graphics_root_constants(const std::vector<uint32_t>& constants);
-        void set_compute_root_constants(const std::vector<uint32_t>& constants);
-        int frame_index();
-        bool supports(RendererFeature feature);
+        virtual bool should_stay_open() = 0;
+        virtual void set_full_screen(bool full_screen) = 0;
+        virtual void begin_frame() = 0;
+        virtual void end_frame() = 0;
+        virtual void set_graphics_root_constants(const std::vector<uint32_t>& constants) = 0;
+        virtual void set_compute_root_constants(const std::vector<uint32_t>& constants) = 0;
+        virtual int frame_index() = 0;
+        virtual bool supports(RendererFeature feature) = 0;
 
         // Rasterization
-        std::shared_ptr<Pipeline> create_raster_pipeline(const std::string& name, const std::string& vertex_shader_path, const std::string& pixel_shader_path, const std::initializer_list<ResourceHandlePair> render_targets, const ResourceHandlePair depth_target = { ResourceHandle::none(), nullptr });
-        void begin_raster_pass(std::shared_ptr<Pipeline> pipeline, RasterPassInfo&& render_pass_info);
-        void end_raster_pass();
-        void draw_vertices(uint32_t n_vertices);
+        virtual std::shared_ptr<Pipeline> create_raster_pipeline(const std::string& name, const std::string& vertex_shader_path, const std::string& pixel_shader_path, const std::initializer_list<ResourceHandlePair> render_targets, const ResourceHandlePair depth_target = { ResourceHandle::none(), nullptr }) = 0;        virtual void begin_raster_pass(std::shared_ptr<Pipeline> pipeline, RasterPassInfo&& render_pass_info) = 0;
+        virtual void end_raster_pass() = 0;
+        virtual void draw_vertices(uint32_t n_vertices) = 0;
 
         // Compute
-        std::shared_ptr<Pipeline> create_compute_pipeline(const std::string& name, const std::string& compute_shader_path);
-        void begin_compute_pass(std::shared_ptr<Pipeline> pipeline, bool async = false);
-        void end_compute_pass();
-        void dispatch_threadgroups(uint32_t x, uint32_t y, uint32_t z);
+        virtual std::shared_ptr<Pipeline> create_compute_pipeline(const std::string& name, const std::string& compute_shader_path) = 0;
+        virtual void begin_compute_pass(std::shared_ptr<Pipeline> pipeline, bool async = false) = 0;
+        virtual void end_compute_pass() = 0;
+        virtual void dispatch_threadgroups(uint32_t x, uint32_t y, uint32_t z) = 0;
 
         // Resource management
-        ResourceHandlePair load_texture(const std::string &name, uint32_t width, uint32_t height, uint32_t depth, void *data, PixelFormat pixel_format, TextureType type, ResourceUsage usage = ResourceUsage::none, int max_mip_levels = 1, int min_resolution = 1); // Load a texture from memory
-        ResourceHandlePair load_mesh(const std::string& name, uint64_t n_triangles, Triangle* tris);
-        ResourceHandlePair create_buffer(const std::string& name, size_t size, void* data, ResourceUsage usage = ResourceUsage::none);
-        ResourceHandlePair create_render_target(const std::string& name, uint32_t width, uint32_t height, PixelFormat pixel_format, std::optional<glm::vec4> clear_color = glm::vec4(0.0f, 0.0f, 0.0f, 1.0f), ResourceUsage extra_usage = ResourceUsage::none);
-        ResourceHandlePair create_depth_target(const std::string& name, uint32_t width, uint32_t height, PixelFormat pixel_format, float clear_value = 1.0f);
-        void resize_texture(ResourceHandlePair& texture, const uint32_t width, const uint32_t height);
-        void update_buffer(const ResourceHandlePair& buffer, const uint32_t offset, const uint32_t n_bytes, const void* data);
-        void readback_buffer(const ResourceHandlePair& buffer, const uint32_t offset, const uint32_t n_bytes, void* destination);
-        void queue_unload_bindless_resource(ResourceHandlePair resource);
-        void use_resource(const ResourceHandlePair& resource, const ResourceUsage usage = ResourceUsage::read);
-        void use_resources(const std::initializer_list<ResourceTransitionInfo>& resources);
+        virtual ResourceHandlePair load_texture(const std::string &name, uint32_t width, uint32_t height, uint32_t depth, void *data, PixelFormat pixel_format, TextureType type, ResourceUsage usage = ResourceUsage::none, int max_mip_levels = 1, int min_resolution = 1) = 0; // Load a texture from memory
+        virtual ResourceHandlePair load_mesh(const std::string& name, uint64_t n_triangles, Triangle* tris) = 0;
+        virtual ResourceHandlePair create_buffer(const std::string& name, size_t size, void* data, ResourceUsage usage = ResourceUsage::none) = 0;
+        virtual ResourceHandlePair create_render_target(const std::string& name, uint32_t width, uint32_t height, PixelFormat pixel_format, std::optional<glm::vec4> clear_color = glm::vec4(0.0f, 0.0f, 0.0f, 1.0f), ResourceUsage extra_usage = ResourceUsage::none) = 0;
+        virtual ResourceHandlePair create_depth_target(const std::string& name, uint32_t width, uint32_t height, PixelFormat pixel_format, float clear_value = 1.0f) = 0;
+        virtual void resize_texture(ResourceHandlePair& texture, const uint32_t width, const uint32_t height) = 0;
+        virtual void update_buffer(const ResourceHandlePair& buffer, const uint32_t offset, const uint32_t n_bytes, const void* data) = 0;
+        virtual void readback_buffer(const ResourceHandlePair& buffer, const uint32_t offset, const uint32_t n_bytes, void* destination) = 0;
+        virtual void queue_unload_bindless_resource(ResourceHandlePair resource) = 0;
+        virtual void use_resource(const ResourceHandlePair& resource, const ResourceUsage usage = ResourceUsage::read) = 0;
+        virtual void use_resources(const std::initializer_list<ResourceTransitionInfo>& resources) = 0;
 
         // Raytracing resources
-        ResourceHandlePair create_acceleration_structure(const std::string& name, const size_t size);
-        ResourceHandlePair create_blas(const std::string& name, const ResourceHandlePair& position_buffer, const ResourceHandlePair& index_buffer, const uint32_t vertex_count, const uint32_t index_count);
-        ResourceHandlePair create_tlas(const std::string& name, const std::vector<RaytracingInstance>& instances);
+        virtual ResourceHandlePair create_acceleration_structure(const std::string& name, const size_t size) = 0;
+        virtual ResourceHandlePair create_blas(const std::string& name, const ResourceHandlePair& position_buffer, const ResourceHandlePair& index_buffer, const uint32_t vertex_count, const uint32_t index_count) = 0;
+        virtual ResourceHandlePair create_tlas(const std::string& name, const std::vector<RaytracingInstance>& instances) = 0;
 
-        ComPtr<ID3D12Device> device = nullptr;
-        ComPtr<IDXGIFactory4> factory = nullptr;
         HWND window_hwnd = nullptr;
 
     private:

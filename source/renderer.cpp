@@ -1,5 +1,6 @@
 #include "renderer.h"
 #include "scene.h"
+#include "dx12/device.h"
 
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb/stb_image.h>
@@ -19,7 +20,7 @@ namespace gfx {
 
     // Initialisation and state
     Renderer::Renderer(int width, int height, bool debug_layer_enabled, bool gpu_profiling_enabled) {
-        m_device = std::make_unique<Device>(width, height, debug_layer_enabled, gpu_profiling_enabled);
+        m_device = std::make_unique<DeviceDx12>(width, height, debug_layer_enabled, gpu_profiling_enabled);
 
         LOG(Debug, "Creating framebuffers");
         m_position_target = m_device->create_render_target("Position framebuffer", width, height, PixelFormat::rgba32_float, glm::vec4(0.0f, 0.0f, 9999999.0f, 0.0f), ResourceUsage::compute_write);

@@ -9,7 +9,7 @@ namespace gfx {
         std::optional<uint32_t> compute_family;
     };
 
-    Device::Device(const int width, const int height, const bool debug_layer_enabled, const bool gpu_profiling_enabled) {
+    DeviceVk::DeviceVk(const int width, const int height, const bool debug_layer_enabled, const bool gpu_profiling_enabled) {
         const std::array<const char*, 1> device_extensions_to_enable = {
             "VK_KHR_swapchain"
         };

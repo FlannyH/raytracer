@@ -2,7 +2,7 @@
 #include <cassert>
 #include <d3d12.h>
 
-#include "common.h"
+#include "../common.h"
 
 #include "command_queue.h"
 
@@ -10,7 +10,6 @@ namespace gfx {
     struct Fence;
     enum class CommandBufferType;
     struct CommandQueue;
-    struct Device;
 
     struct CommandBuffer {
         CommandBuffer(ID3D12Device* device, ID3D12PipelineState* pipeline_state, CommandBufferType type, uint64_t fence_value_when_done);
