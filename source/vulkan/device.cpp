@@ -130,120 +130,154 @@ namespace gfx {
     }
     
     Device::~Device() {
+        TODO();
     }
 
     void Device::resize_window(const int width, const int height) const {
+        TODO();
     }
 
     void Device::get_window_size(int& width, int& height) const {
+        TODO();
     }
 
     std::shared_ptr<Pipeline> Device::create_raster_pipeline(const std::string& name, const std::string& vertex_shader_path, const std::string& pixel_shader_path, const std::initializer_list<ResourceHandlePair> render_targets, const ResourceHandlePair depth_target) {
+        TODO();
         return nullptr;
     }
 
     std::shared_ptr<Pipeline> Device::create_compute_pipeline(const std::string& name, const std::string& compute_shader_path) {
+        TODO();
         return nullptr;
     }
 
     void Device::begin_frame() {
+        TODO();
     }
 
     void Device::end_frame() {
+        TODO();
         glfwPollEvents();
         glfwSwapBuffers(m_window_glfw);
     }
 
     void Device::set_graphics_root_constants(const std::vector<uint32_t>& constants) {
+        TODO();
     }
 
     void Device::set_compute_root_constants(const std::vector<uint32_t>& constants) {
+        TODO();
     }
 
     int Device::frame_index() {
+        TODO();
         return -1;
     }
 
     bool Device::supports(RendererFeature feature) {
+        TODO();
         return false;
     }
 
     void Device::begin_raster_pass(std::shared_ptr<Pipeline> pipeline, RasterPassInfo&& render_pass_info) {
+        TODO();
     }
 
     void Device::end_raster_pass() {
+        TODO();
     }
 
     void Device::begin_compute_pass(std::shared_ptr<Pipeline> pipeline, bool async) {
+        TODO();
     }
 
     void Device::end_compute_pass() {
+        TODO();
     }
 
     void Device::dispatch_threadgroups(uint32_t x, uint32_t y, uint32_t z) {
+        TODO();
     }
 
     void Device::draw_vertices(uint32_t n_vertices) {
+        TODO();
     }
 
     ResourceHandlePair Device::load_texture(const std::string& name, uint32_t width, uint32_t height, uint32_t depth, void* data, PixelFormat pixel_format, TextureType type, ResourceUsage usage, int max_mip_levels, int min_resolution) {
+        TODO();
         return {};
     }
 
     ResourceHandlePair Device::load_mesh(const std::string& name, const uint64_t n_triangles, Triangle* tris) {
+        TODO();
         return {};
     }
 
     void debug_scene_graph_nodes(SceneNode* node, int depth = 0) {
+        TODO();
     }
 
     ResourceHandlePair Device::create_buffer(const std::string& name, const size_t size, void* data, ResourceUsage usage) {
+        TODO();
         return {};
     }
 
     ResourceHandlePair Device::create_render_target(const std::string& name, uint32_t width, uint32_t height, PixelFormat pixel_format, std::optional<glm::vec4> clear_color, ResourceUsage extra_usage) {
+        TODO();
         return {};
     }
 
     ResourceHandlePair Device::create_depth_target(const std::string& name, uint32_t width, uint32_t height, PixelFormat pixel_format, float clear_depth) {
+        TODO();
         return {};
     }
 
     void Device::resize_texture(ResourceHandlePair& handle, const uint32_t width, const uint32_t height) {
+        TODO();
     }
 
     void Device::update_buffer(const ResourceHandlePair& buffer, const uint32_t offset, const uint32_t n_bytes, const void* data) {
+        TODO();
     }
 
     void Device::readback_buffer(const ResourceHandlePair& buffer, const uint32_t offset, const uint32_t n_bytes, void* destination) {
+        TODO();
     }
 
     void Device::queue_unload_bindless_resource(ResourceHandlePair resource) {
+        TODO();
     }
 
     D3D12_RESOURCE_STATES resource_usage_to_dx12_state(ResourceUsage usage) {
+        TODO();
         return {};
     }
 
     void Device::use_resource(const ResourceHandlePair &resource, const ResourceUsage usage) {
+        TODO();
     }
 
     void Device::use_resources(const std::initializer_list<ResourceTransitionInfo>& resources) {
+        TODO();
     }
 
     ResourceHandlePair Device::create_acceleration_structure(const std::string& name, const size_t size) {
+        TODO();
         return {};
     }
 
     ResourceHandlePair Device::create_blas(const std::string& name, const ResourceHandlePair& position_buffer, const ResourceHandlePair& index_buffer, const uint32_t vertex_count, const uint32_t index_count) {
+        TODO();
         return {};
     }
 
     ResourceHandlePair Device::create_tlas(const std::string& name, const std::vector<RaytracingInstance>& instances) {
+        TODO();
         return {};
     }
 
     void Device::transition_resource(std::shared_ptr<CommandBuffer> cmd, std::shared_ptr<Resource> resource, D3D12_RESOURCE_STATES new_state, uint32_t subresource) {
+        TODO();
     }
 
     bool Device::should_stay_open() {
@@ -251,19 +285,24 @@ namespace gfx {
     }
 
     void Device::set_full_screen(bool full_screen) {
+        TODO();
     }
 
     int Device::find_dominant_monitor() {
+        TODO();
         return -1;
     }
 
     void Device::clean_up_old_resources() {
+        TODO();
     }
     
     void Device::execute_resource_transitions(std::shared_ptr<CommandBuffer> cmd) {
+        TODO();
     }
     
     ID3D12Device5* Device::device5() {
+        TODO();
         return nullptr;
     }
 }

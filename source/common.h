@@ -11,7 +11,7 @@ constexpr UINT backbuffer_count = 3;
 
 #define validate(hr) \
     if (FAILED(hr)) { \
-        LOG(Error, "%s:%i: HRESULT 0x%08X", __FILE__, __LINE__, hr); \
+        LOG(Error, "%s(%i): HRESULT 0x%08X", __FILE__, __LINE__, hr); \
         throw std::exception(); \
     }
 
@@ -64,3 +64,5 @@ void add_and_align(T& destination, const T value_to_add, const T alignment) {
     destination += (alignment - 1);
     destination -= (destination % alignment);
 }
+
+#define TODO() { LOG(Info, "%s(%i): TODO", __FILE__, __LINE__); exit(1); }
