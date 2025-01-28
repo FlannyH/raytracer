@@ -115,11 +115,7 @@ namespace gfx {
         // Update materials
         if (m_should_update_material_buffer) {
             m_should_update_material_buffer = false;
-            char* mapped_material_buffer = nullptr;
-            const D3D12_RANGE read_range = { 0, 0 };
-            validate(m_material_buffer.resource->handle->Map(0, &read_range, (void**)&mapped_material_buffer));
-            memcpy(mapped_material_buffer, m_materials.data(), m_materials.size() * sizeof(Material));
-            m_material_buffer.resource->handle->Unmap(0, &read_range);
+            m_device->update_buffer(m_material_buffer, 0, m_materials.size() * sizeof(Material), m_materials.data());
         }
         m_draw_packet_cursor = 0;
 
@@ -802,7 +798,6 @@ namespace gfx {
     }
 
     uint32_t Renderer::create_draw_packet(const void* data, uint32_t size_bytes) {
-        auto reason = m_device->device->GetDeviceRemovedReason();
         // Allocate data in the draw packets buffer
         assert(((m_draw_packet_cursor + size_bytes) < DRAW_PACKET_BUFFER_SIZE) && "Failed to allocate draw packet: buffer overflow!");
 
