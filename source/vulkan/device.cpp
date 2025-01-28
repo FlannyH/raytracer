@@ -1,9 +1,132 @@
 #include "../device.h"
 
 #include <array>
+#include "../input.h"
 
 namespace gfx {
+    struct QueueFamilyIndices {
+        std::optional<uint32_t> graphics_family;
+        std::optional<uint32_t> compute_family;
+    };
+
     Device::Device(const int width, const int height, const bool debug_layer_enabled, const bool gpu_profiling_enabled) {
+        const std::array<const char*, 1> device_extensions_to_enable = {
+            "VK_KHR_swapchain"
+        };
+
+        glfwInit();
+        
+        uint32_t n_instance_extensions_to_enable = 0;
+        const char** instance_extensions_to_enable = glfwGetRequiredInstanceExtensions(&n_instance_extensions_to_enable);
+
+        if (!glfwVulkanSupported()) {
+            LOG(Fatal, "GLFW reports Vulkan is not supported on this system.");
+            return;
+        }
+
+        for (uint32_t i = 0; i < n_instance_extensions_to_enable; ++i) {
+            LOG(Debug, "Required instance extension: %s", instance_extensions_to_enable[i]);
+        }
+
+        VkInstanceCreateInfo instance_create_info{ VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO };
+        instance_create_info.enabledExtensionCount = n_instance_extensions_to_enable;
+        instance_create_info.ppEnabledExtensionNames = instance_extensions_to_enable;
+
+        if (debug_layer_enabled) {
+            const std::array<const char*, 0> debug_layers_to_enable = {
+                // todo: take a proper look at validation layers
+                // "VK_LAYER_KHRONOS_validation",
+            };
+            instance_create_info.enabledLayerCount = debug_layers_to_enable.size();
+            instance_create_info.ppEnabledLayerNames = debug_layers_to_enable.data();
+        }
+        else {
+            instance_create_info.enabledLayerCount = 0;
+            instance_create_info.ppEnabledLayerNames = nullptr;
+        }
+
+        VkInstance instance;
+        VkResult result;
+        result = vkCreateInstance(&instance_create_info, nullptr, &instance);
+        if (result != VK_SUCCESS) {
+            LOG(Fatal, "Failed to create Vulkan instance");
+            LOG(Debug, "VkResult: 0x%08x (%i)\n", result, result);
+            return;
+        }
+
+        glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
+        m_window_glfw = glfwCreateWindow(width, height, "Ray Tracer (Vulkan)", nullptr, nullptr);
+
+        VkSurfaceKHR surface;
+        result = glfwCreateWindowSurface(instance, m_window_glfw, NULL, &surface);
+        if (result != VK_SUCCESS) {
+            LOG(Fatal, "Failed to create window surface");
+            LOG(Debug, "VkResult: 0x%08x (%i)\n", result, result);
+            return;
+        }
+
+        uint32_t n_physical_devices = 0;
+        vkEnumeratePhysicalDevices(instance, &n_physical_devices, nullptr);
+
+        if (n_physical_devices == 0) {
+            LOG(Fatal, "Failed to find GPU with Vulkan support");
+            return;
+        }
+
+        std::vector<VkPhysicalDevice> physical_devices(n_physical_devices);
+        vkEnumeratePhysicalDevices(instance, &n_physical_devices, physical_devices.data());
+
+        VkDevice device;
+
+        for (auto& physical_device : physical_devices) {
+            VkPhysicalDeviceProperties device_properties;
+            vkGetPhysicalDeviceProperties(physical_device, &device_properties);
+
+            if (device_properties.deviceType != VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU) continue;
+
+            uint32_t n_queue_family_properties = 0;
+            vkGetPhysicalDeviceQueueFamilyProperties(physical_device, &n_queue_family_properties, nullptr);
+
+            std::vector<VkQueueFamilyProperties> queue_family_properties(n_queue_family_properties);
+            vkGetPhysicalDeviceQueueFamilyProperties(physical_device, &n_queue_family_properties, queue_family_properties.data());
+
+            QueueFamilyIndices indices{};
+            for (int i = 0; i < n_queue_family_properties; ++i) {
+                const auto& family = queue_family_properties[i];
+                if (family.queueFlags & VK_QUEUE_GRAPHICS_BIT) indices.graphics_family = i;
+                if (family.queueFlags & VK_QUEUE_COMPUTE_BIT)  indices.compute_family =  i;
+            }
+
+            const float queue_priority_graphics = 1.0f;
+            const float queue_priority_compute = 0.8f;
+
+            std::array<VkDeviceQueueCreateInfo, 2> device_queue_create_info = {{
+                VkDeviceQueueCreateInfo { 
+                    .sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
+                    .queueFamilyIndex = indices.graphics_family.value(),
+                    .queueCount = 1,
+                    .pQueuePriorities = &queue_priority_graphics,
+                },
+                VkDeviceQueueCreateInfo {        
+                    .sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
+                    .queueFamilyIndex = indices.compute_family.value(),
+                    .queueCount = 1,
+                    .pQueuePriorities = &queue_priority_compute,
+                }
+            }};
+
+            VkDeviceCreateInfo device_create_info{ VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO };
+            device_create_info.queueCreateInfoCount = device_queue_create_info.size();
+            device_create_info.pQueueCreateInfos = device_queue_create_info.data();
+            device_create_info.enabledExtensionCount = device_extensions_to_enable.size();
+            device_create_info.ppEnabledExtensionNames = device_extensions_to_enable.data();
+
+            vkCreateDevice(physical_device, &device_create_info, nullptr, &device);
+
+            input::init(m_window_glfw);
+
+            break;
+        }
     }
     
     Device::~Device() {
@@ -27,6 +150,8 @@ namespace gfx {
     }
 
     void Device::end_frame() {
+        glfwPollEvents();
+        glfwSwapBuffers(m_window_glfw);
     }
 
     void Device::set_graphics_root_constants(const std::vector<uint32_t>& constants) {
@@ -122,7 +247,7 @@ namespace gfx {
     }
 
     bool Device::should_stay_open() {
-        return true;
+        return !glfwWindowShouldClose(m_window_glfw);
     }
 
     void Device::set_full_screen(bool full_screen) {
