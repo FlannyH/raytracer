@@ -1,5 +1,7 @@
 #include "renderer.h"
 #include "scene.h"
+#include "device.h"
+#include "vulkan/device.h"
 #include "dx12/device.h"
 
 #define STB_IMAGE_IMPLEMENTATION
@@ -19,8 +21,19 @@ namespace gfx {
     #define FOV (glm::radians(70.f))
 
     // Initialisation and state
-    Renderer::Renderer(int width, int height, bool debug_layer_enabled, bool gpu_profiling_enabled) {
-        m_device = std::make_unique<DeviceDx12>(width, height, debug_layer_enabled, gpu_profiling_enabled);
+    Renderer::Renderer(RenderBackend backend, int width, int height, bool debug_layer_enabled, bool gpu_profiling_enabled) {
+        switch (backend) {
+        case RenderBackend::dx12: 
+            m_device = std::make_unique<DeviceDx12>(width, height, debug_layer_enabled, gpu_profiling_enabled); 
+            break;
+        case RenderBackend::vulkan:
+            m_device = std::make_unique<DeviceVulkan>(width, height, debug_layer_enabled, gpu_profiling_enabled); 
+            break;
+        default:
+            LOG(Error, "Invalid render backend passed to renderer constructor");
+            return;
+        }
+        
 
         LOG(Debug, "Creating framebuffers");
         m_position_target = m_device->create_render_target("Position framebuffer", width, height, PixelFormat::rgba32_float, glm::vec4(0.0f, 0.0f, 9999999.0f, 0.0f), ResourceUsage::compute_write);

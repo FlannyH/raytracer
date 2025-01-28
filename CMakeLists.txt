@@ -14,7 +14,7 @@ project ("raytracer")
 # Add source to this project's executable.
 add_executable (raytracer 
     "source/main.cpp"      
-    # "source/vulkan/device.cpp"        "source/vulkan/device.h" 
+    "source/vulkan/device.cpp"        "source/vulkan/device.h" 
     "source/dx12/descriptor_heap.cpp" "source/dx12/descriptor_heap.h"    
     "source/dx12/command_buffer.cpp"  "source/dx12/command_buffer.h" 
     "source/dx12/command_queue.cpp"   "source/dx12/command_queue.h" 

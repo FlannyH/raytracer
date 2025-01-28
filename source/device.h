@@ -1,5 +1,4 @@
 #pragma once
-#define GLFW_INCLUDE_VULKAN
 
 #include <d3d12.h>
 #include <deque>

@@ -7,6 +7,8 @@
 #include "log.h"
 using Microsoft::WRL::ComPtr;
 
+#define GLFW_INCLUDE_VULKAN
+
 constexpr UINT backbuffer_count = 3;
 
 #define validate(hr) \
