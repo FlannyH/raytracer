@@ -14,7 +14,7 @@ project ("raytracer")
 # Add source to this project's executable.
 add_executable (raytracer 
     "source/main.cpp"      
-    "source/device.cpp"             "source/device.h" 
+    "source/vulkan/device.cpp"             "source/device.h" 
     "source/command_queue.cpp"      "source/command_queue.h" 
     "source/swapchain.cpp"          "source/swapchain.h" 
     "source/descriptor_heap.cpp"    "source/descriptor_heap.h"    
@@ -30,10 +30,12 @@ add_executable (raytracer
     "source/log.cpp"                "source/log.h"
     "external/include/mikktspace/mikktspace.c")
     
+find_package(Vulkan REQUIRED FATAL_ERROR)
+
 target_compile_definitions(raytracer PRIVATE _CRT_SECURE_NO_WARNINGS)
-target_include_directories(raytracer PUBLIC "external/include")
+target_include_directories(raytracer PUBLIC "external/include" ${Vulkan_INCLUDE_DIRS})
 target_link_directories(raytracer PUBLIC "external/libraries")
-target_link_libraries(raytracer PUBLIC "glfw3.lib" "dxgi.lib" "D3d12.lib" "D3DCompiler.lib" "dxcompiler.lib")
+target_link_libraries(raytracer PUBLIC "glfw3.lib" "dxgi.lib" "D3d12.lib" "D3DCompiler.lib" "dxcompiler.lib" ${Vulkan_LIBRARIES})
 set_property(TARGET raytracer PROPERTY CXX_STANDARD 20)
 
 add_custom_target(copy_assets
