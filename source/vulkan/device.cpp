@@ -10,8 +10,9 @@ namespace gfx {
     };
 
     DeviceVulkan::DeviceVulkan(const int width, const int height, const bool debug_layer_enabled, const bool gpu_profiling_enabled) {
-        const std::array<const char*, 1> device_extensions_to_enable = {
-            "VK_KHR_swapchain"
+        const std::array<const char*, 2> device_extensions_to_enable = {
+            "VK_KHR_swapchain",
+            "VK_EXT_descriptor_indexing"
         };
 
         glfwInit();
@@ -119,7 +120,9 @@ namespace gfx {
             device_create_info.enabledExtensionCount = device_extensions_to_enable.size();
             device_create_info.ppEnabledExtensionNames = device_extensions_to_enable.data();
 
-            vkCreateDevice(physical_device, &device_create_info, nullptr, &device);
+            m_physical_device = physical_device;
+
+            vkCreateDevice(physical_device, &device_create_info, nullptr, &m_device);
 
             input::init(m_window_glfw);
 
@@ -128,7 +131,7 @@ namespace gfx {
     }
     
     DeviceVulkan::~DeviceVulkan() {
-        vkDestroyDevice(device, nullptr);
+        vkDestroyDevice(m_device, nullptr);
     }
 
     void DeviceVulkan::resize_window(const int width, const int height) const {
@@ -211,8 +214,90 @@ namespace gfx {
         return {};
     }
 
+    VkImageLayout resource_usage_to_vk_image_layout(ResourceUsage usage) {
+        switch (usage) {
+            case ResourceUsage::none: return VK_IMAGE_LAYOUT_GENERAL;
+            case ResourceUsage::read: return VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+            case ResourceUsage::compute_write: return VK_IMAGE_LAYOUT_GENERAL;
+            case ResourceUsage::render_target: return VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+            case ResourceUsage::depth_target: return VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+            case ResourceUsage::pixel_shader_read: return VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+            case ResourceUsage::non_pixel_shader_read: return VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+            case ResourceUsage::acceleration_structure: return VK_IMAGE_LAYOUT_GENERAL; // General for acceleration structures
+        }
+        return VK_IMAGE_LAYOUT_GENERAL; // Default fallback
+    }
+
+    VkBufferUsageFlags resource_usage_to_vk_buffer_usage(ResourceUsage usage) {
+        switch (usage) {
+            case ResourceUsage::none: return 0;
+            case ResourceUsage::read: return VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
+            case ResourceUsage::compute_write: return VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
+            case ResourceUsage::render_target: return 0; // Not applicable for buffers
+            case ResourceUsage::depth_target: return 0; // Not applicable for buffers
+            case ResourceUsage::pixel_shader_read: return VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT; // Read-only in shaders
+            case ResourceUsage::non_pixel_shader_read: return VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT; // Read-only in shaders
+            case ResourceUsage::acceleration_structure: return VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_STORAGE_BIT_KHR; // For acceleration structures
+        }
+        return 0; // Default fallback
+    }
+
+    uint32_t find_memory_type(VkPhysicalDevice& physical_device, uint32_t type_filter, VkMemoryPropertyFlags properties) {
+        VkPhysicalDeviceMemoryProperties mem_properties;
+        vkGetPhysicalDeviceMemoryProperties(physical_device, &mem_properties);
+
+        for (uint32_t i = 0; i < mem_properties.memoryTypeCount; i++) {
+            if (type_filter & (1 << i)) {
+                return i;
+            }
+        }
+
+        LOG(Warning, "Failed to find suitable memory type");
+        return 0;
+    }
+
     ResourceHandlePair DeviceVulkan::create_buffer(const std::string& name, const size_t size, void* data, ResourceUsage usage) {
-        TODO();
+        // Create buffer
+        VkBuffer buffer;
+        VkBufferCreateInfo buffer_create_info { VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO };
+        buffer_create_info.size = size;
+        buffer_create_info.usage = resource_usage_to_vk_buffer_usage(usage);
+        buffer_create_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+        if (vkCreateBuffer(m_device, &buffer_create_info, nullptr, &buffer) != VK_SUCCESS) {
+            LOG(Error, "Failed to create buffer \"%s\"", name.c_str());
+        }
+
+        // Allocate buffer memory
+        VkMemoryRequirements memory_requirements;
+        vkGetBufferMemoryRequirements(m_device, buffer, &memory_requirements);
+
+        VkMemoryPropertyFlags flags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT; // gpu-only by default
+        if (usage == (ResourceUsage::cpu_read_write)) flags = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT; // can read and write from cpu side and gpu side
+        if (usage == (ResourceUsage::cpu_writable)) flags = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT; // can only write from cpu side and both read and write on gpu side
+
+        VkMemoryAllocateInfo memory_allocate_info { VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO };
+        memory_allocate_info.allocationSize = memory_requirements.size;
+        memory_allocate_info.memoryTypeIndex = find_memory_type(m_physical_device, memory_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+
+        VkDeviceMemory device_memory;
+        vkAllocateMemory(m_device, &memory_allocate_info, nullptr, &device_memory);
+
+        // Create engine resource
+        const auto resource = std::make_shared<Resource>(ResourceType::buffer);
+        resource->name = name;
+        resource->usage = usage;
+        resource->expect_buffer() = {
+            .data = data,
+            .size = size,
+        };
+
+        // todo: set the name on the vulkan buffer object as well
+
+        // todo: descriptors
+        // auto id = m_heap_bindless->alloc_descriptor(ResourceType::buffer);
+        // const auto handle = m_heap_bindless->fetch_cpu_handle(id);
+
+        // return ResourceHandlePair{ id, resource };
         return {};
     }
 

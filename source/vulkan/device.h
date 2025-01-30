@@ -74,10 +74,11 @@ namespace gfx {
         ResourceHandlePair create_blas(const std::string& name, const ResourceHandlePair& position_buffer, const ResourceHandlePair& index_buffer, const uint32_t vertex_count, const uint32_t index_count) override;
         ResourceHandlePair create_tlas(const std::string& name, const std::vector<RaytracingInstance>& instances) override;
 
-        VkDevice device;
         HWND window_hwnd = nullptr;
 
     private:
+        VkDevice m_device;
+        VkPhysicalDevice m_physical_device;
         GLFWwindow* m_window_glfw = nullptr;
     };
 };
