@@ -258,6 +258,7 @@ namespace gfx {
 
     ResourceHandlePair DeviceVulkan::create_buffer(const std::string& name, const size_t size, void* data, ResourceUsage usage) {
         // Create buffer
+        // todo: destroy `buffer` when destroying the resource
         VkBuffer buffer;
         VkBufferCreateInfo buffer_create_info { VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO };
         buffer_create_info.size = size;
@@ -279,8 +280,24 @@ namespace gfx {
         memory_allocate_info.allocationSize = memory_requirements.size;
         memory_allocate_info.memoryTypeIndex = find_memory_type(m_physical_device, memory_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
 
+        // todo: deallocate this when destroying the resource
         VkDeviceMemory device_memory;
-        vkAllocateMemory(m_device, &memory_allocate_info, nullptr, &device_memory);
+        if (vkAllocateMemory(m_device, &memory_allocate_info, nullptr, &device_memory) != VK_SUCCESS) {
+            LOG(Error, "Failed to allocate memory for buffer \"%s\"", name.c_str());
+        }
+        vkBindBufferMemory(m_device, buffer, device_memory, 0);
+
+        // Populate buffer
+        if (usage == (ResourceUsage::cpu_writable) || usage == (ResourceUsage::cpu_read_write)) {
+            // todo: do i need to flush this memory?
+            void* mapped_buffer;
+            vkMapMemory(m_device, device_memory, 0, size, 0, &mapped_buffer);
+            memcpy(mapped_buffer, data, size);
+            vkUnmapMemory(m_device, device_memory);
+        }
+        else {
+            TODO();
+        }
 
         // Create engine resource
         const auto resource = std::make_shared<Resource>(ResourceType::buffer);
@@ -292,7 +309,6 @@ namespace gfx {
         };
 
         // todo: set the name on the vulkan buffer object as well
-
         // todo: descriptors
         // auto id = m_heap_bindless->alloc_descriptor(ResourceType::buffer);
         // const auto handle = m_heap_bindless->fetch_cpu_handle(id);
