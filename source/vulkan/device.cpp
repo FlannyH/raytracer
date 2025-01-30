@@ -1,14 +1,10 @@
 #include "device.h"
 
 #include <array>
+#include "command_queue.h"
 #include "../input.h"
 
 namespace gfx {
-    struct QueueFamilyIndices {
-        std::optional<uint32_t> graphics_family;
-        std::optional<uint32_t> compute_family;
-    };
-
     DeviceVulkan::DeviceVulkan(const int width, const int height, const bool debug_layer_enabled, const bool gpu_profiling_enabled) {
         const std::array<const char*, 2> device_extensions_to_enable = {
             "VK_KHR_swapchain",
@@ -89,11 +85,10 @@ namespace gfx {
             std::vector<VkQueueFamilyProperties> queue_family_properties(n_queue_family_properties);
             vkGetPhysicalDeviceQueueFamilyProperties(physical_device, &n_queue_family_properties, queue_family_properties.data());
 
-            QueueFamilyIndices indices{};
             for (int i = 0; i < n_queue_family_properties; ++i) {
                 const auto& family = queue_family_properties[i];
-                if (family.queueFlags & VK_QUEUE_GRAPHICS_BIT) indices.graphics_family = i;
-                if (family.queueFlags & VK_QUEUE_COMPUTE_BIT)  indices.compute_family =  i;
+                if (family.queueFlags & VK_QUEUE_GRAPHICS_BIT) m_indices.graphics_family = i;
+                if (family.queueFlags & VK_QUEUE_COMPUTE_BIT)  m_indices.compute_family =  i;
             }
 
             const float queue_priority_graphics = 1.0f;
@@ -102,13 +97,13 @@ namespace gfx {
             std::array<VkDeviceQueueCreateInfo, 2> device_queue_create_info = {{
                 VkDeviceQueueCreateInfo { 
                     .sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
-                    .queueFamilyIndex = indices.graphics_family.value(),
+                    .queueFamilyIndex = m_indices.graphics_family.value(),
                     .queueCount = 1,
                     .pQueuePriorities = &queue_priority_graphics,
                 },
                 VkDeviceQueueCreateInfo {        
                     .sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
-                    .queueFamilyIndex = indices.compute_family.value(),
+                    .queueFamilyIndex = m_indices.compute_family.value(),
                     .queueCount = 1,
                     .pQueuePriorities = &queue_priority_compute,
                 }
@@ -122,16 +117,19 @@ namespace gfx {
 
             m_physical_device = physical_device;
 
-            vkCreateDevice(physical_device, &device_create_info, nullptr, &m_device);
+            vkCreateDevice(physical_device, &device_create_info, nullptr, &device);
 
             input::init(m_window_glfw);
 
             break;
         }
+
+        m_queue_graphics = std::make_shared<CommandQueue>(*this, CommandBufferType::graphics);
+        m_queue_compute = std::make_shared<CommandQueue>(*this, CommandBufferType::compute);
     }
     
     DeviceVulkan::~DeviceVulkan() {
-        vkDestroyDevice(m_device, nullptr);
+        vkDestroyDevice(device, nullptr);
     }
 
     void DeviceVulkan::resize_window(const int width, const int height) const {
@@ -264,13 +262,13 @@ namespace gfx {
         buffer_create_info.size = size;
         buffer_create_info.usage = resource_usage_to_vk_buffer_usage(usage);
         buffer_create_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-        if (vkCreateBuffer(m_device, &buffer_create_info, nullptr, &buffer) != VK_SUCCESS) {
+        if (vkCreateBuffer(device, &buffer_create_info, nullptr, &buffer) != VK_SUCCESS) {
             LOG(Error, "Failed to create buffer \"%s\"", name.c_str());
         }
 
         // Allocate buffer memory
         VkMemoryRequirements memory_requirements;
-        vkGetBufferMemoryRequirements(m_device, buffer, &memory_requirements);
+        vkGetBufferMemoryRequirements(device, buffer, &memory_requirements);
 
         VkMemoryPropertyFlags flags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT; // gpu-only by default
         if (usage == (ResourceUsage::cpu_read_write)) flags = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT; // can read and write from cpu side and gpu side
@@ -282,18 +280,18 @@ namespace gfx {
 
         // todo: deallocate this when destroying the resource
         VkDeviceMemory device_memory;
-        if (vkAllocateMemory(m_device, &memory_allocate_info, nullptr, &device_memory) != VK_SUCCESS) {
+        if (vkAllocateMemory(device, &memory_allocate_info, nullptr, &device_memory) != VK_SUCCESS) {
             LOG(Error, "Failed to allocate memory for buffer \"%s\"", name.c_str());
         }
-        vkBindBufferMemory(m_device, buffer, device_memory, 0);
+        vkBindBufferMemory(device, buffer, device_memory, 0);
 
         // Populate buffer
         if (usage == (ResourceUsage::cpu_writable) || usage == (ResourceUsage::cpu_read_write)) {
             // todo: do i need to flush this memory?
             void* mapped_buffer;
-            vkMapMemory(m_device, device_memory, 0, size, 0, &mapped_buffer);
+            vkMapMemory(device, device_memory, 0, size, 0, &mapped_buffer);
             memcpy(mapped_buffer, data, size);
-            vkUnmapMemory(m_device, device_memory);
+            vkUnmapMemory(device, device_memory);
         }
         else {
             TODO();

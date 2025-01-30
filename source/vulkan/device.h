@@ -24,6 +24,11 @@ namespace gfx {
     struct Transform;
     struct Fence;
 
+    struct QueueFamilyIndices {
+        std::optional<uint32_t> graphics_family;
+        std::optional<uint32_t> compute_family;
+    };
+
     struct DeviceVulkan : Device {
     public:
         // Initialization
@@ -74,11 +79,18 @@ namespace gfx {
         ResourceHandlePair create_blas(const std::string& name, const ResourceHandlePair& position_buffer, const ResourceHandlePair& index_buffer, const uint32_t vertex_count, const uint32_t index_count) override;
         ResourceHandlePair create_tlas(const std::string& name, const std::vector<RaytracingInstance>& instances) override;
 
+        const QueueFamilyIndices& queue_family_indices() const { return m_indices; }
+
         HWND window_hwnd = nullptr;
+        VkDevice device;
 
     private:
-        VkDevice m_device;
         VkPhysicalDevice m_physical_device;
         GLFWwindow* m_window_glfw = nullptr;
+        QueueFamilyIndices m_indices{};
+        
+        std::shared_ptr<CommandQueue> m_queue_compute = nullptr;
+        std::shared_ptr<CommandQueue> m_queue_graphics = nullptr;
+
     };
 };
