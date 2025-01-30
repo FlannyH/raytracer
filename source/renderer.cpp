@@ -20,6 +20,12 @@ namespace gfx {
     #define MAX_CUBEMAP_SH 128
     #define FOV (glm::radians(70.f))
 
+    static const char* render_backend_names[] = {
+        "no render backend",
+        "DirectX 12",
+        "Vulkan",
+    };
+
     // Initialisation and state
     Renderer::Renderer(RenderBackend backend, int width, int height, bool debug_layer_enabled, bool gpu_profiling_enabled) {
         switch (backend) {
@@ -92,7 +98,7 @@ namespace gfx {
         m_device->dispatch_threadgroups(ibl_brdf_resolution / 8, ibl_brdf_resolution / 8, 1);
         m_device->end_compute_pass();
 
-        LOG(Info, "Renderer initialized (DirectX 12)");
+        LOG(Info, "Renderer initialized (%s)", render_backend_names[(size_t)backend]);
     }
 
     Renderer::~Renderer() {
