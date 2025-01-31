@@ -30,9 +30,9 @@ namespace gfx {
         instance_create_info.ppEnabledExtensionNames = instance_extensions_to_enable;
 
         if (debug_layer_enabled) {
-            const std::array<const char*, 0> debug_layers_to_enable = {
+            const std::array<const char*, 1> debug_layers_to_enable = {
                 // todo: take a proper look at validation layers
-                // "VK_LAYER_KHRONOS_validation",
+                "VK_LAYER_KHRONOS_validation",
             };
             instance_create_info.enabledLayerCount = debug_layers_to_enable.size();
             instance_create_info.ppEnabledLayerNames = debug_layers_to_enable.data();
@@ -78,6 +78,8 @@ namespace gfx {
             vkGetPhysicalDeviceProperties(physical_device, &device_properties);
 
             if (device_properties.deviceType != VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU) continue;
+            
+            LOG(Info, "Using device \"%s\"", device_properties.deviceName);
 
             uint32_t n_queue_family_properties = 0;
             vkGetPhysicalDeviceQueueFamilyProperties(physical_device, &n_queue_family_properties, nullptr);
@@ -117,7 +119,10 @@ namespace gfx {
 
             m_physical_device = physical_device;
 
-            vkCreateDevice(physical_device, &device_create_info, nullptr, &device);
+            const auto result = vkCreateDevice(physical_device, &device_create_info, nullptr, &device);
+            if (result != VK_SUCCESS) {
+                LOG(Error, "Failed to create Vulkan device on physical device \"%s\": error %i", device_properties.deviceName, result);
+            }
 
             input::init(m_window_glfw);
 
@@ -261,9 +266,10 @@ namespace gfx {
         VkBufferCreateInfo buffer_create_info { VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO };
         buffer_create_info.size = size;
         buffer_create_info.usage = resource_usage_to_vk_buffer_usage(usage);
-        buffer_create_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
         if (vkCreateBuffer(device, &buffer_create_info, nullptr, &buffer) != VK_SUCCESS) {
+        buffer_create_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
             LOG(Error, "Failed to create buffer \"%s\"", name.c_str());
+            return {};
         }
 
         // Allocate buffer memory
@@ -272,7 +278,7 @@ namespace gfx {
 
         VkMemoryPropertyFlags flags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT; // gpu-only by default
         if (usage == (ResourceUsage::cpu_read_write)) flags = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT; // can read and write from cpu side and gpu side
-        if (usage == (ResourceUsage::cpu_writable)) flags = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT; // can only write from cpu side and both read and write on gpu side
+        if (usage == (ResourceUsage::cpu_writable)) flags = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT; // can only write from cpu side and both read and write on gpu side
 
         VkMemoryAllocateInfo memory_allocate_info { VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO };
         memory_allocate_info.allocationSize = memory_requirements.size;
@@ -282,16 +288,25 @@ namespace gfx {
         VkDeviceMemory device_memory;
         if (vkAllocateMemory(device, &memory_allocate_info, nullptr, &device_memory) != VK_SUCCESS) {
             LOG(Error, "Failed to allocate memory for buffer \"%s\"", name.c_str());
+            return {};
         }
-        vkBindBufferMemory(device, buffer, device_memory, 0);
+        if (vkBindBufferMemory(device, buffer, device_memory, 0) != VK_SUCCESS) {
+            LOG(Error, "Failed to bind memory for buffer \"%s\"", name.c_str());
+            return {};
+        }
 
         // Populate buffer
         if (usage == (ResourceUsage::cpu_writable) || usage == (ResourceUsage::cpu_read_write)) {
             // todo: do i need to flush this memory?
             void* mapped_buffer;
-            vkMapMemory(device, device_memory, 0, size, 0, &mapped_buffer);
-            memcpy(mapped_buffer, data, size);
-            vkUnmapMemory(device, device_memory);
+            const auto result = vkMapMemory(device, device_memory, 0, size, 0, &mapped_buffer);
+            if (result == VK_SUCCESS) {
+                memcpy(mapped_buffer, data, size);
+                vkUnmapMemory(device, device_memory);
+            }
+            else {
+                LOG(Error, "Failed to map buffer memory for \"%s\": error %i", name.c_str(), result);
+            }
         }
         else {
             TODO();
