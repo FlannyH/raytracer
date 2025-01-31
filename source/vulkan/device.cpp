@@ -233,13 +233,13 @@ namespace gfx {
 
     VkBufferUsageFlags resource_usage_to_vk_buffer_usage(ResourceUsage usage) {
         switch (usage) {
-            case ResourceUsage::none: return 0;
-            case ResourceUsage::read: return VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
+            case ResourceUsage::none:
+            case ResourceUsage::read:
+            case ResourceUsage::pixel_shader_read:
+            case ResourceUsage::non_pixel_shader_read: return VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT; // Read-only in shaders
             case ResourceUsage::compute_write: return VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
             case ResourceUsage::render_target: return 0; // Not applicable for buffers
             case ResourceUsage::depth_target: return 0; // Not applicable for buffers
-            case ResourceUsage::pixel_shader_read: return VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT; // Read-only in shaders
-            case ResourceUsage::non_pixel_shader_read: return VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT; // Read-only in shaders
             case ResourceUsage::acceleration_structure: return VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_STORAGE_BIT_KHR; // For acceleration structures
         }
         return 0; // Default fallback
