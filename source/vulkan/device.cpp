@@ -236,7 +236,9 @@ namespace gfx {
             case ResourceUsage::none:
             case ResourceUsage::read:
             case ResourceUsage::pixel_shader_read:
-            case ResourceUsage::non_pixel_shader_read: return VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT; // Read-only in shaders
+            case ResourceUsage::non_pixel_shader_read: 
+            case ResourceUsage::cpu_read_write:
+            case ResourceUsage::cpu_writable: return VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT; // Read-only in shaders
             case ResourceUsage::compute_write: return VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
             case ResourceUsage::render_target: return 0; // Not applicable for buffers
             case ResourceUsage::depth_target: return 0; // Not applicable for buffers
@@ -250,7 +252,7 @@ namespace gfx {
         vkGetPhysicalDeviceMemoryProperties(physical_device, &mem_properties);
 
         for (uint32_t i = 0; i < mem_properties.memoryTypeCount; i++) {
-            if (type_filter & (1 << i)) {
+            if (type_filter & (1 << i) && (mem_properties.memoryTypes[i].propertyFlags & properties) == properties) {
                 return i;
             }
         }
@@ -266,6 +268,7 @@ namespace gfx {
         VkBufferCreateInfo buffer_create_info { VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO };
         buffer_create_info.size = size;
         buffer_create_info.usage = resource_usage_to_vk_buffer_usage(usage);
+        
         if (vkCreateBuffer(device, &buffer_create_info, nullptr, &buffer) != VK_SUCCESS) {
         buffer_create_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
             LOG(Error, "Failed to create buffer \"%s\"", name.c_str());
@@ -282,7 +285,7 @@ namespace gfx {
 
         VkMemoryAllocateInfo memory_allocate_info { VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO };
         memory_allocate_info.allocationSize = memory_requirements.size;
-        memory_allocate_info.memoryTypeIndex = find_memory_type(m_physical_device, memory_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+        memory_allocate_info.memoryTypeIndex = find_memory_type(m_physical_device, memory_requirements.memoryTypeBits, flags);
 
         // todo: deallocate this when destroying the resource
         VkDeviceMemory device_memory;
@@ -296,7 +299,7 @@ namespace gfx {
         }
 
         // Populate buffer
-        if (usage == (ResourceUsage::cpu_writable) || usage == (ResourceUsage::cpu_read_write)) {
+        if (data != nullptr && usage == (ResourceUsage::cpu_writable) || usage == (ResourceUsage::cpu_read_write)) {
             // todo: do i need to flush this memory?
             void* mapped_buffer;
             const auto result = vkMapMemory(device, device_memory, 0, size, 0, &mapped_buffer);
