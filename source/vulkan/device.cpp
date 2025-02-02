@@ -6,9 +6,10 @@
 
 namespace gfx {
     DeviceVulkan::DeviceVulkan(const int width, const int height, const bool debug_layer_enabled, const bool gpu_profiling_enabled) {
-        const std::array<const char*, 2> device_extensions_to_enable = {
+        const std::array<const char*, 3> device_extensions_to_enable = {
             "VK_KHR_swapchain",
-            "VK_EXT_descriptor_indexing"
+            "VK_KHR_buffer_device_address",
+            "VK_EXT_descriptor_indexing",
         };
 
         glfwInit();
