@@ -74,6 +74,16 @@ namespace gfx {
         std::vector<VkPhysicalDevice> physical_devices(n_physical_devices);
         vkEnumeratePhysicalDevices(instance, &n_physical_devices, physical_devices.data());
 
+#ifdef _DEBUG
+        LOG(Debug, "Available devices:");
+        for (auto& physical_device : physical_devices) {
+            VkPhysicalDeviceProperties device_properties;
+            vkGetPhysicalDeviceProperties(physical_device, &device_properties);
+            const char* device_type_names[] = { "", " (Integrated GPU)", " (Discrete GPU)", " (Virtual GPU)", "(CPU)" };
+            LOG(Debug, "\t%s%s", device_properties.deviceName, device_type_names[(size_t)device_properties.deviceType]);
+        }
+#endif
+
         for (auto& physical_device : physical_devices) {
             VkPhysicalDeviceProperties device_properties;
             vkGetPhysicalDeviceProperties(physical_device, &device_properties);
