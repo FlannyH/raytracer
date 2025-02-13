@@ -937,7 +937,7 @@ namespace gfx {
         }
         else if (data) {
             // Create upload buffer containing the data
-            const auto upload_buffer_id = create_buffer("Upload buffer", size, data, ResourceUsage::cpu_writable);
+            const auto upload_buffer_id = create_buffer(name + "(upload buffer)", size, data, ResourceUsage::cpu_writable);
             const auto& upload_buffer = upload_buffer_id.resource;
             queue_unload_bindless_resource(upload_buffer_id);
 

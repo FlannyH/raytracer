@@ -29,7 +29,7 @@ namespace gfx {
         std::optional<uint32_t> compute_family;
     };
 
-    struct DeviceVulkan : Device {
+    struct DeviceVulkan : public Device {
     public:
         // Initialization
         DeviceVulkan(int width, int height, bool debug_layer_enabled, bool gpu_profiling_enabled);

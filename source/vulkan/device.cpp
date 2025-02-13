@@ -323,8 +323,22 @@ namespace gfx {
                 LOG(Error, "Failed to map buffer memory for \"%s\": error %i", name.c_str(), result);
             }
         }
-        else {
-            TODO();
+        else if (data != nullptr) {
+            // Create upload buffer containing the data
+            const auto upload_buffer_id = create_buffer(name + "(upload buffer)", size, data, ResourceUsage::cpu_writable);
+            const auto& upload_buffer = upload_buffer_id.resource;
+            // todo: unload this buffer later
+
+            // Upload the data to the destination buffer
+            ++m_upload_fence_value_when_done;
+            auto cmd = m_upload_queue->create_command_buffer(device, nullptr, m_upload_fence_value_when_done);
+            
+            VkBufferCopy region = {};
+            region.srcOffset = 0;
+            region.dstOffset = 0;
+            region.size = size;
+
+            vkCmdCopyBuffer(cmd, upload_buffer->expect_buffer().vk_buffer, buffer, 1, &region);
         }
 
         // Create engine resource
@@ -334,6 +348,7 @@ namespace gfx {
         resource->expect_buffer() = {
             .data = data,
             .size = size,
+            .vk_buffer = buffer,
         };
 
         // todo: set the name on the vulkan buffer object as well

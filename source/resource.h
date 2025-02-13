@@ -1,11 +1,12 @@
 #pragma once
 #include "common.h"
+#include <vulkan/vulkan.h>
 #include <d3d12.h>
 
+#include <glm/matrix.hpp>
 #include <glm/vec4.hpp>
 #include <glm/vec3.hpp>
 #include <glm/vec2.hpp>
-#include <glm/matrix.hpp>
 #include <optional>
 #include <variant>
 
@@ -101,6 +102,7 @@ namespace gfx {
     struct BufferResource {
         void* data;
         uint64_t size;
+        VkBuffer vk_buffer;
     };
 
     struct SceneResource {

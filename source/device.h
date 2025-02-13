@@ -107,7 +107,7 @@ namespace gfx {
 
         HWND window_hwnd = nullptr;
 
-    private:
+    protected:
         void transition_resource(std::shared_ptr<CommandBuffer> cmd, std::shared_ptr<Resource> resource, D3D12_RESOURCE_STATES new_state, uint32_t subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES);
         int find_dominant_monitor(); // Returns the index of the monitor the window overlaps with most
         void clean_up_old_resources();

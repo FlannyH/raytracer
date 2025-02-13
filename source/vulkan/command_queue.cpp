@@ -12,6 +12,7 @@ namespace gfx {
         vkCreateCommandPool(device.device, &pool_create_info, nullptr, &m_command_pool);
     }
 
+    // todo: do we even need the pipeline here?
     VkCommandBuffer& CommandQueue::create_command_buffer(VkDevice& device, const Pipeline* pipeline, size_t frame_index) {        
         // Reuse if there's one available
         if (m_command_buffers_to_reuse.empty() == false) {
