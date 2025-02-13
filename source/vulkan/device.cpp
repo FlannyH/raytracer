@@ -143,6 +143,7 @@ namespace gfx {
 
         m_queue_graphics = std::make_shared<CommandQueue>(*this, CommandBufferType::graphics);
         m_queue_compute = std::make_shared<CommandQueue>(*this, CommandBufferType::compute);
+        m_desc_heap = std::make_shared<DescriptorHeap>(*this, 100'000); // todo: unhardcode this
     }
     
     DeviceVulkan::~DeviceVulkan() {
