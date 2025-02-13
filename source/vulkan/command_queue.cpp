@@ -21,6 +21,12 @@ namespace gfx::vk {
             m_command_lists_to_execute.push_back(index_to_reuse);
             auto& cmd = m_command_buffer_pool[index_to_reuse];
             vkResetCommandBuffer(cmd, 0);
+
+            VkCommandBufferBeginInfo begin_info = { VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO };
+            begin_info.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+
+            vkBeginCommandBuffer(cmd, &begin_info);
+
             return cmd;
         }
 
@@ -35,7 +41,12 @@ namespace gfx::vk {
         m_command_buffer_pool.push_back({});
         auto& cmd = m_command_buffer_pool[cmd_index];
         vkAllocateCommandBuffers(device, &alloc_info, &cmd);
-         
+
+        VkCommandBufferBeginInfo begin_info = { VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO };
+        begin_info.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+        
+        vkBeginCommandBuffer(cmd, &begin_info);
+        
         return cmd;
     }
 }
