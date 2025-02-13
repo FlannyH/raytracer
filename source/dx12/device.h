@@ -47,14 +47,14 @@ namespace gfx {
         bool supports(RendererFeature feature) override;
 
         // Rasterization
-        std::shared_ptr<Pipeline> create_raster_pipeline(const std::string& name, const std::string& vertex_shader_path, const std::string& pixel_shader_path, const std::initializer_list<ResourceHandlePair> render_targets, const ResourceHandlePair depth_target = { ResourceHandle::none(), nullptr }) override;
-        void begin_raster_pass(std::shared_ptr<Pipeline> pipeline, RasterPassInfo&& render_pass_info) override;
+        PipelineHandle create_raster_pipeline(const std::string& name, const std::string& vertex_shader_path, const std::string& pixel_shader_path, const std::initializer_list<ResourceHandlePair> render_targets, const ResourceHandlePair depth_target = { ResourceHandle::none(), nullptr }) override;
+        void begin_raster_pass(PipelineHandle pipeline, RasterPassInfo&& render_pass_info) override;
         void end_raster_pass() override;
         void draw_vertices(uint32_t n_vertices) override;
 
         // Compute
-        std::shared_ptr<Pipeline> create_compute_pipeline(const std::string& name, const std::string& compute_shader_path) override;
-        void begin_compute_pass(std::shared_ptr<Pipeline> pipeline, bool async = false) override;
+        PipelineHandle create_compute_pipeline(const std::string& name, const std::string& compute_shader_path) override;
+        void begin_compute_pass(PipelineHandle pipeline, bool async = false) override;
         void end_compute_pass() override;
         void dispatch_threadgroups(uint32_t x, uint32_t y, uint32_t z) override;
 
@@ -125,7 +125,8 @@ namespace gfx {
         std::vector<D3D12_RESOURCE_BARRIER> m_resource_barriers; // Enqueued resource barriers
 
         // Rendering context
-        std::shared_ptr<Pipeline> m_curr_bound_pipeline = nullptr; // Will point to a valid pipeline after calling begin_render_pass(), and will be null after calling end_render_pass()
+        std::vector<Pipeline> m_loaded_pipelines;
+        Pipeline* m_curr_bound_pipeline = nullptr; // Will point to a valid pipeline after calling begin_render_pass(), and will be null after calling end_render_pass()
         std::shared_ptr<CommandBuffer> m_curr_pass_cmd; // The command buffer used for this pass
         bool m_curr_pipeline_is_async = false; // If the current pipeline is async, we need to keep track of resources differently 
     };

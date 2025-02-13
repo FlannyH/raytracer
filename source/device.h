@@ -56,6 +56,9 @@ namespace gfx {
         raytracing = 1,
     };
 
+    typedef uint32_t PipelineHandle;
+    constexpr static PipelineHandle PIPELINE_NULL = 0xFFFFFFFF;
+
     struct Device {
     public:
         // Initialization
@@ -77,13 +80,14 @@ namespace gfx {
         virtual bool supports(RendererFeature feature) = 0;
 
         // Rasterization
-        virtual std::shared_ptr<Pipeline> create_raster_pipeline(const std::string& name, const std::string& vertex_shader_path, const std::string& pixel_shader_path, const std::initializer_list<ResourceHandlePair> render_targets, const ResourceHandlePair depth_target = { ResourceHandle::none(), nullptr }) = 0;        virtual void begin_raster_pass(std::shared_ptr<Pipeline> pipeline, RasterPassInfo&& render_pass_info) = 0;
+        virtual PipelineHandle create_raster_pipeline(const std::string& name, const std::string& vertex_shader_path, const std::string& pixel_shader_path, const std::initializer_list<ResourceHandlePair> render_targets, const ResourceHandlePair depth_target = { ResourceHandle::none(), nullptr }) = 0;        
+        virtual void begin_raster_pass(PipelineHandle pipeline, RasterPassInfo&& render_pass_info) = 0;
         virtual void end_raster_pass() = 0;
         virtual void draw_vertices(uint32_t n_vertices) = 0;
 
         // Compute
-        virtual std::shared_ptr<Pipeline> create_compute_pipeline(const std::string& name, const std::string& compute_shader_path) = 0;
-        virtual void begin_compute_pass(std::shared_ptr<Pipeline> pipeline, bool async = false) = 0;
+        virtual PipelineHandle create_compute_pipeline(const std::string& name, const std::string& compute_shader_path) = 0;
+        virtual void begin_compute_pass(PipelineHandle pipeline, bool async = false) = 0;
         virtual void end_compute_pass() = 0;
         virtual void dispatch_threadgroups(uint32_t x, uint32_t y, uint32_t z) = 0;
 

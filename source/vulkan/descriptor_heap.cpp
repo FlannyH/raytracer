@@ -63,6 +63,11 @@ namespace gfx::vk {
         }
     }
     
+    ResourceHandle DescriptorHeap::alloc_descriptor(ResourceType type) {
+        TODO();
+        return ResourceHandle::none();
+    }
+
     void DescriptorHeap::write_buffer_descriptor(const Device& device, ResourceHandle id, VkBuffer buffer, size_t offset, size_t size) {
         // todo: maybe batch update?
         VkDescriptorBufferInfo buffer_info = {};

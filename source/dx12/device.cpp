@@ -287,7 +287,7 @@ namespace gfx {
         }
         m_temp_upload_buffers.clear();
         m_swapchain.reset();
-        m_curr_bound_pipeline.reset();
+        m_curr_bound_pipeline = nullptr;
         m_curr_pass_cmd.reset();
         m_queue_gfx.reset();
         m_upload_queue.reset();
@@ -296,6 +296,7 @@ namespace gfx {
         m_heap_dsv.reset();
         m_heap_bindless.reset();
         m_query_heap.Reset();
+        m_loaded_pipelines.clear();
         device.Reset();
         factory.Reset();
         glfwDestroyWindow(m_window_glfw);
@@ -309,7 +310,7 @@ namespace gfx {
         glfwGetWindowSize(m_window_glfw, &width, &height);
     }
 
-    std::shared_ptr<Pipeline> DeviceDx12::create_raster_pipeline(const std::string& name, const std::string& vertex_shader_path, const std::string& pixel_shader_path, const std::initializer_list<ResourceHandlePair> render_targets, const ResourceHandlePair depth_target) {
+    PipelineHandle DeviceDx12::create_raster_pipeline(const std::string& name, const std::string& vertex_shader_path, const std::string& pixel_shader_path, const std::initializer_list<ResourceHandlePair> render_targets, const ResourceHandlePair depth_target) {
         std::vector<DXGI_FORMAT> render_target_formats;
         DXGI_FORMAT depth_target_format = DXGI_FORMAT_UNKNOWN;
 
@@ -332,11 +333,15 @@ namespace gfx {
             depth_target_format = pixel_format_to_dx12(texture.pixel_format);
         }
 
-        return std::make_shared<Pipeline>(*this, name, vertex_shader_path, pixel_shader_path, render_target_formats, depth_target_format);
+        const auto id = m_loaded_pipelines.size();
+        m_loaded_pipelines.emplace_back(*this, name, vertex_shader_path, pixel_shader_path, render_target_formats, depth_target_format);
+        return id;
     }
 
-    std::shared_ptr<Pipeline> DeviceDx12::create_compute_pipeline(const std::string& name, const std::string& compute_shader_path) {
-        return std::make_shared<Pipeline>(*this, name, compute_shader_path);
+    PipelineHandle DeviceDx12::create_compute_pipeline(const std::string& name, const std::string& compute_shader_path) {
+        const auto id = m_loaded_pipelines.size();
+        m_loaded_pipelines.emplace_back(*this, name, compute_shader_path);
+        return id;
     }
 
     void DeviceDx12::begin_frame() {
@@ -433,9 +438,10 @@ namespace gfx {
         }
     }
 
-    void DeviceDx12::begin_raster_pass(std::shared_ptr<Pipeline> pipeline, RasterPassInfo&& render_pass_info) {
+    void DeviceDx12::begin_raster_pass(PipelineHandle pipeline, RasterPassInfo&& render_pass_info) {
         // Create command buffer for this pass
-        m_curr_pass_cmd = m_queue_gfx->create_command_buffer(pipeline.get(), m_swapchain->current_frame_index());
+        m_curr_bound_pipeline = &m_loaded_pipelines[(size_t)pipeline];
+        m_curr_pass_cmd = m_queue_gfx->create_command_buffer(m_curr_bound_pipeline, m_swapchain->current_frame_index());
 
         if (m_gpu_profiling) {
             if (m_query_labels.size() * 2 > MAX_QUERY_COUNT) {
@@ -445,7 +451,6 @@ namespace gfx {
         }
 
         // Set up pipeline
-        m_curr_bound_pipeline = pipeline;
         ID3D12DescriptorHeap* heaps[] = {
             m_heap_bindless->heap.Get(),
         };
@@ -548,14 +553,16 @@ namespace gfx {
         }
     }
 
-    void DeviceDx12::begin_compute_pass(std::shared_ptr<Pipeline> pipeline, bool async) {
+    void DeviceDx12::begin_compute_pass(PipelineHandle pipeline, bool async) {
         // Create command buffer for this pass
+        m_curr_bound_pipeline = &m_loaded_pipelines[(size_t)pipeline];
+
         if (async) {
-            m_curr_pass_cmd = m_upload_queue->create_command_buffer(pipeline.get(), ++m_upload_fence_value_when_done);
+            m_curr_pass_cmd = m_upload_queue->create_command_buffer(m_curr_bound_pipeline, ++m_upload_fence_value_when_done);
             m_curr_pipeline_is_async = true;
         }
         else {
-            m_curr_pass_cmd = m_queue_gfx->create_command_buffer(pipeline.get(), m_swapchain->current_frame_index());
+            m_curr_pass_cmd = m_queue_gfx->create_command_buffer(m_curr_bound_pipeline, m_swapchain->current_frame_index());
         }
 
         if (m_gpu_profiling) {
@@ -566,7 +573,6 @@ namespace gfx {
         }
 
         // Set up pipeline
-        m_curr_bound_pipeline = pipeline;
         ID3D12DescriptorHeap* heaps[] = {
             m_heap_bindless->heap.Get(),
         };

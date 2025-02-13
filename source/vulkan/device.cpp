@@ -186,7 +186,24 @@ namespace gfx::vk {
         return false;
     }
 
+    PipelineHandle Device::create_raster_pipeline(const std::string& name, const std::string& vertex_shader_path, const std::string& pixel_shader_path, const std::initializer_list<ResourceHandlePair> render_targets, const ResourceHandlePair depth_target) {
+        TODO();
+        return PIPELINE_NULL;
+    }
+
+    void Device::begin_raster_pass(PipelineHandle pipeline, RasterPassInfo&& render_pass_info) {
+        TODO();
+    }
+
     void Device::end_raster_pass() {
+        TODO();
+    }
+
+    PipelineHandle Device::create_compute_pipeline(const std::string& name, const std::string& compute_shader_path) {
+        return PipelineHandle();
+    }
+
+    void Device::begin_compute_pass(PipelineHandle pipeline, bool async) {
         TODO();
     }
 

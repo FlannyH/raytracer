@@ -82,20 +82,20 @@ namespace gfx {
         glm::vec2 m_render_resolution = { 0.0f, 0.0f };
         glm::vec2 resolution_scale = { 1.0f, 1.0f };
         std::vector<ResourceHandlePair> render_queue_scenes;
-        std::shared_ptr<Pipeline> m_pipeline_scene = nullptr;
-        std::shared_ptr<Pipeline> m_pipeline_brdf = nullptr;
-        std::shared_ptr<Pipeline> m_pipeline_tonemapping = nullptr;
-        std::shared_ptr<Pipeline> m_pipeline_final_blit = nullptr;
-        std::shared_ptr<Pipeline> m_pipeline_hdri_to_cubemap = nullptr;
-        std::shared_ptr<Pipeline> m_pipeline_cubemap_to_diffuse = nullptr;
-        std::shared_ptr<Pipeline> m_pipeline_accumulate_sh_coeffs = nullptr;
-        std::shared_ptr<Pipeline> m_pipeline_compute_sh_matrices = nullptr;
-        std::shared_ptr<Pipeline> m_pipeline_prefilter_cubemap = nullptr;
-        std::shared_ptr<Pipeline> m_pipeline_ibl_brdf_lut_gen = nullptr;
-        std::shared_ptr<Pipeline> m_pipeline_downsample = nullptr;
-        std::shared_ptr<Pipeline> m_pipeline_ssao = nullptr;
-        std::shared_ptr<Pipeline> m_pipeline_pathtrace = nullptr;
-        std::shared_ptr<Pipeline> m_pipeline_reconstruct_normal_map = nullptr;
+        PipelineHandle m_pipeline_scene = PIPELINE_NULL;
+        PipelineHandle m_pipeline_brdf = PIPELINE_NULL;
+        PipelineHandle m_pipeline_tonemapping = PIPELINE_NULL;
+        PipelineHandle m_pipeline_final_blit = PIPELINE_NULL;
+        PipelineHandle m_pipeline_hdri_to_cubemap = PIPELINE_NULL;
+        PipelineHandle m_pipeline_cubemap_to_diffuse = PIPELINE_NULL;
+        PipelineHandle m_pipeline_accumulate_sh_coeffs = PIPELINE_NULL;
+        PipelineHandle m_pipeline_compute_sh_matrices = PIPELINE_NULL;
+        PipelineHandle m_pipeline_prefilter_cubemap = PIPELINE_NULL;
+        PipelineHandle m_pipeline_ibl_brdf_lut_gen = PIPELINE_NULL;
+        PipelineHandle m_pipeline_downsample = PIPELINE_NULL;
+        PipelineHandle m_pipeline_ssao = PIPELINE_NULL;
+        PipelineHandle m_pipeline_pathtrace = PIPELINE_NULL;
+        PipelineHandle m_pipeline_reconstruct_normal_map = PIPELINE_NULL;
         std::vector<int> m_material_indices_to_reuse;
         std::vector<Material> m_materials; // Should be uploaded to the GPU after modifying
         ResourceHandlePair m_material_buffer{}; // Buffer that contains all currently loaded materials
