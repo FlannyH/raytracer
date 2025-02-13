@@ -5,8 +5,8 @@
 #include "descriptor_heap.h"
 #include "../input.h"
 
-namespace gfx {
-    DeviceVulkan::DeviceVulkan(const int width, const int height, const bool debug_layer_enabled, const bool gpu_profiling_enabled) {
+namespace gfx::vk {
+    Device::Device(const int width, const int height, const bool debug_layer_enabled, const bool gpu_profiling_enabled) {
         const std::array<const char*, 3> device_extensions_to_enable = {
             "VK_KHR_swapchain",
             "VK_KHR_buffer_device_address",
@@ -146,86 +146,68 @@ namespace gfx {
         m_desc_heap = std::make_shared<DescriptorHeap>(*this, 100'000); // todo: unhardcode this
     }
     
-    DeviceVulkan::~DeviceVulkan() {
+    Device::~Device() {
         vkDestroyDevice(device, nullptr);
     }
 
-    void DeviceVulkan::resize_window(const int width, const int height) const {
+    void Device::resize_window(const int width, const int height) const {
         TODO();
     }
 
-    void DeviceVulkan::get_window_size(int& width, int& height) const {
+    void Device::get_window_size(int& width, int& height) const {
         TODO();
     }
 
-    std::shared_ptr<Pipeline> DeviceVulkan::create_raster_pipeline(const std::string& name, const std::string& vertex_shader_path, const std::string& pixel_shader_path, const std::initializer_list<ResourceHandlePair> render_targets, const ResourceHandlePair depth_target) {
-        TODO();
-        return nullptr;
-    }
-
-    std::shared_ptr<Pipeline> DeviceVulkan::create_compute_pipeline(const std::string& name, const std::string& compute_shader_path) {
-        TODO();
-        return nullptr;
-    }
-
-    void DeviceVulkan::begin_frame() {
+    void Device::begin_frame() {
         TODO();
     }
 
-    void DeviceVulkan::end_frame() {
+    void Device::end_frame() {
         TODO();
         glfwPollEvents();
         glfwSwapBuffers(m_window_glfw);
     }
 
-    void DeviceVulkan::set_graphics_root_constants(const std::vector<uint32_t>& constants) {
+    void Device::set_graphics_root_constants(const std::vector<uint32_t>& constants) {
         TODO();
     }
 
-    void DeviceVulkan::set_compute_root_constants(const std::vector<uint32_t>& constants) {
+    void Device::set_compute_root_constants(const std::vector<uint32_t>& constants) {
         TODO();
     }
 
-    int DeviceVulkan::frame_index() {
+    int Device::frame_index() {
         TODO();
         return -1;
     }
 
-    bool DeviceVulkan::supports(RendererFeature feature) {
+    bool Device::supports(RendererFeature feature) {
         TODO();
         return false;
     }
 
-    void DeviceVulkan::begin_raster_pass(std::shared_ptr<Pipeline> pipeline, RasterPassInfo&& render_pass_info) {
+    void Device::end_raster_pass() {
         TODO();
     }
 
-    void DeviceVulkan::end_raster_pass() {
+    void Device::end_compute_pass() {
         TODO();
     }
 
-    void DeviceVulkan::begin_compute_pass(std::shared_ptr<Pipeline> pipeline, bool async) {
+    void Device::dispatch_threadgroups(uint32_t x, uint32_t y, uint32_t z) {
         TODO();
     }
 
-    void DeviceVulkan::end_compute_pass() {
+    void Device::draw_vertices(uint32_t n_vertices) {
         TODO();
     }
 
-    void DeviceVulkan::dispatch_threadgroups(uint32_t x, uint32_t y, uint32_t z) {
-        TODO();
-    }
-
-    void DeviceVulkan::draw_vertices(uint32_t n_vertices) {
-        TODO();
-    }
-
-    ResourceHandlePair DeviceVulkan::load_texture(const std::string& name, uint32_t width, uint32_t height, uint32_t depth, void* data, PixelFormat pixel_format, TextureType type, ResourceUsage usage, int max_mip_levels, int min_resolution) {
+    ResourceHandlePair Device::load_texture(const std::string& name, uint32_t width, uint32_t height, uint32_t depth, void* data, PixelFormat pixel_format, TextureType type, ResourceUsage usage, int max_mip_levels, int min_resolution) {
         TODO();
         return {};
     }
 
-    ResourceHandlePair DeviceVulkan::load_mesh(const std::string& name, const uint64_t n_triangles, Triangle* tris) {
+    ResourceHandlePair Device::load_mesh(const std::string& name, const uint64_t n_triangles, Triangle* tris) {
         TODO();
         return {};
     }
@@ -274,7 +256,7 @@ namespace gfx {
         return 0;
     }
 
-    ResourceHandlePair DeviceVulkan::create_buffer(const std::string& name, const size_t size, void* data, ResourceUsage usage) {
+    ResourceHandlePair Device::create_buffer(const std::string& name, const size_t size, void* data, ResourceUsage usage) {
         // Create buffer
         // todo: destroy `buffer` when destroying the resource
         VkBuffer buffer;
@@ -332,7 +314,7 @@ namespace gfx {
 
             // Upload the data to the destination buffer
             ++m_upload_fence_value_when_done;
-            auto cmd = m_upload_queue->create_command_buffer(device, nullptr, m_upload_fence_value_when_done);
+            auto cmd = m_queue_compute->create_command_buffer(device, nullptr, m_upload_fence_value_when_done);
             
             VkBufferCopy region = {};
             region.srcOffset = 0;
@@ -360,60 +342,60 @@ namespace gfx {
         return {};
     }
 
-    ResourceHandlePair DeviceVulkan::create_render_target(const std::string& name, uint32_t width, uint32_t height, PixelFormat pixel_format, std::optional<glm::vec4> clear_color, ResourceUsage extra_usage) {
+    ResourceHandlePair Device::create_render_target(const std::string& name, uint32_t width, uint32_t height, PixelFormat pixel_format, std::optional<glm::vec4> clear_color, ResourceUsage extra_usage) {
         TODO();
         return {};
     }
 
-    ResourceHandlePair DeviceVulkan::create_depth_target(const std::string& name, uint32_t width, uint32_t height, PixelFormat pixel_format, float clear_depth) {
+    ResourceHandlePair Device::create_depth_target(const std::string& name, uint32_t width, uint32_t height, PixelFormat pixel_format, float clear_depth) {
         TODO();
         return {};
     }
 
-    void DeviceVulkan::resize_texture(ResourceHandlePair& handle, const uint32_t width, const uint32_t height) {
+    void Device::resize_texture(ResourceHandlePair& handle, const uint32_t width, const uint32_t height) {
         TODO();
     }
 
-    void DeviceVulkan::update_buffer(const ResourceHandlePair& buffer, const uint32_t offset, const uint32_t n_bytes, const void* data) {
+    void Device::update_buffer(const ResourceHandlePair& buffer, const uint32_t offset, const uint32_t n_bytes, const void* data) {
         TODO();
     }
 
-    void DeviceVulkan::readback_buffer(const ResourceHandlePair& buffer, const uint32_t offset, const uint32_t n_bytes, void* destination) {
+    void Device::readback_buffer(const ResourceHandlePair& buffer, const uint32_t offset, const uint32_t n_bytes, void* destination) {
         TODO();
     }
 
-    void DeviceVulkan::queue_unload_bindless_resource(ResourceHandlePair resource) {
+    void Device::queue_unload_bindless_resource(ResourceHandlePair resource) {
         TODO();
     }
 
-    void DeviceVulkan::use_resource(const ResourceHandlePair &resource, const ResourceUsage usage) {
+    void Device::use_resource(const ResourceHandlePair &resource, const ResourceUsage usage) {
         TODO();
     }
 
-    void DeviceVulkan::use_resources(const std::initializer_list<ResourceTransitionInfo>& resources) {
+    void Device::use_resources(const std::initializer_list<ResourceTransitionInfo>& resources) {
         TODO();
     }
 
-    ResourceHandlePair DeviceVulkan::create_acceleration_structure(const std::string& name, const size_t size) {
-        TODO();
-        return {};
-    }
-
-    ResourceHandlePair DeviceVulkan::create_blas(const std::string& name, const ResourceHandlePair& position_buffer, const ResourceHandlePair& index_buffer, const uint32_t vertex_count, const uint32_t index_count) {
+    ResourceHandlePair Device::create_acceleration_structure(const std::string& name, const size_t size) {
         TODO();
         return {};
     }
 
-    ResourceHandlePair DeviceVulkan::create_tlas(const std::string& name, const std::vector<RaytracingInstance>& instances) {
+    ResourceHandlePair Device::create_blas(const std::string& name, const ResourceHandlePair& position_buffer, const ResourceHandlePair& index_buffer, const uint32_t vertex_count, const uint32_t index_count) {
         TODO();
         return {};
     }
 
-    bool DeviceVulkan::should_stay_open() {
+    ResourceHandlePair Device::create_tlas(const std::string& name, const std::vector<RaytracingInstance>& instances) {
+        TODO();
+        return {};
+    }
+
+    bool Device::should_stay_open() {
         return !glfwWindowShouldClose(m_window_glfw);
     }
 
-    void DeviceVulkan::set_full_screen(bool full_screen) {
+    void Device::set_full_screen(bool full_screen) {
         TODO();
     }
 }

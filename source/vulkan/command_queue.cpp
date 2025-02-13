@@ -1,8 +1,8 @@
 #include "command_queue.h"
 #include "device.h"
 
-namespace gfx {
-    CommandQueue::CommandQueue(DeviceVulkan& device, CommandBufferType type, const std::wstring &name) {
+namespace gfx::vk {
+    CommandQueue::CommandQueue(Device& device, CommandBufferType type, const std::wstring &name) {
         // todo: set command pool debug label?
         // todo: would VK_COMMAND_POOL_CREATE_TRANSIENT_BIT make sense here?
         VkCommandPoolCreateInfo pool_create_info { VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO };

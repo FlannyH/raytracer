@@ -1,7 +1,7 @@
 #include "descriptor_heap.h"
 
-namespace gfx {    
-    DescriptorHeap::DescriptorHeap(const DeviceVulkan& device, uint32_t n_descriptors) {
+namespace gfx::vk {    
+    DescriptorHeap::DescriptorHeap(const Device& device, uint32_t n_descriptors) {
         // Create descriptor set layout with descriptor binding flags PARTIALLY_BOUND, VARIABLE_DESCRIPTOR_COUNT, UPDATE_AFTER_BIND
         const std::array<VkDescriptorSetLayoutBinding, 4> desc_set_layout_binding = {{
             { 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, n_descriptors, VK_SHADER_STAGE_ALL },
@@ -63,7 +63,7 @@ namespace gfx {
         }
     }
     
-    void DescriptorHeap::write_buffer_descriptor(const DeviceVulkan& device, ResourceHandle id, VkBuffer buffer, size_t offset, size_t size) {
+    void DescriptorHeap::write_buffer_descriptor(const Device& device, ResourceHandle id, VkBuffer buffer, size_t offset, size_t size) {
         // todo: maybe batch update?
         VkDescriptorBufferInfo buffer_info = {};
         buffer_info.buffer = buffer;

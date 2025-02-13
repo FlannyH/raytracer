@@ -5,8 +5,8 @@
 
 #include "../common.h"
 
-namespace gfx {
-    struct DeviceVulkan;
+namespace gfx::vk {
+    struct Device;
     struct Pipeline;
     struct CommandBuffer;
 
@@ -17,7 +17,7 @@ namespace gfx {
     };
 
     struct CommandQueue {
-        explicit CommandQueue(DeviceVulkan& device, CommandBufferType type, const std::wstring& name = L"Unnamed command queue");
+        explicit CommandQueue(Device& device, CommandBufferType type, const std::wstring& name = L"Unnamed command queue");
         VkCommandBuffer& create_command_buffer(VkDevice& device, const Pipeline* pipeline, size_t frame_index);
         int clean_up_old_command_buffers(uint64_t curr_finished_index);
         void execute();

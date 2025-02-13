@@ -14,7 +14,7 @@
 #include "../resource.h"
 #include "../device.h"
 
-namespace gfx {
+namespace gfx::vk {
     struct CommandBuffer;
     struct Swapchain;
     struct CommandQueue;
@@ -29,13 +29,13 @@ namespace gfx {
         std::optional<uint32_t> compute_family;
     };
 
-    struct DeviceVulkan : public Device {
+    struct Device : public gfx::Device {
     public:
         // Initialization
-        DeviceVulkan(int width, int height, bool debug_layer_enabled, bool gpu_profiling_enabled);
-        ~DeviceVulkan();
-        DeviceVulkan(const Device&) = delete;
-        DeviceVulkan& operator=(const Device&) = delete;
+        Device(int width, int height, bool debug_layer_enabled, bool gpu_profiling_enabled);
+        ~Device();
+        Device(const Device&) = delete;
+        Device& operator=(const Device&) = delete;
         void resize_window(int width, int height) const override;
         void get_window_size(int& width, int& height) const override;
 
@@ -50,14 +50,14 @@ namespace gfx {
         bool supports(RendererFeature feature) override;
 
         // Rasterization
-        std::shared_ptr<Pipeline> create_raster_pipeline(const std::string& name, const std::string& vertex_shader_path, const std::string& pixel_shader_path, const std::initializer_list<ResourceHandlePair> render_targets, const ResourceHandlePair depth_target = { ResourceHandle::none(), nullptr }) override;
-        void begin_raster_pass(std::shared_ptr<Pipeline> pipeline, RasterPassInfo&& render_pass_info) override;
+        // std::shared_ptr<Pipeline> create_raster_pipeline(const std::string& name, const std::string& vertex_shader_path, const std::string& pixel_shader_path, const std::initializer_list<ResourceHandlePair> render_targets, const ResourceHandlePair depth_target = { ResourceHandle::none(), nullptr }) override;
+        // void begin_raster_pass(std::shared_ptr<Pipeline> pipeline, RasterPassInfo&& render_pass_info) override;
         void end_raster_pass() override;
         void draw_vertices(uint32_t n_vertices) override;
 
         // Compute
-        std::shared_ptr<Pipeline> create_compute_pipeline(const std::string& name, const std::string& compute_shader_path) override;
-        void begin_compute_pass(std::shared_ptr<Pipeline> pipeline, bool async = false) override;
+        // std::shared_ptr<Pipeline> create_compute_pipeline(const std::string& name, const std::string& compute_shader_path) override;
+        // void begin_compute_pass(std::shared_ptr<Pipeline> pipeline, bool async = false) override;
         void end_compute_pass() override;
         void dispatch_threadgroups(uint32_t x, uint32_t y, uint32_t z) override;
 

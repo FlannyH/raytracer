@@ -33,7 +33,7 @@ namespace gfx {
             m_device = std::make_unique<DeviceDx12>(width, height, debug_layer_enabled, gpu_profiling_enabled); 
             break;
         case RenderBackend::vulkan:
-            m_device = std::make_unique<DeviceVulkan>(width, height, debug_layer_enabled, gpu_profiling_enabled); 
+            m_device = std::make_unique<gfx::vk::Device>(width, height, debug_layer_enabled, gpu_profiling_enabled); 
             break;
         default:
             LOG(Error, "Invalid render backend passed to renderer constructor");
