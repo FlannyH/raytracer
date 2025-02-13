@@ -7,10 +7,12 @@
 
 namespace gfx::vk {
     Device::Device(const int width, const int height, const bool debug_layer_enabled, const bool gpu_profiling_enabled) {
-        const std::array<const char*, 3> device_extensions_to_enable = {
+        const std::array<const char*, 5> device_extensions_to_enable = {
             "VK_KHR_swapchain",
             "VK_KHR_buffer_device_address",
             "VK_EXT_descriptor_indexing",
+            "VK_KHR_acceleration_structure",
+            "VK_KHR_deferred_host_operations",
         };
 
         glfwInit();
@@ -255,6 +257,7 @@ namespace gfx::vk {
             case ResourceUsage::render_target: return 0; // Not applicable for buffers
             case ResourceUsage::depth_target: return 0; // Not applicable for buffers
             case ResourceUsage::acceleration_structure: return VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_STORAGE_BIT_KHR; // For acceleration structures
+            case ResourceUsage::copy_source: return VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
         }
         return 0; // Default fallback
     }
@@ -280,6 +283,9 @@ namespace gfx::vk {
         VkBufferCreateInfo buffer_create_info { VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO };
         buffer_create_info.size = size;
         buffer_create_info.usage = resource_usage_to_vk_buffer_usage(usage);
+        if (usage != ResourceUsage::cpu_read_write && usage != ResourceUsage::cpu_writable && usage != ResourceUsage::copy_source) {
+            buffer_create_info.usage |= VK_BUFFER_USAGE_TRANSFER_DST_BIT;
+        }
         
         if (vkCreateBuffer(device, &buffer_create_info, nullptr, &buffer) != VK_SUCCESS) {
         buffer_create_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
@@ -294,6 +300,7 @@ namespace gfx::vk {
         VkMemoryPropertyFlags flags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT; // gpu-only by default
         if (usage == (ResourceUsage::cpu_read_write)) flags = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT; // can read and write from cpu side and gpu side
         if (usage == (ResourceUsage::cpu_writable)) flags = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT; // can only write from cpu side and both read and write on gpu side
+        if (usage == (ResourceUsage::copy_source)) flags = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT; // can only write from cpu side and both read and write on gpu side
 
         VkMemoryAllocateInfo memory_allocate_info { VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO };
         memory_allocate_info.allocationSize = memory_requirements.size;
@@ -311,7 +318,7 @@ namespace gfx::vk {
         }
 
         // Populate buffer
-        if (data != nullptr && usage == (ResourceUsage::cpu_writable) || usage == (ResourceUsage::cpu_read_write)) {
+        if (data != nullptr && usage == (ResourceUsage::cpu_writable) || usage == (ResourceUsage::cpu_read_write) || usage == (ResourceUsage::copy_source)) {
             // todo: do i need to flush this memory?
             void* mapped_buffer;
             const auto result = vkMapMemory(device, device_memory, 0, size, 0, &mapped_buffer);
@@ -325,7 +332,7 @@ namespace gfx::vk {
         }
         else if (data != nullptr) {
             // Create upload buffer containing the data
-            const auto upload_buffer_id = create_buffer(name + "(upload buffer)", size, data, ResourceUsage::cpu_writable);
+            const auto upload_buffer_id = create_buffer(name + "(upload buffer)", size, data, ResourceUsage::copy_source);
             const auto& upload_buffer = upload_buffer_id.resource;
             // todo: unload this buffer later
 
@@ -353,7 +360,9 @@ namespace gfx::vk {
 
         // todo: set the name on the vulkan buffer object as well
         auto id = m_desc_heap->alloc_descriptor(ResourceType::buffer);
-        m_desc_heap->write_buffer_descriptor(*this, id, buffer, 0, size);
+        if (usage != ResourceUsage::copy_source) {
+            m_desc_heap->write_buffer_descriptor(*this, id, buffer, 0, size);
+        }
 
         return ResourceHandlePair{ id, resource };
         return {};

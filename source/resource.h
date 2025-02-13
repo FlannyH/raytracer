@@ -54,7 +54,8 @@ namespace gfx {
         non_pixel_shader_read,
         cpu_writable,
         cpu_read_write,
-        acceleration_structure
+        acceleration_structure,
+        copy_source,
     };
 
     struct ResourceHandle {

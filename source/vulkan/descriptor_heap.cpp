@@ -22,10 +22,7 @@ namespace gfx::vk {
         binding_flags_create_info.pBindingFlags = flags.data();
 
         VkDescriptorSetLayoutCreateInfo desc_set_create_info { VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO };
-        desc_set_create_info.flags = 
-            VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT | 
-            VK_DESCRIPTOR_BINDING_VARIABLE_DESCRIPTOR_COUNT_BIT |
-            VK_DESCRIPTOR_BINDING_UPDATE_AFTER_BIND_BIT;
+        desc_set_create_info.flags = VK_DESCRIPTOR_SET_LAYOUT_CREATE_UPDATE_AFTER_BIND_POOL_BIT;
         desc_set_create_info.bindingCount = desc_set_layout_binding.size();
         desc_set_create_info.pBindings = desc_set_layout_binding.data();
 
@@ -43,6 +40,7 @@ namespace gfx::vk {
         }};
 
         // Create descriptor pool with UPDATE_AFTER_BIND flag set
+        // todo: if device doesn't support ray tracing, only put the first 3 pools
         VkDescriptorPoolCreateInfo desc_pool_create_info { VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO };
         desc_pool_create_info.flags = VK_DESCRIPTOR_POOL_CREATE_UPDATE_AFTER_BIND_BIT;
         desc_pool_create_info.maxSets = 4;

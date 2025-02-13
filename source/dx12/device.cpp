@@ -1255,6 +1255,7 @@ namespace gfx {
             case ResourceUsage::pixel_shader_read: return D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
             case ResourceUsage::non_pixel_shader_read: return D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE;
             case ResourceUsage::acceleration_structure: return D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE;
+            case ResourceUsage::copy_source: return D3D12_RESOURCE_STATE_COPY_SOURCE;
         }
         return D3D12_RESOURCE_STATE_COMMON;
     }
