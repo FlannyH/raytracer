@@ -1,7 +1,7 @@
 #include "descriptor_heap.h"
 
 namespace gfx {    
-    DescriptorHeap::DescriptorHeap(const DeviceVulkan &device, uint32_t n_descriptors) {
+    DescriptorHeap::DescriptorHeap(const DeviceVulkan& device, uint32_t n_descriptors) {
         // Create descriptor set layout with descriptor binding flags PARTIALLY_BOUND, VARIABLE_DESCRIPTOR_COUNT, UPDATE_AFTER_BIND
         const std::array<VkDescriptorSetLayoutBinding, 4> desc_set_layout_binding = {{
             { 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, n_descriptors, VK_SHADER_STAGE_ALL },
@@ -49,7 +49,6 @@ namespace gfx {
         desc_pool_create_info.poolSizeCount = desc_pool_sizes.size();
         desc_pool_create_info.pPoolSizes = desc_pool_sizes.data();
 
-        VkDescriptorPool desc_pool;
         if (vkCreateDescriptorPool(device.device, &desc_pool_create_info, nullptr, &desc_pool) != VK_SUCCESS) {
             LOG(Error, "Failed to create descriptor pool");
         }
@@ -59,9 +58,26 @@ namespace gfx {
         desc_set_alloc_info.descriptorSetCount = 1;
         desc_set_alloc_info.pSetLayouts = &desc_set_layout;
 
-        VkDescriptorSet desc_set;
         if (vkAllocateDescriptorSets(device.device, &desc_set_alloc_info, &desc_set) != VK_SUCCESS) {
             LOG(Error, "Failed to create descriptor set");
         }
+    }
+    
+    void DescriptorHeap::write_buffer_descriptor(const DeviceVulkan& device, ResourceHandle id, VkBuffer buffer, size_t offset, size_t size) {
+        // todo: maybe batch update?
+        VkDescriptorBufferInfo buffer_info = {};
+        buffer_info.buffer = buffer;
+        buffer_info.offset = offset;
+        buffer_info.range = size;
+
+        VkWriteDescriptorSet set = { VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET };
+        set.dstSet = desc_set;
+        set.dstBinding = 0; // storage buffer
+        set.dstArrayElement = id.id;
+        set.descriptorCount = 1;
+        set.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+        set.pBufferInfo = &buffer_info;
+
+        vkUpdateDescriptorSets(device.device, 1, &set, 0, nullptr);
     }
 }

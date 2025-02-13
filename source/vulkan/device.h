@@ -92,5 +92,7 @@ namespace gfx {
         std::shared_ptr<CommandQueue> m_queue_compute = nullptr;
         std::shared_ptr<CommandQueue> m_queue_graphics = nullptr;
 
+        std::shared_ptr<DescriptorHeap> m_desc_heap = nullptr;
+
     };
 };

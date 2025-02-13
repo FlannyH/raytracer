@@ -2,6 +2,7 @@
 
 #include <array>
 #include "command_queue.h"
+#include "descriptor_heap.h"
 #include "../input.h"
 
 namespace gfx {
@@ -336,11 +337,10 @@ namespace gfx {
         };
 
         // todo: set the name on the vulkan buffer object as well
-        // todo: descriptors
-        // auto id = m_heap_bindless->alloc_descriptor(ResourceType::buffer);
-        // const auto handle = m_heap_bindless->fetch_cpu_handle(id);
+        auto id = m_desc_heap->alloc_descriptor(ResourceType::buffer);
+        m_desc_heap->write_buffer_descriptor(*this, id, buffer, 0, size);
 
-        // return ResourceHandlePair{ id, resource };
+        return ResourceHandlePair{ id, resource };
         return {};
     }
 

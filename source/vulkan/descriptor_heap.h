@@ -10,7 +10,12 @@ namespace gfx {
     struct DescriptorHeap {
         DescriptorHeap(const DeviceVulkan& device, uint32_t n_descriptors);
         ResourceHandle alloc_descriptor(ResourceType type);
+        void write_buffer_descriptor(const DeviceVulkan& device, ResourceHandle id, VkBuffer buffer, size_t offset, size_t size);
         void free_descriptor(ResourceHandle id);
+
+    private:
+        VkDescriptorPool desc_pool;
+        VkDescriptorSet desc_set;
         /*
             DescriptorHeap is used to allocate resource handles, even for resources that aren't GPU 
             resources (like scene descriptions). For GPU resources, it needs to write a descriptor 
