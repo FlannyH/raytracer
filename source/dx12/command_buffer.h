@@ -6,7 +6,7 @@
 
 #include "command_queue.h"
 
-namespace gfx {
+namespace gfx::dx12 {
     struct Fence;
     enum class CommandBufferType;
     struct CommandQueue;

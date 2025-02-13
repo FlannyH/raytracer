@@ -30,7 +30,7 @@ namespace gfx {
     Renderer::Renderer(RenderBackend backend, int width, int height, bool debug_layer_enabled, bool gpu_profiling_enabled) {
         switch (backend) {
         case RenderBackend::dx12: 
-            m_device = std::make_unique<DeviceDx12>(width, height, debug_layer_enabled, gpu_profiling_enabled); 
+            m_device = std::make_unique<gfx::dx12::Device>(width, height, debug_layer_enabled, gpu_profiling_enabled); 
             break;
         case RenderBackend::vulkan:
             m_device = std::make_unique<gfx::vk::Device>(width, height, debug_layer_enabled, gpu_profiling_enabled); 

@@ -7,15 +7,15 @@
 #include "../resource.h"
 #include "fence.h"
 
-namespace gfx {
+namespace gfx::dx12 {
     struct CommandBuffer;
     struct Fence;
     struct DescriptorHeap;
-    struct DeviceDx12;
+    struct Device;
     struct CommandQueue;
 
     struct Swapchain {
-        Swapchain(const DeviceDx12& device, const CommandQueue& queue, DescriptorHeap& rtv_heap, PixelFormat format);
+        Swapchain(const Device& device, const CommandQueue& queue, DescriptorHeap& rtv_heap, PixelFormat format);
         ComPtr<ID3D12Resource> next_framebuffer();
         ComPtr<ID3D12Resource> curr_framebuffer();
         D3D12_CPU_DESCRIPTOR_HANDLE curr_framebuffer_rtv();
@@ -24,8 +24,8 @@ namespace gfx {
         void prepare_present(std::shared_ptr<CommandBuffer> command_buffer);
         void synchronize(std::shared_ptr<CommandQueue> queue);
         void flush(std::shared_ptr<CommandQueue> queue);
-        void resize(DeviceDx12& device, std::shared_ptr<CommandQueue> queue, DescriptorHeap& rtv_heap, uint32_t width, uint32_t height, PixelFormat format);
-        void get_back_buffers(const DeviceDx12& device, DescriptorHeap& rtv_heap);
+        void resize(Device& device, std::shared_ptr<CommandQueue> queue, DescriptorHeap& rtv_heap, uint32_t width, uint32_t height, PixelFormat format);
+        void get_back_buffers(const Device& device, DescriptorHeap& rtv_heap);
         int width() const { return m_width; }
         int height() const { return m_height; }
         size_t current_frame_index() const {

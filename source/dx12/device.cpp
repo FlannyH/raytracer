@@ -21,7 +21,7 @@
 #define MAX_QUERY_COUNT 1024
 #define DEBUG_PRINT_GPU_PROFILING 0
 
-namespace gfx {
+namespace gfx::dx12 {
     const char* breadcrumb_op_names[49] = {
         "SETMARKER",                                        "BEGINEVENT",
         "ENDEVENT",                                         "DRAWINSTANCED",
@@ -92,7 +92,7 @@ namespace gfx {
         Log::write(level, "D3D12: %s: %s", category_names[category], description);
     }
 
-    DeviceDx12::DeviceDx12(const int width, const int height, const bool debug_layer_enabled, const bool gpu_profiling_enabled) {
+    Device::Device(const int width, const int height, const bool debug_layer_enabled, const bool gpu_profiling_enabled) {
         // Create window
         glfwInit();
         glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API); // use GLFW_NO_API, since we're not using OpenGL
@@ -184,7 +184,7 @@ namespace gfx {
             std::lock_guard<std::mutex> lock(mutex_thread_shared_globals);
             thread_shared_globals.device_lost_fence = std::make_shared<Fence>(*this);
         }
-        auto device_lost_handler = [](DeviceDx12* device) {
+        auto device_lost_handler = [](Device* device) {
             LOG(Debug, "Device removal handler thread created");
 
             // Do nothing until device removal or shutdown exists
@@ -261,7 +261,7 @@ namespace gfx {
         get_window_size(m_width, m_height);
     }
 
-    DeviceDx12::~DeviceDx12() {
+    Device::~Device() {
         // Kill the breadcrumb thread
         {
             std::lock_guard<std::mutex> lock = std::lock_guard(mutex_thread_shared_globals);
@@ -302,15 +302,15 @@ namespace gfx {
         glfwDestroyWindow(m_window_glfw);
     }
 
-    void DeviceDx12::resize_window(const int width, const int height) const {
+    void Device::resize_window(const int width, const int height) const {
         glfwSetWindowSize(m_window_glfw, width, height);
     }
 
-    void DeviceDx12::get_window_size(int& width, int& height) const {
+    void Device::get_window_size(int& width, int& height) const {
         glfwGetWindowSize(m_window_glfw, &width, &height);
     }
 
-    PipelineHandle DeviceDx12::create_raster_pipeline(const std::string& name, const std::string& vertex_shader_path, const std::string& pixel_shader_path, const std::initializer_list<ResourceHandlePair> render_targets, const ResourceHandlePair depth_target) {
+    PipelineHandle Device::create_raster_pipeline(const std::string& name, const std::string& vertex_shader_path, const std::string& pixel_shader_path, const std::initializer_list<ResourceHandlePair> render_targets, const ResourceHandlePair depth_target) {
         std::vector<DXGI_FORMAT> render_target_formats;
         DXGI_FORMAT depth_target_format = DXGI_FORMAT_UNKNOWN;
 
@@ -338,13 +338,13 @@ namespace gfx {
         return id;
     }
 
-    PipelineHandle DeviceDx12::create_compute_pipeline(const std::string& name, const std::string& compute_shader_path) {
+    PipelineHandle Device::create_compute_pipeline(const std::string& name, const std::string& compute_shader_path) {
         const auto id = m_loaded_pipelines.size();
         m_loaded_pipelines.emplace_back(*this, name, compute_shader_path);
         return id;
     }
 
-    void DeviceDx12::begin_frame() {
+    void Device::begin_frame() {
         static int prev_key = 0;
         int curr_key = glfwGetKey(m_window_glfw, GLFW_KEY_F11);
         if (curr_key == GLFW_PRESS && prev_key == GLFW_RELEASE) {
@@ -368,7 +368,7 @@ namespace gfx {
         clean_up_old_resources();
     }
 
-    void DeviceDx12::end_frame() {
+    void Device::end_frame() {
         m_swapchain->prepare_present(m_curr_pass_cmd);
         m_queue_gfx->execute();
         m_swapchain->synchronize(m_queue_gfx);
@@ -402,7 +402,7 @@ namespace gfx {
         }
     }
 
-    void DeviceDx12::set_graphics_root_constants(const std::vector<uint32_t>& constants) {
+    void Device::set_graphics_root_constants(const std::vector<uint32_t>& constants) {
         auto gfx_cmd = m_curr_pass_cmd->get();
         UINT index = 0;
         for (const auto& constant : constants) {
@@ -410,7 +410,7 @@ namespace gfx {
         }
     }
 
-    void DeviceDx12::set_compute_root_constants(const std::vector<uint32_t>& constants) {
+    void Device::set_compute_root_constants(const std::vector<uint32_t>& constants) {
         auto gfx_cmd = m_curr_pass_cmd->get();
         UINT index = 0;
         for (const auto& constant : constants) {
@@ -418,11 +418,11 @@ namespace gfx {
         }
     }
 
-    int DeviceDx12::frame_index() {
+    int Device::frame_index() {
         return m_swapchain->current_frame_index();
     }
 
-    bool DeviceDx12::supports(RendererFeature feature) {
+    bool Device::supports(RendererFeature feature) {
         D3D12_FEATURE_DATA_D3D12_OPTIONS5 feature_opt5{};
 
         switch (feature) {
@@ -438,7 +438,7 @@ namespace gfx {
         }
     }
 
-    void DeviceDx12::begin_raster_pass(PipelineHandle pipeline, RasterPassInfo&& render_pass_info) {
+    void Device::begin_raster_pass(PipelineHandle pipeline, RasterPassInfo&& render_pass_info) {
         // Create command buffer for this pass
         m_curr_bound_pipeline = &m_loaded_pipelines[(size_t)pipeline];
         m_curr_pass_cmd = m_queue_gfx->create_command_buffer(m_curr_bound_pipeline, m_swapchain->current_frame_index());
@@ -543,7 +543,7 @@ namespace gfx {
         );
     }
 
-    void DeviceDx12::end_raster_pass() {
+    void Device::end_raster_pass() {
         if (m_gpu_profiling) {
             m_curr_pass_cmd->get()->EndQuery(m_query_heap.Get(), D3D12_QUERY_TYPE_TIMESTAMP, m_query_labels.size() * 2 + 1);
             m_query_labels.push_back(m_curr_bound_pipeline->get_name());
@@ -553,7 +553,7 @@ namespace gfx {
         }
     }
 
-    void DeviceDx12::begin_compute_pass(PipelineHandle pipeline, bool async) {
+    void Device::begin_compute_pass(PipelineHandle pipeline, bool async) {
         // Create command buffer for this pass
         m_curr_bound_pipeline = &m_loaded_pipelines[(size_t)pipeline];
 
@@ -582,7 +582,7 @@ namespace gfx {
         m_curr_pass_cmd->get()->SetName(async ? L"Async compute pass" : L"Compute pass");	
     }
 
-    void DeviceDx12::end_compute_pass() {
+    void Device::end_compute_pass() {
         if (m_gpu_profiling) {
             m_curr_pass_cmd->get()->EndQuery(m_query_heap.Get(), D3D12_QUERY_TYPE_TIMESTAMP, m_query_labels.size() * 2 + 1);
             m_query_labels.push_back(m_curr_bound_pipeline->get_name());
@@ -592,11 +592,11 @@ namespace gfx {
         }
     }
 
-    void DeviceDx12::dispatch_threadgroups(uint32_t x, uint32_t y, uint32_t z) {
+    void Device::dispatch_threadgroups(uint32_t x, uint32_t y, uint32_t z) {
         m_curr_pass_cmd->get()->Dispatch(x, y, z);
     }
 
-    void DeviceDx12::draw_vertices(uint32_t n_vertices) {
+    void Device::draw_vertices(uint32_t n_vertices) {
         if (!m_curr_bound_pipeline) {
             LOG(Error, "Attempt to record draw call without a pipeline set! Did you forget to call `begin_raster_pass()`?");
             return;
@@ -673,7 +673,7 @@ namespace gfx {
         return srv_desc;
     }
 
-    ResourceHandlePair DeviceDx12::load_texture(const std::string& name, uint32_t width, uint32_t height, uint32_t depth, void* data, PixelFormat pixel_format, TextureType type, ResourceUsage usage, int max_mip_levels, int min_resolution) {
+    ResourceHandlePair Device::load_texture(const std::string& name, uint32_t width, uint32_t height, uint32_t depth, void* data, PixelFormat pixel_format, TextureType type, ResourceUsage usage, int max_mip_levels, int min_resolution) {
         // Make texture resource
         const auto resource = std::make_shared<Resource>(ResourceType::texture);
         resource->usage = usage;
@@ -835,7 +835,7 @@ namespace gfx {
         return ResourceHandlePair{ id, resource };
     }
 
-    ResourceHandlePair DeviceDx12::load_mesh(const std::string& name, const uint64_t n_triangles, Triangle* tris) {
+    ResourceHandlePair Device::load_mesh(const std::string& name, const uint64_t n_triangles, Triangle* tris) {
         return create_buffer(name, n_triangles * sizeof(Triangle), tris, ResourceUsage::non_pixel_shader_read);
     }
 
@@ -860,7 +860,7 @@ namespace gfx {
         }
     }
 
-    ResourceHandlePair DeviceDx12::create_buffer(const std::string& name, const size_t size, void* data, ResourceUsage usage) {
+    ResourceHandlePair Device::create_buffer(const std::string& name, const size_t size, void* data, ResourceUsage usage) {
         // Create engine resource
         const auto resource = std::make_shared<Resource>(ResourceType::buffer);
         resource->usage = usage;
@@ -968,7 +968,7 @@ namespace gfx {
         return ResourceHandlePair{ id, resource };
     }
 
-    ResourceHandlePair DeviceDx12::create_render_target(const std::string& name, uint32_t width, uint32_t height, PixelFormat pixel_format, std::optional<glm::vec4> clear_color, ResourceUsage extra_usage) {
+    ResourceHandlePair Device::create_render_target(const std::string& name, uint32_t width, uint32_t height, PixelFormat pixel_format, std::optional<glm::vec4> clear_color, ResourceUsage extra_usage) {
         // Make texture resource
         const auto resource = std::make_shared<Resource>(ResourceType::texture);
         resource->usage = extra_usage;
@@ -1070,7 +1070,7 @@ namespace gfx {
         return ResourceHandlePair{ srv_id, resource };
     }
 
-    ResourceHandlePair DeviceDx12::create_depth_target(const std::string& name, uint32_t width, uint32_t height, PixelFormat pixel_format, float clear_depth) {
+    ResourceHandlePair Device::create_depth_target(const std::string& name, uint32_t width, uint32_t height, PixelFormat pixel_format, float clear_depth) {
         // Make texture resource
         const auto resource = std::make_shared<Resource>(ResourceType::texture);
         resource->expect_texture() = {
@@ -1142,7 +1142,7 @@ namespace gfx {
         return ResourceHandlePair{ srv_id, resource };
     }
 
-    void DeviceDx12::resize_texture(ResourceHandlePair& handle, const uint32_t width, const uint32_t height) {
+    void Device::resize_texture(ResourceHandlePair& handle, const uint32_t width, const uint32_t height) {
         // Get texture info (is it a render target, depth target, or a regular texture?)
         auto& resource = handle.resource;
         auto& texture = resource->expect_texture();
@@ -1177,7 +1177,7 @@ namespace gfx {
         throw std::runtime_error("todo: when resizing regular textures, resize and copy the data to a new texture");
     }
 
-    void DeviceDx12::update_buffer(const ResourceHandlePair& buffer, const uint32_t offset, const uint32_t n_bytes, const void* data) {
+    void Device::update_buffer(const ResourceHandlePair& buffer, const uint32_t offset, const uint32_t n_bytes, const void* data) {
         // todo: handle case for buffers that are not visible from cpu
         if ((buffer.resource->usage != ResourceUsage::cpu_read_write) && (buffer.resource->usage != ResourceUsage::cpu_writable)) {
             LOG(Error, "Write failed for \"%s\": buffer is not CPU writable!", buffer.resource->name.c_str());
@@ -1209,7 +1209,7 @@ namespace gfx {
         buffer.resource->handle->Unmap(0, &write_range);
     }
 
-    void DeviceDx12::readback_buffer(const ResourceHandlePair& buffer, const uint32_t offset, const uint32_t n_bytes, void* destination) {
+    void Device::readback_buffer(const ResourceHandlePair& buffer, const uint32_t offset, const uint32_t n_bytes, void* destination) {
         if (buffer.resource->usage != ResourceUsage::cpu_read_write) {
             LOG(Error, "Readback failed for \"%s\": buffer is not CPU readable!", buffer.resource->name.c_str());
             return;
@@ -1240,7 +1240,7 @@ namespace gfx {
         buffer.resource->handle->Unmap(0, nullptr);
     }
 
-    void DeviceDx12::queue_unload_bindless_resource(ResourceHandlePair resource) {
+    void Device::queue_unload_bindless_resource(ResourceHandlePair resource) {
         int fence_value = m_swapchain->current_frame_index() + 3;
         m_resources_to_unload.push_back({ resource, fence_value });
     }
@@ -1260,19 +1260,19 @@ namespace gfx {
         return D3D12_RESOURCE_STATE_COMMON;
     }
 
-    void DeviceDx12::use_resource(const ResourceHandlePair &resource, const ResourceUsage usage) {
+    void Device::use_resource(const ResourceHandlePair &resource, const ResourceUsage usage) {
         transition_resource(m_curr_pass_cmd, resource.resource, resource_usage_to_dx12_state(usage));
         execute_resource_transitions(m_curr_pass_cmd);
     }
 
-    void DeviceDx12::use_resources(const std::initializer_list<ResourceTransitionInfo>& resources) {
+    void Device::use_resources(const std::initializer_list<ResourceTransitionInfo>& resources) {
         for (auto& [resource, usage, subresource] : resources) {
             if (resource.resource != nullptr) transition_resource(m_curr_pass_cmd, resource.resource, resource_usage_to_dx12_state(usage), subresource);
         }
         execute_resource_transitions(m_curr_pass_cmd);
     }
 
-    ResourceHandlePair DeviceDx12::create_acceleration_structure(const std::string& name, const size_t size) {
+    ResourceHandlePair Device::create_acceleration_structure(const std::string& name, const size_t size) {
         // Create engine resource
         const auto resource = std::make_shared<Resource>(ResourceType::acceleration_structure);
         resource->usage = ResourceUsage::acceleration_structure;
@@ -1328,7 +1328,7 @@ namespace gfx {
         return ResourceHandlePair{ id, resource };
     }
 
-    ResourceHandlePair DeviceDx12::create_blas(const std::string& name, const ResourceHandlePair& position_buffer, const ResourceHandlePair& index_buffer, const uint32_t vertex_count, const uint32_t index_count) {
+    ResourceHandlePair Device::create_blas(const std::string& name, const ResourceHandlePair& position_buffer, const ResourceHandlePair& index_buffer, const uint32_t vertex_count, const uint32_t index_count) {
         ++m_upload_fence_value_when_done;
         auto cmd = m_upload_queue->create_command_buffer(nullptr, m_upload_fence_value_when_done);
 
@@ -1374,7 +1374,7 @@ namespace gfx {
         return dest_acc_structure;
     }
 
-    ResourceHandlePair DeviceDx12::create_tlas(const std::string& name, const std::vector<RaytracingInstance>& instances) {
+    ResourceHandlePair Device::create_tlas(const std::string& name, const std::vector<RaytracingInstance>& instances) {
         ++m_upload_fence_value_when_done;
 
         std::vector<D3D12_RAYTRACING_INSTANCE_DESC> dx12_instances;
@@ -1426,7 +1426,7 @@ namespace gfx {
         return dest_acc_structure;
     }
 
-    void DeviceDx12::transition_resource(std::shared_ptr<CommandBuffer> cmd, std::shared_ptr<Resource> resource, D3D12_RESOURCE_STATES new_state, uint32_t subresource) {
+    void Device::transition_resource(std::shared_ptr<CommandBuffer> cmd, std::shared_ptr<Resource> resource, D3D12_RESOURCE_STATES new_state, uint32_t subresource) {
         auto current_state = (subresource == (uint32_t)-1 || subresource == 0) ? (resource->current_state) : (resource->subresource_states[subresource - 1]);
         if (current_state == new_state) return;
 
@@ -1475,11 +1475,11 @@ namespace gfx {
         }
     }
 
-    bool DeviceDx12::should_stay_open() {
+    bool Device::should_stay_open() {
         return glfwWindowShouldClose(m_window_glfw) == false;
     }
 
-    void DeviceDx12::set_full_screen(bool full_screen) {
+    void Device::set_full_screen(bool full_screen) {
         if (full_screen == true && m_is_fullscreen == false) {
             // Store window coords
             glfwGetWindowPos(m_window_glfw, &m_pos_x_pre_fullscreen, &m_pos_y_pre_fullscreen);
@@ -1508,7 +1508,7 @@ namespace gfx {
         m_is_fullscreen = full_screen;
     }
 
-    int DeviceDx12::find_dominant_monitor() {
+    int Device::find_dominant_monitor() {
         int monitor = 0;
         int best_score = 0;
 
@@ -1550,7 +1550,7 @@ namespace gfx {
         return monitor;
     }
 
-    void DeviceDx12::clean_up_old_resources() {
+    void Device::clean_up_old_resources() {
         while (!m_resources_to_unload.empty()) {
             // Get the next entry in the unload queue
             auto& [resource, desired_completed_fence_value] = m_resources_to_unload.front();
@@ -1576,14 +1576,14 @@ namespace gfx {
         }
     }
     
-    void DeviceDx12::execute_resource_transitions(std::shared_ptr<CommandBuffer> cmd) {
+    void Device::execute_resource_transitions(std::shared_ptr<CommandBuffer> cmd) {
         if (m_resource_barriers.empty()) return;
 
         cmd->get()->ResourceBarrier((UINT)m_resource_barriers.size(), m_resource_barriers.data());
         m_resource_barriers.clear();
     }
     
-    ID3D12Device5* DeviceDx12::device5() {
+    ID3D12Device5* Device::device5() {
         ID3D12Device5* device5;
         HRESULT hr = device->QueryInterface(IID_PPV_ARGS(&device5));
         if (FAILED(hr)) {

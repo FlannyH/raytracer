@@ -2,7 +2,7 @@
 
 #include "device.h"
 
-namespace gfx {
+namespace gfx::dx12 {
     CommandBuffer::CommandBuffer(ID3D12Device* device, ID3D12PipelineState* pipeline_state, CommandBufferType type, uint64_t fence_value_when_done) {
         m_type = type;
         switch (type) {

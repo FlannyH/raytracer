@@ -9,7 +9,7 @@
 #include "pipeline.h"
 #include "command_buffer.h"
 
-namespace gfx {
+namespace gfx::dx12 {
     CommandQueue::CommandQueue(ID3D12Device* device, CommandBufferType type, const std::wstring& name) {
         // Create command queue
         m_type = type;

@@ -3,13 +3,13 @@
 
 #include "../common.h"
 
-namespace gfx {
-    struct DeviceDx12;
+namespace gfx::dx12 {
+    struct Device;
     struct RenderPass;
 
     struct Pipeline {
-        explicit Pipeline(const DeviceDx12& device, const std::string& name, const std::string& vertex_shader_path, const std::string& pixel_shader_path, const std::vector<DXGI_FORMAT> render_target_formats, const DXGI_FORMAT depth_target_format = DXGI_FORMAT_UNKNOWN);
-        explicit Pipeline(const DeviceDx12& device, const std::string& name, const std::string& compute_shader_path);
+        explicit Pipeline(const Device& device, const std::string& name, const std::string& vertex_shader_path, const std::string& pixel_shader_path, const std::vector<DXGI_FORMAT> render_target_formats, const DXGI_FORMAT depth_target_format = DXGI_FORMAT_UNKNOWN);
+        explicit Pipeline(const Device& device, const std::string& name, const std::string& compute_shader_path);
         const std::string& get_name() { return name; }
 
     public:
@@ -18,7 +18,7 @@ namespace gfx {
         std::string name;
 
     private:
-        void create_global_root_signature(const gfx::DeviceDx12& device);
+        void create_global_root_signature(const Device& device);
 
     };
 }

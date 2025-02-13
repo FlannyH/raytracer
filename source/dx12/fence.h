@@ -3,12 +3,12 @@
 
 #include "../common.h"
 
-namespace gfx {
+namespace gfx::dx12 {
     struct CommandQueue;
-    struct DeviceDx12;
+    struct Device;
 
     struct Fence {
-        explicit Fence(const DeviceDx12& device);
+        explicit Fence(const Device& device);
         ~Fence();
         void cpu_wait(size_t value);
         void cpu_signal(size_t value) const;

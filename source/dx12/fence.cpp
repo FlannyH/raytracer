@@ -2,8 +2,8 @@
 #include "device.h"
 #include "command_queue.h"
 
-namespace gfx {
-    Fence::Fence(const DeviceDx12& device) {
+namespace gfx::dx12 {
+    Fence::Fence(const Device& device) {
         device.device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&fence));
         event_handle = CreateEventEx(nullptr, nullptr, 0, EVENT_ALL_ACCESS);
     }

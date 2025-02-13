@@ -5,8 +5,7 @@
 
 #include "../common.h"
 
-namespace gfx {
-    struct Device;
+namespace gfx::dx12 {
     struct Pipeline;
     struct CommandBuffer;
 

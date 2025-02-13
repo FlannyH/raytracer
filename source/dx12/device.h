@@ -16,7 +16,7 @@
 #include "../resource.h"
 #include "../device.h"
 
-namespace gfx {
+namespace gfx::dx12 {
     struct CommandBuffer;
     struct Swapchain;
     struct CommandQueue;
@@ -26,13 +26,13 @@ namespace gfx {
     struct Transform;
     struct Fence;
 
-    struct DeviceDx12 : Device {
+    struct Device : public gfx::Device {
     public:
         // Initialization
-        DeviceDx12(int width, int height, bool debug_layer_enabled, bool gpu_profiling_enabled);
-        ~DeviceDx12();
-        DeviceDx12(const Device&) = delete;
-        DeviceDx12& operator=(const Device&) = delete;
+        Device(int width, int height, bool debug_layer_enabled, bool gpu_profiling_enabled);
+        ~Device();
+        Device(const Device&) = delete;
+        Device& operator=(const Device&) = delete;
         void resize_window(int width, int height) const override;
         void get_window_size(int& width, int& height) const override;
 

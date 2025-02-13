@@ -2,8 +2,8 @@
 #include "device.h"
 #include "../shader.h"
 
-namespace gfx {
-    Pipeline::Pipeline(const DeviceDx12& device, const std::string& name, const std::string& vertex_shader_path, const std::string& pixel_shader_path, const std::vector<DXGI_FORMAT> render_target_formats, const DXGI_FORMAT depth_target_format) : name(name)  {
+namespace gfx::dx12 {
+    Pipeline::Pipeline(const Device& device, const std::string& name, const std::string& vertex_shader_path, const std::string& pixel_shader_path, const std::vector<DXGI_FORMAT> render_target_formats, const DXGI_FORMAT depth_target_format) : name(name)  {
         assert(render_target_formats.size() <= 8 && "Too many render targets!");
 
         // Compile shaders
@@ -80,7 +80,7 @@ namespace gfx {
         validate(pipeline_state->SetName(L"Render Pipeline State")); // todo: add customizable name with default parameter
     }
 
-    Pipeline::Pipeline(const DeviceDx12& device, const std::string& name, const std::string& compute_shader_path) : name(name) {
+    Pipeline::Pipeline(const Device& device, const std::string& name, const std::string& compute_shader_path) : name(name) {
         // Compile shader
         const auto cs = Shader(compute_shader_path, "main", ShaderType::compute); // todo: add customizable entry point
 
@@ -104,7 +104,7 @@ namespace gfx {
         validate(pipeline_state->SetName(L"Compute Pipeline State")); // todo: add customizable name with default parameter
     }
     
-    void Pipeline::create_global_root_signature(const gfx::DeviceDx12 &device) {
+    void Pipeline::create_global_root_signature(const Device &device) {
         // Create global root signature
         D3D12_ROOT_PARAMETER1 root_parameters[1] = {
             {

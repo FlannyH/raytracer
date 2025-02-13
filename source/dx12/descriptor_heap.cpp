@@ -6,8 +6,8 @@
 #include "../common.h"
 #include "device.h"
 
-namespace gfx {
-    DescriptorHeap::DescriptorHeap(const DeviceDx12& device, D3D12_DESCRIPTOR_HEAP_TYPE type, D3D12_DESCRIPTOR_HEAP_FLAGS flags, uint32_t n_descriptors) {
+namespace gfx::dx12 {
+    DescriptorHeap::DescriptorHeap(const Device& device, D3D12_DESCRIPTOR_HEAP_TYPE type, D3D12_DESCRIPTOR_HEAP_FLAGS flags, uint32_t n_descriptors) {
         const D3D12_DESCRIPTOR_HEAP_DESC desc = {
             .Type = type,
             .NumDescriptors = static_cast<UINT>(n_descriptors * 2),
