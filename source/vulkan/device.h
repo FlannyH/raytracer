@@ -93,6 +93,6 @@ namespace gfx::vk {
         std::shared_ptr<CommandQueue> m_queue_graphics = nullptr;
 
         std::shared_ptr<DescriptorHeap> m_desc_heap = nullptr;
-
+        VkSampler m_samplers[3];
     };
 };

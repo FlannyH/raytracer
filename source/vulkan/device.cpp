@@ -147,6 +147,36 @@ namespace gfx::vk {
         m_queue_graphics = std::make_shared<CommandQueue>(*this, CommandBufferType::graphics);
         m_queue_compute = std::make_shared<CommandQueue>(*this, CommandBufferType::compute);
         m_desc_heap = std::make_shared<DescriptorHeap>(*this, 100'000); // todo: unhardcode this
+        
+        // Regular texture sampler
+        VkSamplerCreateInfo create_info = { VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO };
+        create_info.magFilter = VK_FILTER_LINEAR;
+        create_info.minFilter = VK_FILTER_LINEAR;
+        create_info.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+        create_info.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+        create_info.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+        create_info.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+        create_info.mipLodBias = 0.0f;
+        create_info.anisotropyEnable = true;
+        create_info.maxAnisotropy = 16.0f;
+        create_info.compareEnable = false;
+        create_info.minLod = 0.0f,
+        create_info.maxLod = 100000.0f;
+        create_info.borderColor = VK_BORDER_COLOR_FLOAT_OPAQUE_BLACK;
+        create_info.unnormalizedCoordinates = false;
+        vkCreateSampler(device, &create_info, nullptr, &m_samplers[0]);
+
+        // Lookup texture (clamp)
+        create_info.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+        create_info.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+        create_info.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+        create_info.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+        create_info.anisotropyEnable = false;
+        vkCreateSampler(device, &create_info, nullptr, &m_samplers[1]);
+
+        // Cubemap
+        // todo: lookup and cubemap are the exact same, maybe merge?
+        vkCreateSampler(device, &create_info, nullptr, &m_samplers[2]);
     }
     
     Device::~Device() {

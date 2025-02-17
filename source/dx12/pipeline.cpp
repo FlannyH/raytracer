@@ -118,6 +118,7 @@ namespace gfx::dx12 {
             },
         };
 
+        // todo: lookup and cubemap are the exact same, maybe merge?
         D3D12_STATIC_SAMPLER_DESC samplers[3] = {
             { // Regular texture
                 .Filter = D3D12_FILTER_ANISOTROPIC,
