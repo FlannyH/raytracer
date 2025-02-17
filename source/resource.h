@@ -92,6 +92,9 @@ namespace gfx {
         void* data;
         uint32_t width, height, depth;
         PixelFormat pixel_format;
+        VkImage vk_image;
+        VkImageView vk_image_view;
+
         // Extra optional handles for render targets
         bool clear_on_begin;
         bool is_compute_render_target;

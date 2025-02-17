@@ -369,12 +369,92 @@ namespace gfx::vk {
         }
 
         return ResourceHandlePair{ id, resource };
-        return {};
     }
 
     ResourceHandlePair Device::create_render_target(const std::string& name, uint32_t width, uint32_t height, PixelFormat pixel_format, std::optional<glm::vec4> clear_color, ResourceUsage extra_usage) {
-        TODO();
-        return {};
+        // Make texture resource
+        const auto resource = std::make_shared<Resource>(ResourceType::texture);
+        resource->usage = extra_usage;
+        resource->expect_texture() = {
+            .data = nullptr,
+            .width = width,
+            .height = height,
+            .pixel_format = pixel_format,
+            .clear_on_begin = clear_color.has_value(),
+            .is_compute_render_target = true,
+            .clear_color = clear_color.value_or(glm::vec4(0.0f, 0.0f, 0.0f, 0.0f)),
+            .rtv_handle = ResourceHandle::none(),
+            .dsv_handle = ResourceHandle::none(),
+        };
+
+        VkImageCreateInfo image_create_info { VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO };
+        image_create_info.flags = 0;
+        image_create_info.imageType = VK_IMAGE_TYPE_2D;
+        image_create_info.format = pixel_format_to_vk(pixel_format);
+        image_create_info.extent = { width, height, 1 };
+        image_create_info.mipLevels = 1;
+        image_create_info.arrayLayers = 1;
+        image_create_info.samples = VK_SAMPLE_COUNT_1_BIT;
+        image_create_info.tiling = VK_IMAGE_TILING_OPTIMAL;
+        image_create_info.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+        image_create_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+        image_create_info.initialLayout = VK_IMAGE_LAYOUT_PREINITIALIZED;
+
+        VkImage image;
+        if (vkCreateImage(device, &image_create_info, nullptr, &image) != VK_SUCCESS) {
+            LOG(Error, "Failed to create image for render target \"%s\"", name.c_str());
+        }
+        
+        VkMemoryPropertyFlags flags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT; // gpu-only by default
+        if (extra_usage == (ResourceUsage::cpu_read_write)) flags = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT; // can read and write from cpu side and gpu side
+        if (extra_usage == (ResourceUsage::cpu_writable)) flags = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT; // can only write from cpu side and both read and write on gpu side
+        
+        VkMemoryRequirements memory_requirements;
+        vkGetImageMemoryRequirements(device, image, &memory_requirements);
+
+        VkMemoryAllocateInfo memory_allocate_info { VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO };
+        memory_allocate_info.allocationSize = memory_requirements.size;
+        memory_allocate_info.memoryTypeIndex = find_memory_type(m_physical_device, memory_requirements.memoryTypeBits, flags);
+
+        // todo: deallocate this when destroying the resource
+        VkDeviceMemory device_memory;
+        if (vkAllocateMemory(device, &memory_allocate_info, nullptr, &device_memory) != VK_SUCCESS) {
+            LOG(Error, "Failed to allocate memory for buffer \"%s\"", name.c_str());
+            return {};
+        }
+        if (vkBindImageMemory(device, image, device_memory, 0) != VK_SUCCESS) {
+            LOG(Error, "Failed to bind memory for buffer \"%s\"", name.c_str());
+            return {};
+        }
+
+        // todo: transition image layout to VK_IMAGE_LAYOUT_GENERAL
+
+        VkImageViewCreateInfo image_view_create_info { VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO };
+        image_view_create_info.image = image;
+        image_view_create_info.viewType = VK_IMAGE_VIEW_TYPE_2D;
+        image_view_create_info.format = pixel_format_to_vk(pixel_format);
+        image_view_create_info.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
+        image_view_create_info.components.g = VK_COMPONENT_SWIZZLE_IDENTITY;
+        image_view_create_info.components.b = VK_COMPONENT_SWIZZLE_IDENTITY;
+        image_view_create_info.components.a = VK_COMPONENT_SWIZZLE_IDENTITY;
+        image_view_create_info.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        image_view_create_info.subresourceRange.baseMipLevel = 0;
+        image_view_create_info.subresourceRange.levelCount = 1;
+        image_view_create_info.subresourceRange.baseArrayLayer = 0;
+        image_view_create_info.subresourceRange.layerCount = 1;
+
+        VkImageView image_view;
+        if (vkCreateImageView(device, &image_view_create_info, nullptr, &image_view) != VK_SUCCESS) {
+            LOG(Error, "Failed to create image view for render target \"%s\"", name.c_str());
+        }
+
+        resource->expect_texture().vk_image = image;
+        resource->expect_texture().vk_image_view = image_view;
+
+        auto id = m_desc_heap->alloc_descriptor(ResourceType::texture);
+        m_desc_heap->write_texture_descriptor(*this, id, image_create_info.initialLayout, image_view);
+
+        return ResourceHandlePair{ id, resource };
     }
 
     ResourceHandlePair Device::create_depth_target(const std::string& name, uint32_t width, uint32_t height, PixelFormat pixel_format, float clear_depth) {
