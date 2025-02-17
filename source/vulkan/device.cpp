@@ -126,11 +126,15 @@ namespace gfx::vk {
                 }
             }};
 
+            VkPhysicalDeviceFeatures physical_device_features{};
+            physical_device_features.samplerAnisotropy = true;
+
             VkDeviceCreateInfo device_create_info{ VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO };
             device_create_info.queueCreateInfoCount = device_queue_create_info.size();
             device_create_info.pQueueCreateInfos = device_queue_create_info.data();
             device_create_info.enabledExtensionCount = device_extensions_to_enable.size();
             device_create_info.ppEnabledExtensionNames = device_extensions_to_enable.data();
+            device_create_info.pEnabledFeatures = &physical_device_features;
 
             m_physical_device = physical_device;
 
