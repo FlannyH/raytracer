@@ -83,4 +83,29 @@ namespace gfx::vk {
 
         vkUpdateDescriptorSets(device.device, 1, &set, 0, nullptr);
     }
+
+    void DescriptorHeap::write_texture_descriptor(const Device &device, ResourceHandle id, VkImageLayout layout, VkImageView view, VkSampler sampler) {
+        VkDescriptorImageInfo image_info = {};
+        image_info.imageLayout = layout;
+        image_info.imageView = view;
+        image_info.sampler = sampler;
+
+        VkWriteDescriptorSet set[2] = {};
+        set[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        set[0].dstSet = desc_set;
+        set[0].dstBinding = 1; // sampled image
+        set[0].dstArrayElement = id.id;
+        set[0].descriptorCount = 1;
+        set[0].descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
+        set[0].pImageInfo = &image_info;
+        set[1].sType =  VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        set[1].dstSet = desc_set;
+        set[1].dstBinding = 2; // storage image
+        set[1].dstArrayElement = id.id + 1;
+        set[1].descriptorCount = 1;
+        set[1].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+        set[1].pImageInfo = &image_info;
+
+        vkUpdateDescriptorSets(device.device, 2, set, 0, nullptr);
+    }
 }

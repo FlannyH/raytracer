@@ -11,6 +11,7 @@ namespace gfx::vk {
         DescriptorHeap(const Device& device, uint32_t n_descriptors);
         ResourceHandle alloc_descriptor(ResourceType type);
         void write_buffer_descriptor(const Device& device, ResourceHandle id, VkBuffer buffer, size_t offset, size_t size);
+        void write_texture_descriptor(const Device &device, ResourceHandle id, VkImageLayout layout, VkImageView view, VkSampler sampler);
         void free_descriptor(ResourceHandle id);
 
     private:
