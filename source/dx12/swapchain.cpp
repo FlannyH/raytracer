@@ -5,6 +5,7 @@
 #include "descriptor_heap.h"
 #include "command_queue.h"
 #include "fence.h"
+#include "helpers.h"
 
 namespace gfx::dx12 {
     Swapchain::Swapchain(const Device& device, const CommandQueue& queue, DescriptorHeap& rtv_heap, PixelFormat format) {

@@ -16,6 +16,7 @@
 #include "descriptor_heap.h"
 #include "command_queue.h"
 #include "fence.h"
+#include "helpers.h"
 #include <winerror.h>
 
 #define MAX_QUERY_COUNT 1024
