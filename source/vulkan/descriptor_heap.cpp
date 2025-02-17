@@ -84,11 +84,11 @@ namespace gfx::vk {
         vkUpdateDescriptorSets(device.device, 1, &set, 0, nullptr);
     }
 
-    void DescriptorHeap::write_texture_descriptor(const Device &device, ResourceHandle id, VkImageLayout layout, VkImageView view, VkSampler sampler) {
+    void DescriptorHeap::write_texture_descriptor(const Device &device, ResourceHandle id, VkImageLayout layout, VkImageView view) {
         VkDescriptorImageInfo image_info = {};
         image_info.imageLayout = layout;
         image_info.imageView = view;
-        image_info.sampler = sampler;
+        image_info.sampler = VK_NULL_HANDLE; // we use immutable samplers instead
 
         VkWriteDescriptorSet set[2] = {};
         set[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
