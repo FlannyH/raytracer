@@ -46,7 +46,7 @@ namespace gfx {
         m_color_target = m_device->create_render_target("Color framebuffer", width, height, PixelFormat::rgba16_float, glm::vec4(0.0f, 0.0f, 0.0f, -1.0f), ResourceUsage::compute_write);
         m_normal_target = m_device->create_render_target("Normal framebuffer", width, height, PixelFormat::rgba16_float, {}, ResourceUsage::compute_write);
         m_metallic_roughness_target = m_device->create_render_target("Metallic & roughness framebuffer", width, height, PixelFormat::rg8_unorm, {}, ResourceUsage::compute_write);
-        m_emissive_target = m_device->create_render_target("Emissive framebuffer", width, height, PixelFormat::rg11_b10_float, {}, ResourceUsage::compute_write);
+        m_emissive_target = m_device->create_render_target("Emissive framebuffer", width, height, PixelFormat::rgba16_float, {}, ResourceUsage::compute_write);
         m_shaded_target = m_device->load_texture("Shaded framebuffer", width, height, 1, nullptr, PixelFormat::rgba16_float, TextureType::tex_2d, ResourceUsage::compute_write);
         m_ssao_target = m_device->load_texture("SSAO framebuffer", width, height, 1, nullptr, PixelFormat::r8_unorm, TextureType::tex_2d, ResourceUsage::compute_write);
         m_accumulation_target = m_device->load_texture("Accumulation framebuffer", width, height, 1, nullptr, PixelFormat::rgba32_float, TextureType::tex_2d, ResourceUsage::compute_write);
