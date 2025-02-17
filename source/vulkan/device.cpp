@@ -3,6 +3,7 @@
 #include <array>
 #include "command_queue.h"
 #include "descriptor_heap.h"
+#include "helpers.h"
 #include "../input.h"
 
 namespace gfx::vk {
@@ -229,37 +230,6 @@ namespace gfx::vk {
     ResourceHandlePair Device::load_mesh(const std::string& name, const uint64_t n_triangles, Triangle* tris) {
         TODO();
         return {};
-    }
-
-    VkImageLayout resource_usage_to_vk_image_layout(ResourceUsage usage) {
-        switch (usage) {
-            case ResourceUsage::none: return VK_IMAGE_LAYOUT_GENERAL;
-            case ResourceUsage::read: return VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-            case ResourceUsage::compute_write: return VK_IMAGE_LAYOUT_GENERAL;
-            case ResourceUsage::render_target: return VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-            case ResourceUsage::depth_target: return VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-            case ResourceUsage::pixel_shader_read: return VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-            case ResourceUsage::non_pixel_shader_read: return VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-            case ResourceUsage::acceleration_structure: return VK_IMAGE_LAYOUT_GENERAL; // General for acceleration structures
-        }
-        return VK_IMAGE_LAYOUT_GENERAL; // Default fallback
-    }
-
-    VkBufferUsageFlags resource_usage_to_vk_buffer_usage(ResourceUsage usage) {
-        switch (usage) {
-            case ResourceUsage::none:
-            case ResourceUsage::read:
-            case ResourceUsage::pixel_shader_read:
-            case ResourceUsage::non_pixel_shader_read: 
-            case ResourceUsage::cpu_read_write:
-            case ResourceUsage::cpu_writable: return VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT; // Read-only in shaders
-            case ResourceUsage::compute_write: return VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
-            case ResourceUsage::render_target: return 0; // Not applicable for buffers
-            case ResourceUsage::depth_target: return 0; // Not applicable for buffers
-            case ResourceUsage::acceleration_structure: return VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_STORAGE_BIT_KHR; // For acceleration structures
-            case ResourceUsage::copy_source: return VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
-        }
-        return 0; // Default fallback
     }
 
     uint32_t find_memory_type(VkPhysicalDevice& physical_device, uint32_t type_filter, VkMemoryPropertyFlags properties) {
