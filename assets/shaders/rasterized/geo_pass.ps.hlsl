@@ -38,7 +38,7 @@ struct PixelOut {
     float4 color : SV_Target1;
     float4 normal : SV_Target2;
     float2 metal_roughness : SV_Target3;
-    float3 emissive : SV_Target4;
+    float4 emissive : SV_Target4;
 };
 
 struct Material {
@@ -71,7 +71,7 @@ PixelOut main(in float4 position : SV_Position, in VertexOut input) {
     output.normal.xyz = input.normal;
     output.normal.w = 0.0f;
     output.metal_roughness = float2(0.0f, 1.0f);
-    output.emissive = float3(0.0f, 0.0f, 0.0f);
+    output.emissive = float4(0.0f, 0.0f, 0.0f, 0.0f);
     
     // Apply material
     if (abs(input.texcoord0_materialid.z - 65535.0f) > 0.1f) {
@@ -111,7 +111,7 @@ PixelOut main(in float4 position : SV_Position, in VertexOut input) {
         if (material.emissive_texture.is_loaded != 0) {
             Texture2D<float4> tex = ResourceDescriptorHeap[NonUniformResourceIndex(material.emissive_texture.id)];
             float3 tex_emissive = tex.Sample(tex_sampler, input.texcoord0_materialid.xy).xyz;
-            output.emissive = tex_emissive * material.emissive_multiplier;
+            output.emissive.rgb = tex_emissive * material.emissive_multiplier;
         }
     }
     
