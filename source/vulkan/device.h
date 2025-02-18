@@ -94,5 +94,7 @@ namespace gfx::vk {
 
         std::shared_ptr<DescriptorHeap> m_desc_heap = nullptr;
         VkSampler m_samplers[3];
+
+        size_t m_upload_fence_value_when_done = 0;
     };
 };

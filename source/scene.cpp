@@ -348,9 +348,10 @@ namespace gfx {
                 .instance_id = node->expect_mesh().vertex_buffer.id,
                 .instance_mask = 0xFF,
                 .instance_contribution_to_hitgroup_index = 0,
-                .flags = D3D12_RAYTRACING_INSTANCE_FLAG_TRIANGLE_CULL_DISABLE, 
+                .flags = D3D12_RAYTRACING_INSTANCE_FLAG_TRIANGLE_CULL_DISABLE,
                 .blas = node->expect_mesh().blas
             });
+            static_assert(D3D12_RAYTRACING_INSTANCE_FLAG_TRIANGLE_CULL_DISABLE == VK_GEOMETRY_INSTANCE_TRIANGLE_FACING_CULL_DISABLE_BIT_KHR);
         }
         for (const auto& child : node->children) {
             get_rt_instances_from_scene_nodes(child.get(), instances);

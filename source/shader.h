@@ -1,9 +1,9 @@
 #pragma once
-#include <d3d12.h>
 #include <string>
 
 #include "common.h"
 #include "dxc/dxcapi.h"
+#include <d3dcommon.h>
 
 namespace gfx {
     struct Device;

@@ -1,18 +1,8 @@
 #pragma once
 
-#include <d3d12.h>
-#include <deque>
-#include <dxgi1_6.h>
-#include <map>
 #include <memory>
 #include <unordered_map>
-#include <array>
-#include <queue>
-#include <thread>
 
-#include "common.h"
-#include "glfw/glfw3.h"
-#include "glm/matrix.hpp"
 #include "resource.h"
 
 namespace gfx {
@@ -60,7 +50,6 @@ namespace gfx {
     constexpr static PipelineHandle PIPELINE_NULL = 0xFFFFFFFF;
 
     struct Device {
-    public:
         // Initialization
         Device() = default;
         virtual ~Device() = default;
@@ -110,54 +99,5 @@ namespace gfx {
         virtual ResourceHandlePair create_tlas(const std::string& name, const std::vector<RaytracingInstance>& instances) = 0;
 
         HWND window_hwnd = nullptr;
-
-    protected:
-        void transition_resource(std::shared_ptr<CommandBuffer> cmd, std::shared_ptr<Resource> resource, D3D12_RESOURCE_STATES new_state, uint32_t subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES);
-        int find_dominant_monitor(); // Returns the index of the monitor the window overlaps with most
-        void clean_up_old_resources();
-        void execute_resource_transitions(std::shared_ptr<CommandBuffer> cmd);
-        ID3D12Device5* device5();
-
-        // Device
-        GLFWwindow* m_window_glfw = nullptr;
-        ComPtr<ID3D12Debug1> m_debug_layer = nullptr;
-        ComPtr<ID3D12DebugDevice> m_device_debug = nullptr;
-        std::shared_ptr<DescriptorHeap> m_heap_rtv = nullptr;
-        std::shared_ptr<DescriptorHeap> m_heap_dsv = nullptr;
-        std::shared_ptr<DescriptorHeap> m_heap_bindless = nullptr;
-        std::shared_ptr<CommandQueue> m_queue_gfx = nullptr;
-        std::thread device_lost_thread;
-        DWORD m_msg_callback_cookie = 0;
-        bool m_gpu_profiling = false;
-
-        // Profiling
-        ComPtr<ID3D12QueryHeap> m_query_heap = nullptr;
-        std::vector<std::string> m_query_labels;
-        ResourceHandlePair m_query_buffer{};
-        float m_timestamp_frequency = 1.0f;
-
-        // Swapchain
-        std::shared_ptr<Swapchain> m_swapchain = nullptr;
-        int m_width = 0;
-        int m_height = 0;
-        int m_width_pre_fullscreen = 0;
-        int m_height_pre_fullscreen = 0;
-        int m_pos_x_pre_fullscreen = 0;
-        int m_pos_y_pre_fullscreen = 0;
-        bool m_is_fullscreen = false;
-        PixelFormat m_framebuffer_format = PixelFormat::rgba8_unorm;
-
-        // Resource management
-        std::shared_ptr<CommandQueue> m_upload_queue = nullptr; // Command queue for uploading resources to the GPU
-        std::shared_ptr<Fence> m_upload_queue_completion_fence = nullptr;
-        size_t m_upload_fence_value_when_done = 0; // The value the upload queue fence will signal when it's done uploading
-        std::deque<UploadQueueKeepAlive> m_temp_upload_buffers; // Temporary upload buffer to be unloaded after it's done uploading. The integer is upload queue fence value before it should be unloaded
-        std::deque<std::pair<ResourceHandlePair, int>> m_resources_to_unload; // Resources to unload. The integer determines when it should be unloaded
-        std::vector<D3D12_RESOURCE_BARRIER> m_resource_barriers; // Enqueued resource barriers
-
-        // Rendering context
-        std::shared_ptr<Pipeline> m_curr_bound_pipeline = nullptr; // Will point to a valid pipeline after calling begin_render_pass(), and will be null after calling end_render_pass()
-        std::shared_ptr<CommandBuffer> m_curr_pass_cmd; // The command buffer used for this pass
-        bool m_curr_pipeline_is_async = false; // If the current pipeline is async, we need to keep track of resources differently 
     };
 };
