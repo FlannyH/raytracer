@@ -1,3 +1,4 @@
+#ifdef _WIN32
 #include "swapchain.h"
 
 #include "command_buffer.h"
@@ -159,3 +160,4 @@ namespace gfx::dx12 {
         }
     }
 }
+#endif

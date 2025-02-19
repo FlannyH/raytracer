@@ -1,3 +1,4 @@
+#ifdef _WIN32
 #include "pipeline.h"
 #include "device.h"
 #include "../shader.h"
@@ -199,3 +200,4 @@ namespace gfx::dx12 {
         }
     }
 }
+#endif

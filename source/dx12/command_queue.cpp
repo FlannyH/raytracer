@@ -1,3 +1,4 @@
+#ifdef _WIN32
 #include "command_queue.h"
 
 #include "device.h"
@@ -89,3 +90,4 @@ namespace gfx::dx12 {
         return n_cleaned_up;
     }
 }
+#endif

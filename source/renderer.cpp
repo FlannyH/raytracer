@@ -2,7 +2,9 @@
 #include "scene.h"
 #include "device.h"
 #include "vulkan/device.h"
+#ifdef _WIN32
 #include "dx12/device.h"
+#endif
 
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb/stb_image.h>

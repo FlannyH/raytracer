@@ -1,3 +1,4 @@
+#ifdef _WIN32
 #define GLFW_EXPOSE_NATIVE_WIN32
 
 #include "device.h"
@@ -1594,3 +1595,4 @@ namespace gfx::dx12 {
         return device5;
     }
 }
+#endif

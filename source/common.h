@@ -1,11 +1,15 @@
 #pragma once
+
+#ifdef _WIN32
 #include <wrl/client.h>
+using Microsoft::WRL::ComPtr;
+#endif
+
 #include <exception>
 #include <fstream>
 #include <vector>
 #include <cstdint>
 #include "log.h"
-using Microsoft::WRL::ComPtr;
 
 #define GLFW_INCLUDE_VULKAN
 

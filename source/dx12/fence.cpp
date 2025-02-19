@@ -1,3 +1,4 @@
+#ifdef _WIN32
 #include "fence.h"
 #include "device.h"
 #include "command_queue.h"
@@ -35,3 +36,4 @@ namespace gfx::dx12 {
         return fence->GetCompletedValue() >= value;
     }
 }
+#endif

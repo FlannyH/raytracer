@@ -1,3 +1,4 @@
+#ifdef _WIN32
 #include "command_buffer.h"
 
 #include "device.h"
@@ -18,3 +19,4 @@ namespace gfx::dx12 {
         m_fence_value_when_finished = fence_value_when_done;
     }
 }
+#endif

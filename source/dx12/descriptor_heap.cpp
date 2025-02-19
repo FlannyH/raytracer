@@ -1,3 +1,4 @@
+#ifdef _WIN32
 #include "descriptor_heap.h"
 
 #include <d3d12.h>
@@ -55,3 +56,4 @@ namespace gfx::dx12 {
         return new_handle;
     }
 }
+#endif
