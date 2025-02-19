@@ -494,7 +494,7 @@ namespace gfx::dx12 {
                 auto& texture = color_target.resource;
                 auto gfx_cmd = m_curr_pass_cmd->get();
 
-                transition_resource(m_curr_pass_cmd, texture, D3D12_RESOURCE_STATE_RENDER_TARGET);
+                transition_resource(m_curr_pass_cmd, color_target.handle, D3D12_RESOURCE_STATE_RENDER_TARGET);
                 auto rtv_handle = m_heap_rtv->fetch_cpu_handle(texture->expect_texture().rtv_handle);
                 rtv_handles.push_back(rtv_handle);
 
@@ -513,7 +513,7 @@ namespace gfx::dx12 {
                     .bottom = (LONG)texture->expect_texture().height,
                 };
                 if (render_pass_info.clear_on_begin && texture->expect_texture().clear_on_begin) {
-                    transition_resource(m_curr_pass_cmd, texture, D3D12_RESOURCE_STATE_RENDER_TARGET);
+                    transition_resource(m_curr_pass_cmd, color_target.handle, D3D12_RESOURCE_STATE_RENDER_TARGET);
                     execute_resource_transitions(m_curr_pass_cmd);
                     auto clear_color = &texture->expect_texture().clear_color;
                     m_curr_pass_cmd->get()->ClearRenderTargetView(rtv_handle, &clear_color->r, 0, nullptr);
@@ -527,7 +527,7 @@ namespace gfx::dx12 {
             auto& texture = render_pass_info.depth_target.resource;
             auto gfx_cmd = m_curr_pass_cmd->get();
 
-            transition_resource(m_curr_pass_cmd, texture, D3D12_RESOURCE_STATE_DEPTH_WRITE);
+            transition_resource(m_curr_pass_cmd, render_pass_info.depth_target.handle, D3D12_RESOURCE_STATE_DEPTH_WRITE);
             dsv_handle = m_heap_dsv->fetch_cpu_handle(texture->expect_texture().dsv_handle);
             m_curr_pass_cmd->get()->ClearDepthStencilView(dsv_handle, D3D12_CLEAR_FLAG_DEPTH, texture->expect_texture().clear_color.x, 0, 0, nullptr);
 
@@ -549,9 +549,10 @@ namespace gfx::dx12 {
         if (m_gpu_profiling) {
             m_curr_pass_cmd->get()->EndQuery(m_query_heap.Get(), D3D12_QUERY_TYPE_TIMESTAMP, m_query_labels.size() * 2 + 1);
             m_query_labels.push_back(m_curr_bound_pipeline->get_name());
-            transition_resource(m_curr_pass_cmd, m_query_buffer.resource, D3D12_RESOURCE_STATE_COPY_DEST);
+            transition_resource(m_curr_pass_cmd, m_query_buffer.handle, D3D12_RESOURCE_STATE_COPY_DEST);
             execute_resource_transitions(m_curr_pass_cmd);
-            m_curr_pass_cmd->get()->ResolveQueryData(m_query_heap.Get(), D3D12_QUERY_TYPE_TIMESTAMP, 0, m_query_labels.size() * 2, m_query_buffer.resource->handle.Get(), 0);
+            const auto query_buffer_handle = fetch_resource_info(m_query_buffer.handle).handle.Get();
+            m_curr_pass_cmd->get()->ResolveQueryData(m_query_heap.Get(), D3D12_QUERY_TYPE_TIMESTAMP, 0, m_query_labels.size() * 2, query_buffer_handle, 0);
         }
     }
 
@@ -588,9 +589,10 @@ namespace gfx::dx12 {
         if (m_gpu_profiling) {
             m_curr_pass_cmd->get()->EndQuery(m_query_heap.Get(), D3D12_QUERY_TYPE_TIMESTAMP, m_query_labels.size() * 2 + 1);
             m_query_labels.push_back(m_curr_bound_pipeline->get_name());
-            transition_resource(m_curr_pass_cmd, m_query_buffer.resource, D3D12_RESOURCE_STATE_COPY_DEST);
+            transition_resource(m_curr_pass_cmd, m_query_buffer.handle, D3D12_RESOURCE_STATE_COPY_DEST);
             execute_resource_transitions(m_curr_pass_cmd);
-            m_curr_pass_cmd->get()->ResolveQueryData(m_query_heap.Get(), D3D12_QUERY_TYPE_TIMESTAMP, 0, m_query_labels.size() * 2, m_query_buffer.resource->handle.Get(), 0);
+            const auto query_buffer_handle = fetch_resource_info(m_query_buffer.handle).handle.Get();
+            m_curr_pass_cmd->get()->ResolveQueryData(m_query_heap.Get(), D3D12_QUERY_TYPE_TIMESTAMP, 0, m_query_labels.size() * 2, query_buffer_handle, 0);
         }
     }
 
@@ -702,6 +704,9 @@ namespace gfx::dx12 {
 
         ResourceHandle id = m_heap_bindless->alloc_descriptor(ResourceType::texture);
 
+        ResourceInfo& resource_info = fetch_resource_info(id);
+        resource_info = {}; // default-initialize
+
         int mip_levels = 1;
         if (max_mip_levels > 1) {
             uint32_t w = width;
@@ -712,6 +717,7 @@ namespace gfx::dx12 {
                 h >>= 1;
             }
         }
+        resource->expect_texture().n_subresources = mip_levels;
         resource_desc.MipLevels = (UINT16)mip_levels;
 
         D3D12_HEAP_PROPERTIES heap_properties = {};
@@ -725,11 +731,11 @@ namespace gfx::dx12 {
             &resource_desc,
             D3D12_RESOURCE_STATE_COPY_DEST,
             nullptr,
-            IID_PPV_ARGS(&resource->handle)
+            IID_PPV_ARGS(&resource_info.handle)
         ));
-        resource->current_state = D3D12_RESOURCE_STATE_COPY_DEST;
+        resource_info.current_state = D3D12_RESOURCE_STATE_COPY_DEST;
         auto srv_desc = make_texture_srv_desc(resource_desc.Format, type, mip_levels);
-        device->CreateShaderResourceView(resource->handle.Get(), &srv_desc, descriptor);
+        device->CreateShaderResourceView(resource_info.handle.Get(), &srv_desc, descriptor);
         
         std::vector<ResourceHandle> mip_handles;
         int mip_level = 0;
@@ -744,8 +750,8 @@ namespace gfx::dx12 {
                 
                 D3D12_SHADER_RESOURCE_VIEW_DESC mip_srv_desc = make_texture_srv_desc(resource_desc.Format, type, 1);
                 D3D12_UNORDERED_ACCESS_VIEW_DESC mip_uav_desc = make_texture_uav_desc(resource_desc.Format, type, depth, mip_level);
-                device->CreateShaderResourceView(resource->handle.Get(), &mip_srv_desc, mip_srv_descriptor);
-                device->CreateUnorderedAccessView(resource->handle.Get(), nullptr, &mip_uav_desc, mip_uav_descriptor);
+                device->CreateShaderResourceView(resource_info.handle.Get(), &mip_srv_desc, mip_srv_descriptor);
+                device->CreateUnorderedAccessView(resource_info.handle.Get(), nullptr, &mip_uav_desc, mip_uav_descriptor);
 
                 mip_handles.push_back(mip_srv_id);
 
@@ -761,15 +767,15 @@ namespace gfx::dx12 {
             uav_id.id += 1;
             D3D12_UNORDERED_ACCESS_VIEW_DESC uav_desc = make_texture_uav_desc(resource_desc.Format, type, depth, 0);
             auto uav_descriptor = m_heap_bindless->fetch_cpu_handle(uav_id);
-            device->CreateUnorderedAccessView(resource->handle.Get(), nullptr, &uav_desc, uav_descriptor);
+            device->CreateUnorderedAccessView(resource_info.handle.Get(), nullptr, &uav_desc, uav_descriptor);
         }
 
         // We need to copy the texture from an upload buffer
         if (data) {
-            const auto upload_buffer_id = create_buffer("Upload buffer", upload_size, data, ResourceUsage::cpu_writable);
-            queue_unload_bindless_resource(upload_buffer_id);
+            const auto upload_buffer = create_buffer("Upload buffer", upload_size, data, ResourceUsage::cpu_writable);
+            queue_unload_bindless_resource(upload_buffer);
 
-            const auto& upload_buffer = upload_buffer_id.resource;
+            const auto& upload_buffer_info = fetch_resource_info(upload_buffer.handle);
 
             auto texture_size_box = D3D12_BOX{
                 .left = 0,
@@ -781,7 +787,7 @@ namespace gfx::dx12 {
             };
 
             auto texture_copy_source = D3D12_TEXTURE_COPY_LOCATION{
-                .pResource = upload_buffer->handle.Get(),
+                .pResource = upload_buffer_info.handle.Get(),
                 .Type = D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT,
                 .PlacedFootprint = {
                     .Offset = 0,
@@ -796,7 +802,7 @@ namespace gfx::dx12 {
             };
 
             auto texture_copy_dest = D3D12_TEXTURE_COPY_LOCATION{
-                .pResource = resource->handle.Get(),
+                .pResource = resource_info.handle.Get(),
                 .Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX,
                 .SubresourceIndex = 0,
             };
@@ -822,15 +828,15 @@ namespace gfx::dx12 {
                 break;
             }
 
-            m_temp_upload_buffers.push_back(UploadQueueKeepAlive{ m_upload_fence_value_when_done, upload_buffer });
+            m_temp_upload_buffers.push_back(UploadQueueKeepAlive{ m_upload_fence_value_when_done, upload_buffer.resource });
         }
 
         id.is_loaded = true; // todo, only set this to true when the upload command buffer finished (when the fence value was reached)
-        resource->name = name;
-        resource->handle->SetName(std::wstring(name.begin(), name.end()).c_str());
         resource->subresource_handles = mip_handles;
+        resource->name = name;
+        resource_info.handle->SetName(std::wstring(name.begin(), name.end()).c_str());
 
-        auto& mip_states = resource->subresource_states;
+        auto& mip_states = resource_info.subresource_states;
         mip_states.resize(mip_handles.size());
         std::fill(mip_states.begin(), mip_states.end(), D3D12_RESOURCE_STATE_COPY_DEST);
 
@@ -871,6 +877,11 @@ namespace gfx::dx12 {
             .size = size,
         };
 
+        auto id = m_heap_bindless->alloc_descriptor(ResourceType::buffer);
+        
+        ResourceInfo& resource_info = fetch_resource_info(id);
+        resource_info = {}; // default-initialize
+
         // Create Dx12 resource
         D3D12_RESOURCE_DESC resource_desc = {};
         resource_desc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
@@ -888,17 +899,17 @@ namespace gfx::dx12 {
         if      (usage == ResourceUsage::cpu_read_write) heap_properties.Type = D3D12_HEAP_TYPE_READBACK;
         else if (usage == ResourceUsage::cpu_writable)   heap_properties.Type = D3D12_HEAP_TYPE_UPLOAD;
 
-        resource->current_state = D3D12_RESOURCE_STATE_COMMON;
+        resource_info.current_state = D3D12_RESOURCE_STATE_COMMON;
         validate(device->CreateCommittedResource(
             &heap_properties,
             D3D12_HEAP_FLAG_NONE,
             &resource_desc,
-            resource->current_state,
+            resource_info.current_state,
             nullptr,
-            IID_PPV_ARGS(&resource->handle)
+            IID_PPV_ARGS(&resource_info.handle)
         ));
 
-        // Allocate and create a shader resource view in the bindless descriptor heap
+        // Create a SRV in the bindless descriptor heap
         const D3D12_SHADER_RESOURCE_VIEW_DESC srv_desc {
             .Format = DXGI_FORMAT_R32_TYPELESS,
             .ViewDimension = D3D12_SRV_DIMENSION_BUFFER,
@@ -911,11 +922,10 @@ namespace gfx::dx12 {
             }
         };
 
-        auto id = m_heap_bindless->alloc_descriptor(ResourceType::buffer);
         const auto handle = m_heap_bindless->fetch_cpu_handle(id);
-        device->CreateShaderResourceView(resource->handle.Get(), &srv_desc, handle);
+        device->CreateShaderResourceView(resource_info.handle.Get(), &srv_desc, handle);
 
-        // If compute_write, also create an unordered access view
+        // If compute_write, also create a UAV
         if (usage == ResourceUsage::compute_write) {
             const D3D12_UNORDERED_ACCESS_VIEW_DESC uav_desc {
                 .Format = DXGI_FORMAT_R32_TYPELESS,
@@ -932,36 +942,36 @@ namespace gfx::dx12 {
             auto uav_id = id;
             uav_id.id += 1;
             const auto uav_handle = m_heap_bindless->fetch_cpu_handle(uav_id);
-            device->CreateUnorderedAccessView(resource->handle.Get(), nullptr, &uav_desc, uav_handle);
+            device->CreateUnorderedAccessView(resource_info.handle.Get(), nullptr, &uav_desc, uav_handle);
         }
 
         if (data && (usage == ResourceUsage::cpu_writable || usage == ResourceUsage::cpu_read_write)) {
             // Copy the buffer data to the GPU
             void* mapped_buffer = nullptr;
             D3D12_RANGE range = { 0, size };
-            validate(resource->handle->Map(0, &range, &mapped_buffer));
+            validate(resource_info.handle->Map(0, &range, &mapped_buffer));
             memcpy(mapped_buffer, data, size);
-            resource->handle->Unmap(0, &range);
+            resource_info.handle->Unmap(0, &range);
         }
         else if (data) {
             // Create upload buffer containing the data
-            const auto upload_buffer_id = create_buffer(name + "(upload buffer)", size, data, ResourceUsage::cpu_writable);
-            const auto& upload_buffer = upload_buffer_id.resource;
-            queue_unload_bindless_resource(upload_buffer_id);
+            const auto upload_buffer = create_buffer(name + "(upload buffer)", size, data, ResourceUsage::cpu_writable);
+            const auto& upload_buffer_info = fetch_resource_info(upload_buffer.handle);
+            queue_unload_bindless_resource(upload_buffer);
 
             // Upload the data to the destination buffer
             ++m_upload_fence_value_when_done;
             auto cmd = m_upload_queue->create_command_buffer(nullptr, m_upload_fence_value_when_done);
-            transition_resource(cmd, resource, D3D12_RESOURCE_STATE_COPY_DEST);
+            transition_resource(cmd, id, D3D12_RESOURCE_STATE_COPY_DEST);
             execute_resource_transitions(cmd);
-            cmd->get()->CopyBufferRegion(resource->handle.Get(), 0, upload_buffer->handle.Get(), 0, size);
-            transition_resource(cmd, resource, D3D12_RESOURCE_STATE_COMMON);
+            cmd->get()->CopyBufferRegion(resource_info.handle.Get(), 0, upload_buffer_info.handle.Get(), 0, size);
+            transition_resource(cmd, id, D3D12_RESOURCE_STATE_COMMON);
             execute_resource_transitions(cmd);
-            m_temp_upload_buffers.push_back(UploadQueueKeepAlive{ m_upload_fence_value_when_done, upload_buffer });
+            m_temp_upload_buffers.push_back(UploadQueueKeepAlive{ m_upload_fence_value_when_done, upload_buffer.resource });
         }
 
         auto name_str = std::wstring(name.begin(), name.end());
-        resource->handle->SetName(name_str.c_str());
+        resource_info.handle->SetName(name_str.c_str());
         resource->name = name;
 
         // Store the resource data in the device struct
@@ -985,6 +995,10 @@ namespace gfx::dx12 {
             .rtv_handle = ResourceHandle::none(),
             .dsv_handle = ResourceHandle::none(),
         };
+
+        auto srv_id = m_heap_bindless->alloc_descriptor(ResourceType::texture);
+        auto& resource_info = fetch_resource_info(srv_id);
+        resource_info = {};
 
         // Create a d3d12 resource for the texture
         D3D12_RESOURCE_DESC resource_desc = {};
@@ -1013,11 +1027,11 @@ namespace gfx::dx12 {
             &resource_desc,
             D3D12_RESOURCE_STATE_RENDER_TARGET,
             &clear_value,
-            IID_PPV_ARGS(&resource->handle)
+            IID_PPV_ARGS(&resource_info.handle)
         ));
-        resource->current_state = D3D12_RESOURCE_STATE_RENDER_TARGET;
+        resource_info.current_state = D3D12_RESOURCE_STATE_RENDER_TARGET;
         auto name_str = std::wstring(name.begin(), name.end());
-        resource->handle->SetName(name_str.c_str());
+        resource_info.handle->SetName(name_str.c_str());
         resource->name = name;
 
         // todo: make this its own function or combine this function using some type of flag, I've repeated this 3 times now
@@ -1033,9 +1047,9 @@ namespace gfx::dx12 {
                 .ResourceMinLODClamp = 0.0f
             }
         };
-        auto srv_id = m_heap_bindless->alloc_descriptor(ResourceType::texture);
+
         auto srv_descriptor = m_heap_bindless->fetch_cpu_handle(srv_id);
-        device->CreateShaderResourceView(resource->handle.Get(), &srv_desc, srv_descriptor);
+        device->CreateShaderResourceView(resource_info.handle.Get(), &srv_desc, srv_descriptor);
         srv_id.is_loaded = true;
 
         if (extra_usage == ResourceUsage::compute_write) {
@@ -1050,7 +1064,7 @@ namespace gfx::dx12 {
             auto uav_id = srv_id;
             uav_id.id += 1;
             auto uav_descriptor = m_heap_bindless->fetch_cpu_handle(uav_id);
-            device->CreateUnorderedAccessView(resource->handle.Get(), nullptr, &uav_desc, uav_descriptor);
+            device->CreateUnorderedAccessView(resource_info.handle.Get(), nullptr, &uav_desc, uav_descriptor);
             uav_id.is_loaded = 1;
         }
 
@@ -1065,7 +1079,7 @@ namespace gfx::dx12 {
         };
         auto rtv_id = m_heap_rtv->alloc_descriptor(ResourceType::texture);
         auto rtv_descriptor = m_heap_rtv->fetch_cpu_handle(rtv_id);
-        device->CreateRenderTargetView(resource->handle.Get(), &rtv_desc, rtv_descriptor);
+        device->CreateRenderTargetView(resource_info.handle.Get(), &rtv_desc, rtv_descriptor);
         rtv_id.is_loaded = true;
         resource->expect_texture().rtv_handle = rtv_id;
 
@@ -1086,6 +1100,11 @@ namespace gfx::dx12 {
             .rtv_handle = ResourceHandle::none(),
             .dsv_handle = ResourceHandle::none(),
         };
+
+        // Allocate SRV id, so we can store it in the resources map
+        // However, since this is a depth texture, we can't actually create a SRV for this
+        auto srv_id = m_heap_bindless->alloc_descriptor(ResourceType::texture);
+        auto& resource_info = fetch_resource_info(srv_id);
 
         // Create a d3d12 resource for the texture
         D3D12_RESOURCE_DESC resource_desc = {};
@@ -1115,16 +1134,12 @@ namespace gfx::dx12 {
             &resource_desc,
             D3D12_RESOURCE_STATE_DEPTH_WRITE,
             &clear_value,
-            IID_PPV_ARGS(&resource->handle)
+            IID_PPV_ARGS(&resource_info.handle)
         ));
-        resource->current_state = D3D12_RESOURCE_STATE_DEPTH_WRITE;
+        resource_info.current_state = D3D12_RESOURCE_STATE_DEPTH_WRITE;
         auto name_str = std::wstring(name.begin(), name.end());
-        resource->handle->SetName(name_str.c_str());
+        resource_info.handle->SetName(name_str.c_str());
         resource->name = name;
-
-        // Allocate SRV id, so we can store it in the resources map
-        // However, since this is a depth texture, we can't actually create a SRV for this
-        auto srv_id = m_heap_bindless->alloc_descriptor(ResourceType::texture);
 
         // Create DSV
         D3D12_DEPTH_STENCIL_VIEW_DESC dsv_desc = {
@@ -1137,7 +1152,7 @@ namespace gfx::dx12 {
         };
         auto dsv_id = m_heap_dsv->alloc_descriptor(ResourceType::texture);
         auto dsv_descriptor = m_heap_dsv->fetch_cpu_handle(dsv_id);
-        device->CreateDepthStencilView(resource->handle.Get(), &dsv_desc, dsv_descriptor);
+        device->CreateDepthStencilView(resource_info.handle.Get(), &dsv_desc, dsv_descriptor);
         dsv_id.is_loaded = true;
         resource->expect_texture().dsv_handle = dsv_id;
 
@@ -1201,14 +1216,16 @@ namespace gfx::dx12 {
             return;
         }
 
+        auto& resource_info = fetch_resource_info(buffer.handle);
+
         char* mapped_buffer;
         const D3D12_RANGE write_range = { offset, offset + n_bytes };
-        if (FAILED(buffer.resource->handle->Map(0, &write_range, (void**)&mapped_buffer))) {
+        if (FAILED(resource_info.handle->Map(0, &write_range, (void**)&mapped_buffer))) {
             LOG(Error, "Write failed for \"%s\": failed to map buffer to CPU memory space!", buffer.resource->name.c_str());
             return;
         }
         memcpy(mapped_buffer + offset, data, n_bytes);
-        buffer.resource->handle->Unmap(0, &write_range);
+        resource_info.handle->Unmap(0, &write_range);
     }
 
     void Device::readback_buffer(const ResourceHandlePair& buffer, const uint32_t offset, const uint32_t n_bytes, void* destination) {
@@ -1232,14 +1249,16 @@ namespace gfx::dx12 {
             return;
         }
 
+        auto& resource_info = fetch_resource_info(buffer.handle);
+
         char* mapped_buffer;
         const D3D12_RANGE read_range = { offset, offset + n_bytes };
-        if (FAILED(buffer.resource->handle->Map(0, &read_range, (void**)&mapped_buffer))) {
+        if (FAILED(resource_info.handle->Map(0, &read_range, (void**)&mapped_buffer))) {
             LOG(Error, "Readback failed for \"%s\": failed to map buffer to CPU memory space!", buffer.resource->name.c_str());
             return;
         }
         memcpy(destination, mapped_buffer + offset, n_bytes);
-        buffer.resource->handle->Unmap(0, nullptr);
+        resource_info.handle->Unmap(0, nullptr);
     }
 
     void Device::queue_unload_bindless_resource(ResourceHandlePair resource) {
@@ -1262,14 +1281,15 @@ namespace gfx::dx12 {
         return D3D12_RESOURCE_STATE_COMMON;
     }
 
-    void Device::use_resource(const ResourceHandlePair &resource, const ResourceUsage usage) {
-        transition_resource(m_curr_pass_cmd, resource.resource, resource_usage_to_dx12_state(usage));
+    void Device::use_resource(const ResourceHandle handle, const ResourceUsage usage) {
+        transition_resource(m_curr_pass_cmd, handle, resource_usage_to_dx12_state(usage));
         execute_resource_transitions(m_curr_pass_cmd);
     }
 
     void Device::use_resources(const std::initializer_list<ResourceTransitionInfo>& resources) {
-        for (auto& [resource, usage, subresource] : resources) {
-            if (resource.resource != nullptr) transition_resource(m_curr_pass_cmd, resource.resource, resource_usage_to_dx12_state(usage), subresource);
+        for (auto& [resource_handle, usage, subresource] : resources) {
+            if (!resource_handle.is_loaded || resource_handle.type == (uint32_t)ResourceType::none) continue;
+            transition_resource(m_curr_pass_cmd, resource_handle, resource_usage_to_dx12_state(usage), subresource);
         }
         execute_resource_transitions(m_curr_pass_cmd);
     }
@@ -1296,14 +1316,17 @@ namespace gfx::dx12 {
         
         D3D12_HEAP_PROPERTIES heap_properties = {.Type = D3D12_HEAP_TYPE_DEFAULT};
 
-        resource->current_state = D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE;
+        auto id = m_heap_bindless->alloc_descriptor(ResourceType::acceleration_structure);
+        auto& resource_info = fetch_resource_info(id);
+
+        resource_info.current_state = D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE;
         validate(device->CreateCommittedResource(
             &heap_properties,
             D3D12_HEAP_FLAG_NONE,
             &resource_desc,
-            resource->current_state,
+            resource_info.current_state,
             nullptr,
-            IID_PPV_ARGS(&resource->handle)
+            IID_PPV_ARGS(&resource_info.handle)
         ));
 
         // Allocate and create a shader resource view in the bindless descriptor heap
@@ -1312,16 +1335,15 @@ namespace gfx::dx12 {
             .ViewDimension = D3D12_SRV_DIMENSION_RAYTRACING_ACCELERATION_STRUCTURE,
             .Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING,
             .RaytracingAccelerationStructure = {
-                .Location = resource->handle->GetGPUVirtualAddress()
+                .Location = resource_info.handle->GetGPUVirtualAddress()
             }
         };
 
-        auto id = m_heap_bindless->alloc_descriptor(ResourceType::acceleration_structure);
         const auto handle = m_heap_bindless->fetch_cpu_handle(id);
         device->CreateShaderResourceView(nullptr, &srv_desc, handle);
 
         auto name_str = std::wstring(name.begin(), name.end());
-        resource->handle->SetName(name_str.c_str());
+        resource_info.handle->SetName(name_str.c_str());
         resource->name = name;
 
         // Store the resource data in the device struct
@@ -1334,6 +1356,9 @@ namespace gfx::dx12 {
         ++m_upload_fence_value_when_done;
         auto cmd = m_upload_queue->create_command_buffer(nullptr, m_upload_fence_value_when_done);
 
+        auto& position_buffer_info = fetch_resource_info(position_buffer.handle);
+        auto& index_buffer_info = fetch_resource_info(index_buffer.handle);
+
         const D3D12_RAYTRACING_GEOMETRY_DESC geo_desc = {
             .Type = D3D12_RAYTRACING_GEOMETRY_TYPE_TRIANGLES,
             .Flags = D3D12_RAYTRACING_GEOMETRY_FLAG_OPAQUE,
@@ -1343,9 +1368,9 @@ namespace gfx::dx12 {
                 .VertexFormat = DXGI_FORMAT_R32G32B32_FLOAT,
                 .IndexCount = index_count,
                 .VertexCount = vertex_count,
-                .IndexBuffer = index_buffer.resource->handle->GetGPUVirtualAddress(),
+                .IndexBuffer = index_buffer_info.handle->GetGPUVirtualAddress(),
                 .VertexBuffer = {
-                    .StartAddress = position_buffer.resource->handle->GetGPUVirtualAddress(),
+                    .StartAddress = position_buffer_info.handle->GetGPUVirtualAddress(),
                     .StrideInBytes = sizeof(glm::vec3)
                 }
             }
@@ -1364,10 +1389,13 @@ namespace gfx::dx12 {
         auto scratch_buffer = create_buffer(name + " (blas scratch buffer)", prebuild_info.ScratchDataSizeInBytes, nullptr, ResourceUsage::compute_write);
         auto dest_acc_structure = create_acceleration_structure(name + " (blas)", prebuild_info.ResultDataMaxSizeInBytes);
 
+        auto& dest_acc_structure_info = fetch_resource_info(dest_acc_structure.handle);
+        auto& scratch_buffer_info = fetch_resource_info(scratch_buffer.handle);
+
         const D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC build_acc_desc = {
-            .DestAccelerationStructureData = dest_acc_structure.resource->handle->GetGPUVirtualAddress(),
+            .DestAccelerationStructureData = dest_acc_structure_info.handle->GetGPUVirtualAddress(),
             .Inputs = build_acc_inputs,
-            .ScratchAccelerationStructureData = scratch_buffer.resource->handle->GetGPUVirtualAddress(),
+            .ScratchAccelerationStructureData = scratch_buffer_info.handle->GetGPUVirtualAddress(),
         };
 
         cmd->get_rt()->BuildRaytracingAccelerationStructure(&build_acc_desc, 0, nullptr);
@@ -1390,8 +1418,8 @@ namespace gfx::dx12 {
             }
             instance_desc.InstanceID = instance.instance_id;
             instance_desc.InstanceMask = instance.instance_mask;
-            instance_desc.Flags = instance.flags;
-            instance_desc.AccelerationStructure = instance.blas.resource->handle->GetGPUVirtualAddress();
+            instance_desc.Flags = (UINT)instance.flags;
+            instance_desc.AccelerationStructure = fetch_resource_info(instance.blas.handle).handle->GetGPUVirtualAddress();
             dx12_instances.emplace_back(instance_desc);
         }
 
@@ -1400,15 +1428,17 @@ namespace gfx::dx12 {
         m_upload_queue_completion_fence->gpu_signal(m_upload_queue, m_upload_fence_value_when_done);
         m_upload_queue_completion_fence->cpu_wait(m_upload_fence_value_when_done);
 
+        auto& instance_descs_info = fetch_resource_info(instance_descs.handle);
+
         const D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS build_acc_inputs = {
             .Type = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL,
             .Flags = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_PREFER_FAST_TRACE,
             .NumDescs = (UINT)dx12_instances.size(),
-            .InstanceDescs = instance_descs.resource->handle->GetGPUVirtualAddress(),
+            .InstanceDescs = instance_descs_info.handle->GetGPUVirtualAddress(),
         };
         D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO prebuild_info{};
         device5()->GetRaytracingAccelerationStructurePrebuildInfo(&build_acc_inputs, &prebuild_info);
-        instance_descs.resource->current_state = D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE;
+        instance_descs_info.current_state = D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE;
 
         auto scratch_buffer = create_buffer(name + " (tlas scratch buffer)", prebuild_info.ScratchDataSizeInBytes, nullptr, ResourceUsage::compute_write);
         auto dest_acc_structure = create_acceleration_structure(name + " (tlas)", prebuild_info.ResultDataMaxSizeInBytes);
@@ -1416,9 +1446,9 @@ namespace gfx::dx12 {
         dest_acc_structure.resource->expect_acceleration_structure().instance_descs = instance_descs;
 
         const D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC build_acc_desc = {
-            .DestAccelerationStructureData = dest_acc_structure.resource->handle->GetGPUVirtualAddress(),
+            .DestAccelerationStructureData = fetch_resource_info(dest_acc_structure.handle).handle->GetGPUVirtualAddress(),
             .Inputs = build_acc_inputs,
-            .ScratchAccelerationStructureData = scratch_buffer.resource->handle->GetGPUVirtualAddress(),
+            .ScratchAccelerationStructureData = fetch_resource_info(scratch_buffer.handle).handle->GetGPUVirtualAddress(),
         };
 
         auto cmd = m_upload_queue->create_command_buffer(nullptr, m_upload_fence_value_when_done);
@@ -1428,20 +1458,22 @@ namespace gfx::dx12 {
         return dest_acc_structure;
     }
 
-    void Device::transition_resource(std::shared_ptr<CommandBuffer> cmd, std::shared_ptr<Resource> resource, D3D12_RESOURCE_STATES new_state, uint32_t subresource) {
-        auto current_state = (subresource == (uint32_t)-1 || subresource == 0) ? (resource->current_state) : (resource->subresource_states[subresource - 1]);
+    void Device::transition_resource(std::shared_ptr<CommandBuffer> cmd, ResourceHandle handle, D3D12_RESOURCE_STATES new_state, uint32_t subresource) {
+        auto& resource_info = fetch_resource_info(handle);
+        auto current_state = (subresource == (uint32_t)-1 || subresource == 0) ? (resource_info.current_state) : (resource_info.subresource_states[subresource - 1]);
         if (current_state == new_state) return;
 
         if (m_curr_pipeline_is_async) {
-            m_temp_upload_buffers.push_back(UploadQueueKeepAlive{ m_upload_fence_value_when_done, resource });
+            // todo: do we still need this after refactor?
+            // m_temp_upload_buffers.push_back(UploadQueueKeepAlive{ m_upload_fence_value_when_done, handle });
         }
 
-        if (resource->current_state == D3D12_RESOURCE_STATE_UNORDERED_ACCESS) {
+        if (resource_info.current_state == D3D12_RESOURCE_STATE_UNORDERED_ACCESS) {
             m_resource_barriers.emplace_back(D3D12_RESOURCE_BARRIER {
                 .Type = D3D12_RESOURCE_BARRIER_TYPE_UAV,
                 .Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE,
                 .UAV = {
-                    .pResource = resource->handle.Get(),
+                    .pResource = resource_info.handle.Get(),
                 },
             });
         }
@@ -1450,7 +1482,7 @@ namespace gfx::dx12 {
             .Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION,
             .Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE,
             .Transition = {
-                .pResource = resource->handle.Get(),
+                .pResource = resource_info.handle.Get(),
                 .Subresource = subresource,
                 .StateBefore = current_state,
                 .StateAfter = new_state,
@@ -1462,16 +1494,16 @@ namespace gfx::dx12 {
                 .Type = D3D12_RESOURCE_BARRIER_TYPE_UAV,
                 .Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE,
                 .UAV = {
-                    .pResource = resource->handle.Get(),
+                    .pResource = resource_info.handle.Get(),
                 },
             });
         }
         
-        if (subresource == 0) resource->current_state = new_state;
-        else if (subresource != (uint32_t)-1) resource->subresource_states[subresource - 1] = new_state;
+        if (subresource == 0) resource_info.current_state = new_state;
+        else if (subresource != (uint32_t)-1) resource_info.subresource_states[subresource - 1] = new_state;
         else {
-            resource->current_state = new_state;
-            for (auto& state : resource->subresource_states) {
+            resource_info.current_state = new_state;
+            for (auto& state : resource_info.subresource_states) {
                 state = new_state;
             }
         }
@@ -1593,6 +1625,11 @@ namespace gfx::dx12 {
             return nullptr;
         }
         return device5;
+    }
+    
+    ResourceInfo& Device::fetch_resource_info(ResourceHandle handle) {
+        // Always use the ID of the SRV handle
+        return m_resource_info[handle.id & ~1];
     }
 }
 #endif

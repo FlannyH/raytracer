@@ -326,7 +326,7 @@ namespace gfx {
             m_curr_sky_cube.sky.handle.as_u32(),
             m_curr_sky_cube.ibl.handle.as_u32(),
             m_curr_sky_cube.offset_diffuse_sh,
-            (uint32_t)(m_curr_sky_cube.ibl.resource != nullptr ? m_curr_sky_cube.ibl.resource->subresource_handles.size() : 0),
+            (uint32_t)(m_curr_sky_cube.ibl.resource != nullptr ? m_curr_sky_cube.ibl.resource->expect_texture().n_subresources : 0),
             m_draw_packets[m_device->frame_index() % backbuffer_count].handle.as_u32(),
             view_data_offset,
             m_env_brdf_lut.handle.as_u32()

@@ -1,7 +1,5 @@
 #pragma once
 #include "common.h"
-#include <vulkan/vulkan.h>
-#include <d3d12.h>
 
 #include <glm/matrix.hpp>
 #include <glm/vec4.hpp>
@@ -86,16 +84,21 @@ namespace gfx {
     struct ResourceHandlePair {
         ResourceHandle handle = ResourceHandle::none();
         std::shared_ptr<Resource> resource = nullptr;
+
+    	// Having an implicit conversion operator from ResourceHandlePair to
+        // ResourceHandle means we don't need to spam `.handle` all over the code
+        operator ResourceHandle() const {
+            return handle;
+        }
     };
 
     struct TextureResource {
         void* data;
         uint32_t width, height, depth;
         PixelFormat pixel_format;
-        VkImage vk_image;
-        VkImageView vk_image_view;
 
-        // Extra optional handles for render targets
+        // Extra optional handles for textures
+        int n_subresources;
         bool clear_on_begin;
         bool is_compute_render_target;
         glm::vec4 clear_color;
@@ -106,7 +109,6 @@ namespace gfx {
     struct BufferResource {
         void* data;
         uint64_t size;
-        VkBuffer vk_buffer;
     };
 
     struct SceneResource {
@@ -182,15 +184,10 @@ namespace gfx {
             return std::get<AccelerationStructureResource>(resource);
         }
 
+        std::vector<ResourceHandle> subresource_handles;
         ResourceType type = ResourceType::none;
         ResourceUsage usage = ResourceUsage::none;
-        ComPtr<ID3D12Resource> handle;
-        D3D12_RESOURCE_STATES current_state = D3D12_RESOURCE_STATE_COMMON;
         std::string name;
-        
-        // Extra optional handles for subresources
-        std::vector<ResourceHandle> subresource_handles;
-        std::vector<D3D12_RESOURCE_STATES> subresource_states;
      private:
         std::variant<TextureResource, BufferResource, SceneResource, AccelerationStructureResource> resource;
     }; 

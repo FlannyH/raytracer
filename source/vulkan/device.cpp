@@ -349,7 +349,7 @@ namespace gfx::vk {
             region.dstOffset = 0;
             region.size = size;
 
-            vkCmdCopyBuffer(cmd, upload_buffer->expect_buffer().vk_buffer, buffer, 1, &region);
+            // todo: vkCmdCopyBuffer(cmd, upload_buffer->expect_buffer().vk_buffer, buffer, 1, &region);
         }
 
         // Create engine resource
@@ -359,7 +359,7 @@ namespace gfx::vk {
         resource->expect_buffer() = {
             .data = data,
             .size = size,
-            .vk_buffer = buffer,
+            // todo: .vk_buffer = buffer,
         };
 
         // todo: set the name on the vulkan buffer object as well
@@ -447,10 +447,9 @@ namespace gfx::vk {
             LOG(Error, "Failed to create image view for render target \"%s\"", name.c_str());
         }
 
-        resource->expect_texture().vk_image = image;
-        resource->expect_texture().vk_image_view = image_view;
+        // todo: resource->expect_texture().vk_image = image;
+        // todo: resource->expect_texture().vk_image_view = image_view;
 
-        auto id = m_desc_heap->alloc_descriptor(ResourceType::texture);
         m_desc_heap->write_texture_descriptor(*this, id, image_create_info.initialLayout, image_view);
 
         return ResourceHandlePair{ id, resource };
@@ -477,7 +476,7 @@ namespace gfx::vk {
         TODO();
     }
 
-    void Device::use_resource(const ResourceHandlePair &resource, const ResourceUsage usage) {
+    void Device::use_resource(const ResourceHandle handle, const ResourceUsage usage) {
         TODO();
     }
 
@@ -520,7 +519,7 @@ namespace gfx::vk {
                 :
                     new_state.queue_family_index
                 ,
-                .image = resource.resource->expect_texture().vk_image,
+                // todo: .image = resource.resource->expect_texture().vk_image,
                 .subresourceRange = subresource_range
             });
         }
@@ -539,7 +538,7 @@ namespace gfx::vk {
                 :
                     new_state.queue_family_index
                 ,
-                .buffer = resource.resource->expect_buffer().vk_buffer,
+                // todo: .buffer = resource.resource->expect_buffer().vk_buffer,
                 .offset = 0,
                 .size = resource.resource->expect_buffer().size
             });

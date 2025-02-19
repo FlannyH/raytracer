@@ -25,6 +25,12 @@ namespace gfx::dx12 {
     struct Pipeline;
     struct Transform;
     struct Fence;
+    
+    struct ResourceInfo {
+        ComPtr<ID3D12Resource> handle;
+        std::vector<D3D12_RESOURCE_STATES> subresource_states;
+        D3D12_RESOURCE_STATES current_state = D3D12_RESOURCE_STATE_COMMON;
+    };
 
     struct Device : public gfx::Device {
     public:
@@ -68,7 +74,7 @@ namespace gfx::dx12 {
         void update_buffer(const ResourceHandlePair& buffer, const uint32_t offset, const uint32_t n_bytes, const void* data) override;
         void readback_buffer(const ResourceHandlePair& buffer, const uint32_t offset, const uint32_t n_bytes, void* destination) override;
         void queue_unload_bindless_resource(ResourceHandlePair resource) override;
-        void use_resource(const ResourceHandlePair& resource, const ResourceUsage usage = ResourceUsage::read) override;
+        void use_resource(const ResourceHandle handle, const ResourceUsage usage = ResourceUsage::read) override;
         void use_resources(const std::initializer_list<ResourceTransitionInfo>& resources) override;
 
         // Raytracing resources
@@ -81,7 +87,7 @@ namespace gfx::dx12 {
         HWND window_hwnd = nullptr;
 
     private:
-        void transition_resource(std::shared_ptr<CommandBuffer> cmd, std::shared_ptr<Resource> resource, D3D12_RESOURCE_STATES new_state, uint32_t subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES);
+        void transition_resource(std::shared_ptr<CommandBuffer> cmd, ResourceHandle resource, D3D12_RESOURCE_STATES new_state, uint32_t subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES);
         int find_dominant_monitor(); // Returns the index of the monitor the window overlaps with most
         void clean_up_old_resources();
         void execute_resource_transitions(std::shared_ptr<CommandBuffer> cmd);
@@ -123,6 +129,8 @@ namespace gfx::dx12 {
         std::deque<UploadQueueKeepAlive> m_temp_upload_buffers; // Temporary upload buffer to be unloaded after it's done uploading. The integer is upload queue fence value before it should be unloaded
         std::deque<std::pair<ResourceHandlePair, int>> m_resources_to_unload; // Resources to unload. The integer determines when it should be unloaded
         std::vector<D3D12_RESOURCE_BARRIER> m_resource_barriers; // Enqueued resource barriers
+        std::unordered_map<uint32_t, ResourceInfo> m_resource_info;
+        ResourceInfo& fetch_resource_info(ResourceHandle handle);
 
         // Rendering context
         std::vector<Pipeline> m_loaded_pipelines;
@@ -130,4 +138,9 @@ namespace gfx::dx12 {
         std::shared_ptr<CommandBuffer> m_curr_pass_cmd; // The command buffer used for this pass
         bool m_curr_pipeline_is_async = false; // If the current pipeline is async, we need to keep track of resources differently 
     };
+    
+    static_assert((uint32_t)RaytracingInstanceFlags::triangle_cull_disable            == (uint32_t)D3D12_RAYTRACING_INSTANCE_FLAG_TRIANGLE_CULL_DISABLE);
+    static_assert((uint32_t)RaytracingInstanceFlags::triangle_front_counterclockwise  == (uint32_t)D3D12_RAYTRACING_INSTANCE_FLAG_TRIANGLE_FRONT_COUNTERCLOCKWISE);
+    static_assert((uint32_t)RaytracingInstanceFlags::force_opaque                     == (uint32_t)D3D12_RAYTRACING_INSTANCE_FLAG_FORCE_OPAQUE);
+    static_assert((uint32_t)RaytracingInstanceFlags::force_non_opaque                 == (uint32_t)D3D12_RAYTRACING_INSTANCE_FLAG_FORCE_NON_OPAQUE);
 };

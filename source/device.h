@@ -5,6 +5,12 @@
 
 #include "resource.h"
 
+#ifdef _WIN32
+#include <d3d12.h>
+#endif
+
+#include <vulkan/vulkan.h>
+
 namespace gfx {
     struct CommandBuffer;
     struct Swapchain;
@@ -27,9 +33,17 @@ namespace gfx {
     };
 
     struct ResourceTransitionInfo {
-        ResourceHandlePair handle;
+        ResourceHandle handle;
         ResourceUsage usage;
         uint32_t subresource_id = (uint32_t)-1;
+    };
+
+    enum class RaytracingInstanceFlags : uint32_t {
+        none = 0x0,
+        triangle_cull_disable = 0x1,
+        triangle_front_counterclockwise = 0x2,
+        force_opaque = 0x4,
+        force_non_opaque = 0x8
     };
 
     struct RaytracingInstance {
@@ -37,7 +51,7 @@ namespace gfx {
         uint32_t instance_id : 24;
         uint32_t instance_mask : 8;
         uint32_t instance_contribution_to_hitgroup_index : 24;
-        uint32_t flags : 8;
+        RaytracingInstanceFlags flags : 8;
         ResourceHandlePair blas;
     };
 
@@ -90,7 +104,7 @@ namespace gfx {
         virtual void update_buffer(const ResourceHandlePair& buffer, const uint32_t offset, const uint32_t n_bytes, const void* data) = 0;
         virtual void readback_buffer(const ResourceHandlePair& buffer, const uint32_t offset, const uint32_t n_bytes, void* destination) = 0;
         virtual void queue_unload_bindless_resource(ResourceHandlePair resource) = 0;
-        virtual void use_resource(const ResourceHandlePair& resource, const ResourceUsage usage = ResourceUsage::read) = 0;
+        virtual void use_resource(const ResourceHandle handle, const ResourceUsage usage = ResourceUsage::read) = 0;
         virtual void use_resources(const std::initializer_list<ResourceTransitionInfo>& resources) = 0;
 
         // Raytracing resources

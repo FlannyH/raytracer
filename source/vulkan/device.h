@@ -77,7 +77,7 @@ namespace gfx::vk {
         void update_buffer(const ResourceHandlePair& buffer, const uint32_t offset, const uint32_t n_bytes, const void* data) override;
         void readback_buffer(const ResourceHandlePair& buffer, const uint32_t offset, const uint32_t n_bytes, void* destination) override;
         void queue_unload_bindless_resource(ResourceHandlePair resource) override;
-        void use_resource(const ResourceHandlePair& resource, const ResourceUsage usage = ResourceUsage::read) override;
+        void use_resource(const ResourceHandle handle, const ResourceUsage usage = ResourceUsage::read) override;
         void use_resources(const std::initializer_list<ResourceTransitionInfo>& resources) override;
 
         // Raytracing resources
@@ -110,4 +110,9 @@ namespace gfx::vk {
 
         size_t m_upload_fence_value_when_done = 0;
     };
+
+    static_assert((uint32_t)RaytracingInstanceFlags::triangle_cull_disable            == (uint32_t)VK_GEOMETRY_INSTANCE_TRIANGLE_FACING_CULL_DISABLE_BIT_KHR);
+    static_assert((uint32_t)RaytracingInstanceFlags::triangle_front_counterclockwise  == (uint32_t)VK_GEOMETRY_INSTANCE_TRIANGLE_FRONT_COUNTERCLOCKWISE_BIT_KHR);
+    static_assert((uint32_t)RaytracingInstanceFlags::force_opaque                     == (uint32_t)VK_GEOMETRY_INSTANCE_FORCE_OPAQUE_BIT_KHR);
+    static_assert((uint32_t)RaytracingInstanceFlags::force_non_opaque                 == (uint32_t)VK_GEOMETRY_INSTANCE_FORCE_NO_OPAQUE_BIT_KHR);
 };
