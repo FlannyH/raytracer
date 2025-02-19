@@ -60,7 +60,7 @@ float distribution_ggx(float n_dot_h, float roughness) {
     return num / denom;
 }
 
-sampler cube_sampler : register(s2);
+sampler tex_sampler_clamp : register(s1);
 
 // https://de45xmedrsdbp.cloudfront.net/Resources/files/2013SiggraphPresentationsNotes-26915738.pdf
 [numthreads(8, 8, 1)]
@@ -116,7 +116,7 @@ void main(uint3 dispatch_thread_id : SV_DispatchThreadID) {
             float sa_sample = 1.0 / (float(n_samples) * pdf + 0.0001);
             float mip = roughness == 0.0 ? 0.0 : 0.5 * log2(sa_sample / sa_pixel);
 
-            color += min(max_hdr_brightness, base_cube_map.SampleLevel(cube_sampler, l, mip) * n_dot_l);
+            color += min(max_hdr_brightness, base_cube_map.SampleLevel(tex_sampler_clamp, l, mip) * n_dot_l);
             total_weight += n_dot_l;   
         }
     }

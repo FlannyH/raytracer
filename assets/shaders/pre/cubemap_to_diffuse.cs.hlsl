@@ -20,7 +20,7 @@ struct SHCoefficients {
 #define MASK_ID ((1 << 27) - 1)
 #define MASK_IS_LOADED (1 << 27)
 
-sampler cube_sampler : register(s2);
+sampler tex_sampler_clamp : register(s1);
 
 [numthreads(8, 8, 1)]
 void main(uint3 dispatch_thread_id : SV_DispatchThreadID) {
@@ -48,7 +48,7 @@ void main(uint3 dispatch_thread_id : SV_DispatchThreadID) {
     }
 
     // Compute spherical harmonics coefficients
-    float3 pixel = cube_map.Sample(cube_sampler, dir);
+    float3 pixel = cube_map.Sample(tex_sampler_clamp, dir);
     SHCoefficients sh;
     sh.l00  = pixel * (0.282095f);
     sh.l11  = pixel * (0.488603f * dir.x);

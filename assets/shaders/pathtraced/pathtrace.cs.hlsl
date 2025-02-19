@@ -86,7 +86,6 @@ struct Vertex {
 
 sampler tex_sampler : register(s0);
 sampler tex_sampler_clamp : register(s1);
-sampler cube_sampler : register(s2);
 
 #define MASK_ID ((1 << 27) - 1)
 #define MASK_IS_LOADED (1 << 27)
@@ -337,7 +336,7 @@ void main(uint3 dispatch_thread_id : SV_DispatchThreadID) {
 
             // Miss? Sample sky
             if (ray_query.CommittedStatus() == COMMITTED_NOTHING) {
-                float3 sky = sky_texture.SampleLevel(cube_sampler, normalize(ray.Direction), 0).rgb;
+                float3 sky = sky_texture.SampleLevel(tex_sampler_clamp, normalize(ray.Direction), 0).rgb;
                 float multiplier = (i == 0) ? (0.5f) : (1.0f);
                 light += sky * ray_tint * multiplier;
                 break;

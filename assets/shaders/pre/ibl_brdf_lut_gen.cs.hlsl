@@ -61,7 +61,7 @@ float geometry_smith(float3 n, float3 v, float3 l, float roughness) {
     return ggx1 * ggx2;
 }
 
-sampler cube_sampler : register(s2);
+sampler tex_sampler_clamp : register(s1);
 
 // https://de45xmedrsdbp.cloudfront.net/Resources/files/2013SiggraphPresentationsNotes-26915738.pdf
 [numthreads(8, 8, 1)]

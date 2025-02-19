@@ -105,7 +105,6 @@ float3 mix(float3 x, float3 y, float a) {
 
 sampler tex_sampler : register(s0);
 sampler tex_sampler_clamp : register(s1);
-sampler cube_sampler : register(s2);
 
 [numthreads(8, 8, 1)]
 void main(uint3 dispatch_thread_id : SV_DispatchThreadID) {
@@ -140,7 +139,7 @@ void main(uint3 dispatch_thread_id : SV_DispatchThreadID) {
         
         // Fetch texture and output
         TextureCube<float4> sky_texture = ResourceDescriptorHeap[NonUniformResourceIndex(root_constants.curr_sky_cube & MASK_ID)];
-        float3 pixel = sky_texture.SampleLevel(cube_sampler, normalize(view_direction_ws), 0).rgb * FULLBRIGHT_NITS;
+        float3 pixel = sky_texture.SampleLevel(tex_sampler_clamp, normalize(view_direction_ws), 0).rgb * FULLBRIGHT_NITS;
         output_texture[dispatch_thread_id.xy] = float4(pixel, 1.0f);
         
         return;
@@ -207,7 +206,7 @@ void main(uint3 dispatch_thread_id : SV_DispatchThreadID) {
     if (root_constants.curr_specular_ibl & MASK_IS_LOADED) {
         TextureCube<float4> ibl_texture = ResourceDescriptorHeap[NonUniformResourceIndex(root_constants.curr_specular_ibl & MASK_ID)];
         float mip_level = pow(roughness, 1.5f) * (root_constants.curr_specular_ibl_n_mips + 1);
-        float3 env_sample = ibl_texture.SampleLevel(cube_sampler, normalize(rotate_vector_by_quaternion(reflect_dir, view_data.forward)), mip_level).rgb;
+        float3 env_sample = ibl_texture.SampleLevel(tex_sampler_clamp, normalize(rotate_vector_by_quaternion(reflect_dir, view_data.forward)), mip_level).rgb;
         float2 env_brdf = env_brdf_lut.Sample(tex_sampler_clamp, float2(n_dot_v, roughness));
         float3 indirect_specular = env_sample * (specular_f * env_brdf.x + env_brdf.y);
         specular += specular_f * indirect_specular * FULLBRIGHT_NITS * PI;
