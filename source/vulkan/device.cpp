@@ -427,8 +427,7 @@ namespace gfx::vk {
             return {};
         }
 
-        // todo: transition image layout to VK_IMAGE_LAYOUT_GENERAL
-
+        // todo: transition image layout to VK_IMAGE_LAYOUT_GENERAL if compute_write, otherwise VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL 
         VkImageViewCreateInfo image_view_create_info { VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO };
         image_view_create_info.image = image;
         image_view_create_info.viewType = VK_IMAGE_VIEW_TYPE_2D;
@@ -499,6 +498,65 @@ namespace gfx::vk {
     ResourceHandlePair Device::create_tlas(const std::string& name, const std::vector<RaytracingInstance>& instances) {
         TODO();
         return {};
+    }
+
+    void Device::transition_resource(VkCommandBuffer cmd, ResourceHandlePair resource, ResourceState&& new_state, VkImageSubresourceRange subresource_range) {
+        const ResourceState& old_state = m_resource_states.at(resource.handle.id);
+
+    	if (new_state.image_layout != VK_IMAGE_LAYOUT_UNDEFINED) {
+            m_queued_image_memory_barriers.emplace_back(VkImageMemoryBarrier {
+                .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
+                .srcAccessMask = old_state.access_mask,
+                .dstAccessMask = (new_state.access_mask == VK_ACCESS_FLAG_BITS_MAX_ENUM)?
+                    old_state.access_mask
+                :
+                    new_state.access_mask
+                ,
+                .oldLayout = old_state.image_layout,
+                .newLayout = new_state.image_layout,
+                .srcQueueFamilyIndex = old_state.queue_family_index,
+                .dstQueueFamilyIndex = (new_state.queue_family_index == 0xFFFFFFFF)?
+                    old_state.queue_family_index
+                :
+                    new_state.queue_family_index
+                ,
+                .image = resource.resource->expect_texture().vk_image,
+                .subresourceRange = subresource_range
+            });
+        }
+        else {
+            m_queued_buffer_memory_barriers.emplace_back(VkBufferMemoryBarrier {
+                .sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER,
+                .srcAccessMask = old_state.access_mask,
+                .dstAccessMask = (new_state.access_mask == VK_ACCESS_FLAG_BITS_MAX_ENUM)?
+                    old_state.access_mask
+                :
+                    new_state.access_mask
+                ,
+                .srcQueueFamilyIndex = old_state.queue_family_index,
+                .dstQueueFamilyIndex = (new_state.queue_family_index == 0xFFFFFFFF)?
+                    old_state.queue_family_index
+                :
+                    new_state.queue_family_index
+                ,
+                .buffer = resource.resource->expect_buffer().vk_buffer,
+                .offset = 0,
+                .size = resource.resource->expect_buffer().size
+            });
+        }
+    }
+
+    void Device::execute_resource_transitions(VkCommandBuffer cmd, VkPipelineStageFlags source, VkPipelineStageFlags destination)  {
+        vkCmdPipelineBarrier(cmd, source, destination, 0,
+            0, nullptr,
+            m_queued_buffer_memory_barriers.size(),
+            m_queued_buffer_memory_barriers.data(),
+            m_queued_image_memory_barriers.size(),
+            m_queued_image_memory_barriers.data()
+        );
+        
+        m_queued_buffer_memory_barriers.clear();
+        m_queued_image_memory_barriers.clear();
     }
 
     bool Device::should_stay_open() {

@@ -29,6 +29,12 @@ namespace gfx::vk {
         std::optional<uint32_t> compute_family;
     };
 
+    struct ResourceState {
+        VkAccessFlags access_mask = VK_ACCESS_FLAG_BITS_MAX_ENUM;
+        VkImageLayout image_layout = VK_IMAGE_LAYOUT_UNDEFINED;
+        uint32_t queue_family_index = 0xFFFFFFFF;
+    };
+
     struct Device : public gfx::Device {
     public:
         // Initialization
@@ -84,7 +90,10 @@ namespace gfx::vk {
         HWND window_hwnd = nullptr;
         VkDevice device;
 
-    private:
+    private:        
+        void transition_resource(VkCommandBuffer cmd, ResourceHandlePair resource, ResourceState&& new_state, VkImageSubresourceRange subresource_range = {});
+        void execute_resource_transitions(VkCommandBuffer cmd, VkPipelineStageFlags source, VkPipelineStageFlags destination);
+
         VkPhysicalDevice m_physical_device;
         GLFWwindow* m_window_glfw = nullptr;
         QueueFamilyIndices m_indices{};
@@ -94,6 +103,10 @@ namespace gfx::vk {
 
         std::shared_ptr<DescriptorHeap> m_desc_heap = nullptr;
         VkSampler m_samplers[3];
+
+        std::unordered_map<uint32_t, ResourceState> m_resource_states;
+        std::vector<VkImageMemoryBarrier> m_queued_image_memory_barriers;
+        std::vector<VkBufferMemoryBarrier> m_queued_buffer_memory_barriers;
 
         size_t m_upload_fence_value_when_done = 0;
     };
