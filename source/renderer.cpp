@@ -389,7 +389,7 @@ namespace gfx {
         stbi__vertically_flip_on_load = 0;
         int width, height, channels;
         uint8_t* data = stbi_load(path.c_str(), &width, &height, &channels, 4);
-        auto texture = load_texture(path, width, height, 1, data, PixelFormat::rgba8_unorm, TextureType::tex_2d, ResourceUsage::compute_write, true); // todo: implement mipmapping and set this to true
+        auto texture = load_texture(path, width, height, 1, data, PixelFormat::rgba8_unorm, TextureType::tex_2d, ResourceUsage::compute_write, true);
         stbi_image_free(data);
         return texture;
     }

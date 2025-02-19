@@ -807,7 +807,7 @@ namespace gfx::dx12 {
                 .SubresourceIndex = 0,
             };
 
-            // todo: determine whether i want this to be in a separate update_texture() function
+            // todo: do i want this to be in a separate update_texture() function?
             ++m_upload_fence_value_when_done;
             const auto upload_command_buffer = m_upload_queue->create_command_buffer(nullptr, m_upload_fence_value_when_done);
             const auto cmd = upload_command_buffer->get();

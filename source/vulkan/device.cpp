@@ -36,7 +36,6 @@ namespace gfx::vk {
 
         if (debug_layer_enabled) {
             const std::array<const char*, 1> debug_layers_to_enable = {
-                // todo: take a proper look at validation layers
                 "VK_LAYER_KHRONOS_validation",
             };
             instance_create_info.enabledLayerCount = debug_layers_to_enable.size();

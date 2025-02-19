@@ -533,8 +533,8 @@ namespace gfx {
 
         // Default values
         glm::vec3 default_position = glm::vec3(0.0f, 0.0f, 0.0f);
-        glm::vec3 default_normal = glm::vec3(0.0f, 1.0f, 0.0f); // todo: actually calculate these
-        glm::vec4 default_tangent = glm::vec4(1.0f, 0.0f, 0.0f, 1.0f); // todo: actually calculate these
+        glm::vec3 default_normal = glm::vec3(0.0f, 1.0f, 0.0f);
+        glm::vec4 default_tangent = glm::vec4(1.0f, 0.0f, 0.0f, 1.0f);
         glm::vec4 default_color = glm::vec4(1.0f, 1.0f, 1.0f, 1.0f);
         glm::vec2 default_tex_coord = glm::vec2(0.0f, 0.0f);
         uint32_t default_index = 0;
@@ -564,7 +564,6 @@ namespace gfx {
                 const glm::vec3 c = positions[i + 2];
                 const glm::vec3 ab = b - a;
                 const glm::vec3 ac = c - a;
-                // todo: verify winding order
                 normals[i] = glm::normalize(glm::cross(ab, ac));
             }
         }

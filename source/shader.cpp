@@ -58,8 +58,6 @@ namespace gfx {
 
         // Set up compilation arguments
         std::vector<LPCWSTR> args;
-
-        // TODO: add more args for optimization, debug, stripping reflect/debug
         args.emplace_back(wpath.c_str());
         args.emplace_back(L"-T");
         args.emplace_back(wtype.c_str());
