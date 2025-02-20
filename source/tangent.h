@@ -1,4 +1,4 @@
-#include <mikktspace/mikktspace.h>
+#include <mikktspace.h>
 #include <cstddef>
 
 namespace gfx {

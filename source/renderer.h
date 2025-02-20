@@ -1,6 +1,7 @@
 #pragma once
 #include <memory>
 #include "device.h"
+#define GLM_ENABLE_EXPERIMENTAL
 #include <glm/gtx/quaternion.hpp>
 
 namespace gfx {

@@ -1,11 +1,10 @@
 #include "input.h"
 #include "scene.h"
 #include "renderer.h"
-#include <glm/gtx/transform.hpp>
 #include <chrono>
 
 int main(int n_args, char** args) {
-    const auto renderer = std::make_unique<gfx::Renderer>(gfx::RenderBackend::vulkan, 1280, 720, true, true);
+    const auto renderer = std::make_unique<gfx::Renderer>(gfx::RenderBackend::dx12, 1280, 720, true, true);
     auto scene = renderer->load_scene_gltf("assets/models/ABeautifulGame/ABeautifulGame.gltf");
     auto cubemap = renderer->load_environment_map("assets/textures/hangar_interior_8k.hdr", 2048, 256, 1.0f);
     auto lights = renderer->load_scene_gltf("assets/models/lights_test.glb");

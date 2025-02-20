@@ -7,7 +7,7 @@
 #endif
 
 #define STB_IMAGE_IMPLEMENTATION
-#include <stb/stb_image.h>
+#include <stb_image.h>
 #include <glm/matrix.hpp>
 #include <glm/trigonometric.hpp>
 

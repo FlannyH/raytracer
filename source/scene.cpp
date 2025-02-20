@@ -11,7 +11,7 @@
 #pragma warning(push)
 #pragma warning(disable: 4018)
 #pragma warning(disable: 4267)
-#include <tinygltf/tiny_gltf.h>
+#include <tiny_gltf.h>
 #pragma warning(pop)
 #include "tangent.h"
 

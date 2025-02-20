@@ -1,7 +1,7 @@
 ﻿# CMakeList.txt : CMake project for raytracer, include source and define
 # project specific logic here.
 #
-cmake_minimum_required (VERSION 3.15)
+cmake_minimum_required (VERSION 3.25)
 
 # Enable Hot Reload for MSVC compilers if supported.
 if (POLICY CMP0141)
@@ -30,21 +30,29 @@ add_executable (raytracer
     "source/tangent.cpp"                "source/tangent.h"
     "source/renderer.cpp"               "source/renderer.h"
     "source/log.cpp"                    "source/log.h"
-    "external/include/mikktspace/mikktspace.c")
+    "external/mikktspace/mikktspace.c")
     
-find_package(Vulkan REQUIRED FATAL_ERROR)
+find_package(Vulkan REQUIRED COMPONENTS dxc)
+
+target_link_libraries(raytracer glfw ${Vulkan_LIBRARIES} Vulkan::dxc_lib)
 
 target_compile_definitions(raytracer PRIVATE _CRT_SECURE_NO_WARNINGS)
-target_include_directories(raytracer PUBLIC "external/include" ${Vulkan_INCLUDE_DIRS})
-target_link_directories(raytracer PUBLIC "external/libraries")
-target_link_libraries(raytracer PUBLIC "glfw3.lib" "dxgi.lib" "D3d12.lib" "D3DCompiler.lib" "dxcompiler.lib" ${Vulkan_LIBRARIES})
+target_include_directories(raytracer PUBLIC ${Vulkan_INCLUDE_DIRS}
+    "external/glfw/include"
+    "external/glm"
+    "external/stb"
+    "external/tinygltf"
+    "external/mikktspace"
+)
+add_subdirectory(external/glfw)
+add_subdirectory(external/glm)
+add_subdirectory(external/tinygltf)
+if (WIN32)
+    target_link_libraries(raytracer d3d12 dxgi)
+endif()
 set_property(TARGET raytracer PROPERTY CXX_STANDARD 20)
 
 add_custom_target(copy_assets
     COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_LIST_DIR}/assets ${CMAKE_CURRENT_BINARY_DIR}/assets
 )
-add_custom_target(copy_dll
-COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_LIST_DIR}/external/dll ${CMAKE_CURRENT_BINARY_DIR}
-)
 add_dependencies(raytracer copy_assets)
-add_dependencies(raytracer copy_dll)
