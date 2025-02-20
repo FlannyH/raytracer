@@ -426,7 +426,28 @@ namespace gfx::vk {
             return {};
         }
 
-        // todo: transition image layout to VK_IMAGE_LAYOUT_GENERAL if compute_write, otherwise VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL 
+        auto id = m_desc_heap->alloc_descriptor(ResourceType::texture);
+
+        auto& resource_info = fetch_resource_info(id);
+        resource_info.access_mask = VK_ACCESS_NONE;
+        resource_info.image_layout = image_create_info.initialLayout;
+        resource_info.queue_family_index = VK_QUEUE_FAMILY_IGNORED;
+
+        VkCommandBuffer cmd = m_queue_compute->create_command_buffer(device, nullptr, ++m_upload_fence_value_when_done);
+        transition_resource(cmd, 
+            ResourceHandlePair{id, resource}, 
+            ResourceInfo { 
+                .image_layout = extra_usage == ResourceUsage::compute_write? VK_IMAGE_LAYOUT_GENERAL : VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
+            }, 
+            VkImageSubresourceRange{
+                .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+                .baseMipLevel = 0,
+                .levelCount = 1,
+                .baseArrayLayer = 0,
+                .layerCount = 1
+            }
+        );
+
         VkImageViewCreateInfo image_view_create_info { VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO };
         image_view_create_info.image = image;
         image_view_create_info.viewType = VK_IMAGE_VIEW_TYPE_2D;
@@ -498,46 +519,46 @@ namespace gfx::vk {
         return {};
     }
 
-    void Device::transition_resource(VkCommandBuffer cmd, ResourceHandlePair resource, ResourceState&& new_state, VkImageSubresourceRange subresource_range) {
-        const ResourceState& old_state = m_resource_states.at(resource.handle.id);
+    void Device::transition_resource(VkCommandBuffer cmd, ResourceHandlePair resource, ResourceInfo&& new_state, VkImageSubresourceRange subresource_range) {
+        const ResourceInfo& resource_info = fetch_resource_info(resource.handle);
 
     	if (new_state.image_layout != VK_IMAGE_LAYOUT_UNDEFINED) {
             m_queued_image_memory_barriers.emplace_back(VkImageMemoryBarrier {
                 .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
-                .srcAccessMask = old_state.access_mask,
+                .srcAccessMask = resource_info.access_mask,
                 .dstAccessMask = (new_state.access_mask == VK_ACCESS_FLAG_BITS_MAX_ENUM)?
-                    old_state.access_mask
+                    resource_info.access_mask
                 :
                     new_state.access_mask
                 ,
-                .oldLayout = old_state.image_layout,
+                .oldLayout = resource_info.image_layout,
                 .newLayout = new_state.image_layout,
-                .srcQueueFamilyIndex = old_state.queue_family_index,
+                .srcQueueFamilyIndex = resource_info.queue_family_index,
                 .dstQueueFamilyIndex = (new_state.queue_family_index == 0xFFFFFFFF)?
-                    old_state.queue_family_index
+                    resource_info.queue_family_index
                 :
                     new_state.queue_family_index
                 ,
-                // todo: .image = resource.resource->expect_texture().vk_image,
+                .image = fetch_resource_info(resource.handle).image,
                 .subresourceRange = subresource_range
             });
         }
         else {
             m_queued_buffer_memory_barriers.emplace_back(VkBufferMemoryBarrier {
                 .sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER,
-                .srcAccessMask = old_state.access_mask,
+                .srcAccessMask = resource_info.access_mask,
                 .dstAccessMask = (new_state.access_mask == VK_ACCESS_FLAG_BITS_MAX_ENUM)?
-                    old_state.access_mask
+                    resource_info.access_mask
                 :
                     new_state.access_mask
                 ,
-                .srcQueueFamilyIndex = old_state.queue_family_index,
+                .srcQueueFamilyIndex = resource_info.queue_family_index,
                 .dstQueueFamilyIndex = (new_state.queue_family_index == 0xFFFFFFFF)?
-                    old_state.queue_family_index
+                    resource_info.queue_family_index
                 :
                     new_state.queue_family_index
                 ,
-                // todo: .buffer = resource.resource->expect_buffer().vk_buffer,
+                .buffer = fetch_resource_info(resource.handle).buffer,
                 .offset = 0,
                 .size = resource.resource->expect_buffer().size
             });
@@ -563,5 +584,10 @@ namespace gfx::vk {
 
     void Device::set_full_screen(bool full_screen) {
         TODO();
+    }
+    
+    ResourceInfo& Device::fetch_resource_info(ResourceHandle handle) {
+        // Always use the ID of the first handle
+        return m_resource_info[handle.id & ~1];
     }
 }

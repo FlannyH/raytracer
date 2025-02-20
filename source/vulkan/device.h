@@ -29,10 +29,15 @@ namespace gfx::vk {
         std::optional<uint32_t> compute_family;
     };
 
-    struct ResourceState {
+    struct ResourceInfo {
         VkAccessFlags access_mask = VK_ACCESS_FLAG_BITS_MAX_ENUM;
         VkImageLayout image_layout = VK_IMAGE_LAYOUT_UNDEFINED;
         uint32_t queue_family_index = 0xFFFFFFFF;
+
+        // Optional Vk handles
+        VkBuffer buffer;
+        VkImage image;
+        VkImageView image_view;
     };
 
     struct Device : public gfx::Device {
@@ -91,8 +96,9 @@ namespace gfx::vk {
         VkDevice device;
 
     private:        
-        void transition_resource(VkCommandBuffer cmd, ResourceHandlePair resource, ResourceState&& new_state, VkImageSubresourceRange subresource_range = {});
+        void transition_resource(VkCommandBuffer cmd, ResourceHandlePair resource, ResourceInfo&& new_state, VkImageSubresourceRange subresource_range = {});
         void execute_resource_transitions(VkCommandBuffer cmd, VkPipelineStageFlags source, VkPipelineStageFlags destination);
+        ResourceInfo& fetch_resource_info(ResourceHandle handle);
 
         VkPhysicalDevice m_physical_device;
         GLFWwindow* m_window_glfw = nullptr;
@@ -104,7 +110,7 @@ namespace gfx::vk {
         std::shared_ptr<DescriptorHeap> m_desc_heap = nullptr;
         VkSampler m_samplers[3];
 
-        std::unordered_map<uint32_t, ResourceState> m_resource_states;
+        std::unordered_map<uint32_t, ResourceInfo> m_resource_info;
         std::vector<VkImageMemoryBarrier> m_queued_image_memory_barriers;
         std::vector<VkBufferMemoryBarrier> m_queued_buffer_memory_barriers;
 
