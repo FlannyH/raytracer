@@ -1,4 +1,5 @@
 #include <mikktspace/mikktspace.h>
+#include <cstddef>
 
 namespace gfx {
 	struct Vertex;

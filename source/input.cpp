@@ -1,4 +1,5 @@
 #include "input.h"
+#include <cstring>
 
 namespace input {
 	static bool keys_new[(size_t)Key::n_keys];

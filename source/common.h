@@ -9,11 +9,12 @@ using Microsoft::WRL::ComPtr;
 #include <fstream>
 #include <vector>
 #include <cstdint>
+#include <cstring>
 #include "log.h"
 
 #define GLFW_INCLUDE_VULKAN
 
-constexpr UINT backbuffer_count = 3;
+constexpr uint32_t backbuffer_count = 3;
 
 #define validate(hr) \
     if (FAILED(hr)) { \

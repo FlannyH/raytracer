@@ -1,6 +1,7 @@
 #include "device.h"
 
 #include <array>
+#include <cstring>
 #include "command_queue.h"
 #include "descriptor_heap.h"
 #include "helpers.h"

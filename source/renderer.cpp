@@ -31,9 +31,13 @@ namespace gfx {
     // Initialisation and state
     Renderer::Renderer(RenderBackend backend, int width, int height, bool debug_layer_enabled, bool gpu_profiling_enabled) {
         switch (backend) {
-        case RenderBackend::dx12: 
+        case RenderBackend::dx12:
+#ifdef _WIN32
             m_device = std::make_unique<gfx::dx12::Device>(width, height, debug_layer_enabled, gpu_profiling_enabled); 
             break;
+#else
+            LOG(Warning, "Requested render backend DirectX 12 is not available! Falling back to Vulkan");
+#endif
         case RenderBackend::vulkan:
             m_device = std::make_unique<gfx::vk::Device>(width, height, debug_layer_enabled, gpu_profiling_enabled); 
             break;

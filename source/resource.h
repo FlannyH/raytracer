@@ -7,6 +7,8 @@
 #include <glm/vec2.hpp>
 #include <optional>
 #include <variant>
+#include <cstdint>
+#include <memory>
 
 namespace gfx {
     struct SceneNode;

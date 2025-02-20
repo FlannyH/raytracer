@@ -92,7 +92,6 @@ namespace gfx::vk {
 
         const QueueFamilyIndices& queue_family_indices() const { return m_indices; }
 
-        HWND window_hwnd = nullptr;
         VkDevice device;
 
     private:        

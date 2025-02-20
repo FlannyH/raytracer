@@ -111,7 +111,5 @@ namespace gfx {
         virtual ResourceHandlePair create_acceleration_structure(const std::string& name, const size_t size) = 0;
         virtual ResourceHandlePair create_blas(const std::string& name, const ResourceHandlePair& position_buffer, const ResourceHandlePair& index_buffer, const uint32_t vertex_count, const uint32_t index_count) = 0;
         virtual ResourceHandlePair create_tlas(const std::string& name, const std::vector<RaytracingInstance>& instances) = 0;
-
-        HWND window_hwnd = nullptr;
     };
 };
