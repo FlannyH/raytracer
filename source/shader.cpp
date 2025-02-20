@@ -93,9 +93,9 @@ namespace gfx {
         // Check for errors
         ComPtr<IDxcBlobUtf8> errors;
         validate(result->GetOutput(DXC_OUT_ERRORS, IID_PPV_ARGS(&errors), nullptr));
-         
+        
         if (errors != nullptr && errors->GetStringLength() > 0) {
-            LOG(Error, "Error compiling shader '%s':\n\t%s", path.c_str(), errors->GetStringPointer());
+            LOG(Error, "Error compiling shader '%s':\n%s", path.c_str(), errors->GetStringPointer());
         }
 
         // Get PDB file
