@@ -205,7 +205,7 @@ void main(uint3 dispatch_thread_id : SV_DispatchThreadID) {
     // Indirect specular
     if (root_constants.curr_specular_ibl & MASK_IS_LOADED) {
         TextureCube<float4> ibl_texture = ResourceDescriptorHeap[NonUniformResourceIndex(root_constants.curr_specular_ibl & MASK_ID)];
-        float mip_level = pow(roughness, 1.5f) * (root_constants.curr_specular_ibl_n_mips + 1);
+        float mip_level = pow(roughness, 2.0f) * (root_constants.curr_specular_ibl_n_mips);
         float3 env_sample = ibl_texture.SampleLevel(tex_sampler_clamp, normalize(rotate_vector_by_quaternion(reflect_dir, view_data.forward)), mip_level).rgb;
         float2 env_brdf = env_brdf_lut.Sample(tex_sampler_clamp, float2(n_dot_v, roughness));
         float3 indirect_specular = env_sample * (specular_f * env_brdf.x + env_brdf.y);
