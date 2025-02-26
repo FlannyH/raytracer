@@ -503,11 +503,11 @@ namespace gfx::vk {
         // todo: deallocate this when destroying the resource
         VkDeviceMemory device_memory;
         if (vkAllocateMemory(device, &memory_allocate_info, nullptr, &device_memory) != VK_SUCCESS) {
-            LOG(Error, "Failed to allocate memory for buffer \"%s\"", name.c_str());
+            LOG(Error, "Failed to allocate memory for render target \"%s\"", name.c_str());
             return {};
         }
         if (vkBindImageMemory(device, resource_info.image, device_memory, 0) != VK_SUCCESS) {
-            LOG(Error, "Failed to bind memory for buffer \"%s\"", name.c_str());
+            LOG(Error, "Failed to bind memory for render target \"%s\"", name.c_str());
             return {};
         }
 
@@ -550,8 +550,100 @@ namespace gfx::vk {
     }
 
     ResourceHandlePair Device::create_depth_target(const std::string& name, uint32_t width, uint32_t height, PixelFormat pixel_format, float clear_depth) {
-        TODO();
-        return {};
+        // Make texture resource
+        const auto resource = std::make_shared<Resource>(ResourceType::texture);
+        resource->usage = ResourceUsage::depth_target;
+        resource->expect_texture() = {
+            .data = nullptr,
+            .width = width,
+            .height = height,
+            .pixel_format = pixel_format,
+            .clear_on_begin = true,
+            .is_compute_render_target = true,
+            .clear_color = glm::vec4(clear_depth),
+            .rtv_handle = ResourceHandle::none(),
+            .dsv_handle = ResourceHandle::none(),
+        };
+
+        auto id = m_desc_heap->alloc_descriptor(ResourceType::texture);
+        auto& resource_info = fetch_resource_info(id);
+        resource_info.access_mask = VK_ACCESS_NONE;
+        resource_info.queue_family_index = VK_QUEUE_FAMILY_IGNORED;
+
+        VkImageCreateInfo image_create_info { VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO };
+        image_create_info.flags = 0;
+        image_create_info.imageType = VK_IMAGE_TYPE_2D;
+        image_create_info.format = pixel_format_to_vk(pixel_format);
+        image_create_info.extent = { width, height, 1 };
+        image_create_info.mipLevels = 1;
+        image_create_info.arrayLayers = 1;
+        image_create_info.samples = VK_SAMPLE_COUNT_1_BIT;
+        image_create_info.tiling = VK_IMAGE_TILING_OPTIMAL;
+        image_create_info.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
+        image_create_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+        image_create_info.initialLayout = VK_IMAGE_LAYOUT_PREINITIALIZED;
+        resource_info.image_layout = image_create_info.initialLayout;
+
+        if (vkCreateImage(device, &image_create_info, nullptr, &resource_info.image) != VK_SUCCESS) {
+            LOG(Error, "Failed to create VkImage for depth target \"%s\"", name.c_str());
+            return {};
+        }
+        
+        VkMemoryPropertyFlags flags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT; // gpu-only by default
+        VkMemoryRequirements memory_requirements;
+        vkGetImageMemoryRequirements(device, resource_info.image, &memory_requirements);
+
+        VkMemoryAllocateInfo memory_allocate_info { VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO };
+        memory_allocate_info.allocationSize = memory_requirements.size;
+        memory_allocate_info.memoryTypeIndex = find_memory_type(m_physical_device, memory_requirements.memoryTypeBits, flags);
+
+        // todo: deallocate this when destroying the resource
+        VkDeviceMemory device_memory;
+        if (vkAllocateMemory(device, &memory_allocate_info, nullptr, &device_memory) != VK_SUCCESS) {
+            LOG(Error, "Failed to allocate memory for depth target \"%s\"", name.c_str());
+            return {};
+        }
+        if (vkBindImageMemory(device, resource_info.image, device_memory, 0) != VK_SUCCESS) {
+            LOG(Error, "Failed to bind memory for depth target \"%s\"", name.c_str());
+            return {};
+        }
+
+        VkCommandBuffer cmd = m_queue_compute->create_command_buffer(device, nullptr, ++m_upload_fence_value_when_done);
+        transition_resource(cmd, 
+            ResourceHandlePair{id, resource}, 
+            ResourceInfo { 
+                .image_layout = VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL
+            }, 
+            VkImageSubresourceRange{
+                .aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT,
+                .baseMipLevel = 0,
+                .levelCount = 1,
+                .baseArrayLayer = 0,
+                .layerCount = 1
+            }
+        );
+
+        VkImageViewCreateInfo image_view_create_info { VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO };
+        image_view_create_info.image = resource_info.image;
+        image_view_create_info.viewType = VK_IMAGE_VIEW_TYPE_2D;
+        image_view_create_info.format = pixel_format_to_vk(pixel_format);
+        image_view_create_info.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
+        image_view_create_info.components.g = VK_COMPONENT_SWIZZLE_IDENTITY;
+        image_view_create_info.components.b = VK_COMPONENT_SWIZZLE_IDENTITY;
+        image_view_create_info.components.a = VK_COMPONENT_SWIZZLE_IDENTITY;
+        image_view_create_info.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
+        image_view_create_info.subresourceRange.baseMipLevel = 0;
+        image_view_create_info.subresourceRange.levelCount = 1;
+        image_view_create_info.subresourceRange.baseArrayLayer = 0;
+        image_view_create_info.subresourceRange.layerCount = 1;
+
+        if (vkCreateImageView(device, &image_view_create_info, nullptr, &resource_info.image_view) != VK_SUCCESS) {
+            LOG(Error, "Failed to create VkImageView for depth target \"%s\"", name.c_str());
+        }
+
+        m_desc_heap->write_texture_descriptor(*this, id, image_create_info.initialLayout, resource_info.image_view);
+
+        return ResourceHandlePair{ id, resource };
     }
 
     void Device::resize_texture(ResourceHandlePair& handle, const uint32_t width, const uint32_t height) {
