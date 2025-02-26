@@ -337,8 +337,7 @@ void main(uint3 dispatch_thread_id : SV_DispatchThreadID) {
             // Miss? Sample sky
             if (ray_query.CommittedStatus() == COMMITTED_NOTHING) {
                 float3 sky = sky_texture.SampleLevel(tex_sampler_clamp, normalize(ray.Direction), 0).rgb;
-                float multiplier = (i == 0) ? (0.5f) : (1.0f);
-                light += sky * ray_tint * multiplier;
+                light += sky * ray_tint;
                 break;
             }
 
@@ -356,18 +355,23 @@ void main(uint3 dispatch_thread_id : SV_DispatchThreadID) {
             // todo: transparency
             ray.Origin += ray_query.CommittedRayT() * ray.Direction;
 
+            float f0_dielectric = 0.04f;
+            float3 f0_dielectric3 = 0.04f;
             float3 metal3 = info.metallic;
-            float3 f0_dielectric = 0.04f;
-            float3 f0 = mix(f0_dielectric, info.color.rgb, metal3);
+            float3 f0 = mix(f0_dielectric3, info.color.rgb, metal3);
 
-            uint jittered_checkerboard = ((dispatch_thread_id.x % 2) ^ (dispatch_thread_id.y % 2) ^ (root_constants.frame_index % 2));
-            float random_float = float(sample_index % 65536) / 65536.0;
+            // uint jittered_checkerboard = ((dispatch_thread_id.x % 2) ^ (dispatch_thread_id.y % 2) ^ (root_constants.frame_index % 2));
+            const float prob_specular = mix(0.05f, 0.95f, info.metallic);
+            const float prob_diffuse = (1.0 - prob_specular);
+            const float random_float = float(sample_index % 65536) / 65536.0;
 
-            if (jittered_checkerboard && random_float > info.metallic) {
+            float3 diffuse_mul = 1.0 - info.metallic;
+
+            if (random_float < prob_diffuse) {
                 // Diffuse
                 ray.Direction = cosine_weighted_sample_diffuse(hammersley(sample_index % n_sample_indices, n_sample_indices), info.normal_pbr);
                 ray.Origin += info.normal_geo * 0.0001; // Bias against self intersection
-                ray_tint *= info.color.rgb;
+                ray_tint *= (info.color.rgb * diffuse_mul) / prob_diffuse;
             }
             else {
                 // Specular
@@ -386,13 +390,13 @@ void main(uint3 dispatch_thread_id : SV_DispatchThreadID) {
                 // Geometry
                 float g = geometry_schlick_ggx(n_dot_d, roughness2);
 
-                ray_tint *= specular_f * g;
+                ray_tint *= (specular_f * g) / prob_specular;
             }
         }
     }
 
     // * 2 because we split the diffuse and specular terms
-    accumulation_texture[dispatch_thread_id.xy].xyz += 2 * light / root_constants.n_samples;
+    accumulation_texture[dispatch_thread_id.xy].xyz += light / root_constants.n_samples;
     accumulation_texture[dispatch_thread_id.xy].w += 1;
 
     output_texture[dispatch_thread_id.xy] = FULLBRIGHT_NITS * accumulation_texture[dispatch_thread_id.xy].xyz / accumulation_texture[dispatch_thread_id.xy].w;
