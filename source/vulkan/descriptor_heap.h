@@ -17,6 +17,9 @@ namespace gfx::vk {
     private:
         VkDescriptorPool desc_pool;
         VkDescriptorSet desc_set;
+
+        uint32_t m_alloc_index = 0;
+        std::deque<uint32_t> m_available_recycled_descriptor_indices;
         /*
             DescriptorHeap is used to allocate resource handles, even for resources that aren't GPU 
             resources (like scene descriptions). For GPU resources, it needs to write a descriptor 

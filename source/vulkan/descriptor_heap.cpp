@@ -62,8 +62,23 @@ namespace gfx::vk {
     }
     
     ResourceHandle DescriptorHeap::alloc_descriptor(ResourceType type) {
-        TODO();
-        return ResourceHandle::none();
+        // Find index - if there's a descriptor we can recycle, get the first one, otherwise just get the next new one
+        uint32_t index;
+        if (m_available_recycled_descriptor_indices.empty() == false) {
+            index = m_available_recycled_descriptor_indices.front();
+            m_available_recycled_descriptor_indices.pop_front();
+        } else {
+            index = m_alloc_index;
+            m_alloc_index += 2;
+        }
+        assert(index % 2 == 0);
+        assert(m_alloc_index % 2 == 0);
+        assert(index < m_capacity);
+
+        return ResourceHandle {
+            .id = index,
+            .type = static_cast<uint32_t>(type),
+        };
     }
 
     void DescriptorHeap::write_buffer_descriptor(const Device& device, ResourceHandle id, VkBuffer buffer, size_t offset, size_t size) {
