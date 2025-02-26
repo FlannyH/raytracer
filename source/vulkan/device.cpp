@@ -52,7 +52,7 @@ namespace gfx::vk {
         result = vkCreateInstance(&instance_create_info, nullptr, &instance);
         if (result != VK_SUCCESS) {
             LOG(Fatal, "Failed to create Vulkan instance");
-            LOG(Debug, "VkResult: 0x%08x (%i)\n", result, result);
+            LOG(Info, "VkResult: 0x%08x (%i)\n", result, result);
             return;
         }
 
@@ -256,16 +256,6 @@ namespace gfx::vk {
         TODO();
     }
 
-    ResourceHandlePair Device::load_texture(const std::string& name, uint32_t width, uint32_t height, uint32_t depth, void* data, PixelFormat pixel_format, TextureType type, ResourceUsage usage, int max_mip_levels, int min_resolution) {
-        TODO();
-        return {};
-    }
-
-    ResourceHandlePair Device::load_mesh(const std::string& name, const uint64_t n_triangles, Triangle* tris) {
-        TODO();
-        return {};
-    }
-
     uint32_t find_memory_type(VkPhysicalDevice& physical_device, uint32_t type_filter, VkMemoryPropertyFlags properties) {
         VkPhysicalDeviceMemoryProperties mem_properties;
         vkGetPhysicalDeviceMemoryProperties(physical_device, &mem_properties);
@@ -278,6 +268,94 @@ namespace gfx::vk {
 
         LOG(Warning, "Failed to find suitable memory type");
         return 0;
+    }
+
+    ResourceHandlePair Device::load_texture(const std::string& name, uint32_t width, uint32_t height, uint32_t depth, void* data, PixelFormat pixel_format, TextureType type, ResourceUsage usage, int max_mip_levels, int min_resolution) {
+        // Make texture resource
+        const auto resource = std::make_shared<Resource>(ResourceType::texture);
+        resource->usage = usage;
+        resource->expect_texture() = {
+            .data = static_cast<uint8_t*>(data),
+            .width = width,
+            .height = height,
+            .depth = depth,
+            .pixel_format = pixel_format,
+            .is_compute_render_target = (usage == ResourceUsage::compute_write),
+        };
+
+
+        auto id = m_desc_heap->alloc_descriptor(ResourceType::texture);
+        auto& resource_info = fetch_resource_info(id);
+        resource_info.access_mask = VK_ACCESS_NONE;
+        resource_info.queue_family_index = VK_QUEUE_FAMILY_IGNORED;
+
+        VkImageCreateInfo image_create_info { VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO };
+        image_create_info.flags = 0;
+        image_create_info.imageType = VK_IMAGE_TYPE_2D;
+        image_create_info.format = pixel_format_to_vk(pixel_format);
+        image_create_info.extent = { width, height, 1 };
+        image_create_info.mipLevels = 1;
+        image_create_info.arrayLayers = 1;
+        image_create_info.samples = VK_SAMPLE_COUNT_1_BIT;
+        image_create_info.tiling = VK_IMAGE_TILING_OPTIMAL;
+        image_create_info.usage = VK_IMAGE_USAGE_SAMPLED_BIT;
+        if (usage == ResourceUsage::compute_write) image_create_info.usage |= VK_IMAGE_USAGE_STORAGE_BIT;
+        image_create_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+        image_create_info.initialLayout = VK_IMAGE_LAYOUT_PREINITIALIZED;
+        resource_info.image_layout = image_create_info.initialLayout;
+
+        if (vkCreateImage(device, &image_create_info, nullptr, &resource_info.image) != VK_SUCCESS) {
+            LOG(Error, "Failed to create VkImage for texture \"%s\"", name.c_str());
+            return {};
+        }
+
+        VkMemoryPropertyFlags flags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+
+        VkMemoryRequirements memory_requirements;
+        vkGetImageMemoryRequirements(device, resource_info.image, &memory_requirements);
+
+        VkMemoryAllocateInfo memory_allocate_info { VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO };
+        memory_allocate_info.allocationSize = memory_requirements.size;
+        memory_allocate_info.memoryTypeIndex = find_memory_type(m_physical_device, memory_requirements.memoryTypeBits, flags);
+
+        // todo: deallocate this when destroying the resource
+        VkDeviceMemory device_memory;
+        if (vkAllocateMemory(device, &memory_allocate_info, nullptr, &device_memory) != VK_SUCCESS) {
+            LOG(Error, "Failed to allocate memory for buffer \"%s\"", name.c_str());
+            return {};
+        }
+        if (vkBindImageMemory(device, resource_info.image, device_memory, 0) != VK_SUCCESS) {
+            LOG(Error, "Failed to bind memory for buffer \"%s\"", name.c_str());
+            return {};
+        }
+
+        // todo: mipmaps
+        VkImageViewCreateInfo image_view_create_info { VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO };
+        image_view_create_info.image = resource_info.image;
+        image_view_create_info.viewType = VK_IMAGE_VIEW_TYPE_2D;
+        image_view_create_info.format = pixel_format_to_vk(pixel_format);
+        image_view_create_info.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
+        image_view_create_info.components.g = VK_COMPONENT_SWIZZLE_IDENTITY;
+        image_view_create_info.components.b = VK_COMPONENT_SWIZZLE_IDENTITY;
+        image_view_create_info.components.a = VK_COMPONENT_SWIZZLE_IDENTITY;
+        image_view_create_info.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        image_view_create_info.subresourceRange.baseMipLevel = 0;
+        image_view_create_info.subresourceRange.levelCount = 1;
+        image_view_create_info.subresourceRange.baseArrayLayer = 0;
+        image_view_create_info.subresourceRange.layerCount = 1;
+
+        if (vkCreateImageView(device, &image_view_create_info, nullptr, &resource_info.image_view) != VK_SUCCESS) {
+            LOG(Error, "Failed to create VkImageView for texture \"%s\"", name.c_str());
+        }
+
+        m_desc_heap->write_texture_descriptor(*this, id, image_create_info.initialLayout, resource_info.image_view);
+
+        return ResourceHandlePair { id,resource };
+    }
+
+    ResourceHandlePair Device::load_mesh(const std::string& name, const uint64_t n_triangles, Triangle* tris) {
+        TODO();
+        return {};
     }
 
     ResourceHandlePair Device::create_buffer(const std::string& name, const size_t size, void* data, ResourceUsage usage) {
@@ -387,6 +465,11 @@ namespace gfx::vk {
             .dsv_handle = ResourceHandle::none(),
         };
 
+        auto id = m_desc_heap->alloc_descriptor(ResourceType::texture);
+        auto& resource_info = fetch_resource_info(id);
+        resource_info.access_mask = VK_ACCESS_NONE;
+        resource_info.queue_family_index = VK_QUEUE_FAMILY_IGNORED;
+
         VkImageCreateInfo image_create_info { VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO };
         image_create_info.flags = 0;
         image_create_info.imageType = VK_IMAGE_TYPE_2D;
@@ -399,10 +482,11 @@ namespace gfx::vk {
         image_create_info.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
         image_create_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
         image_create_info.initialLayout = VK_IMAGE_LAYOUT_PREINITIALIZED;
+        resource_info.image_layout = image_create_info.initialLayout;
 
-        VkImage image;
-        if (vkCreateImage(device, &image_create_info, nullptr, &image) != VK_SUCCESS) {
-            LOG(Error, "Failed to create image for render target \"%s\"", name.c_str());
+        if (vkCreateImage(device, &image_create_info, nullptr, &resource_info.image) != VK_SUCCESS) {
+            LOG(Error, "Failed to create VkImage for render target \"%s\"", name.c_str());
+            return {};
         }
         
         VkMemoryPropertyFlags flags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT; // gpu-only by default
@@ -410,7 +494,7 @@ namespace gfx::vk {
         if (extra_usage == (ResourceUsage::cpu_writable)) flags = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
         
         VkMemoryRequirements memory_requirements;
-        vkGetImageMemoryRequirements(device, image, &memory_requirements);
+        vkGetImageMemoryRequirements(device, resource_info.image, &memory_requirements);
 
         VkMemoryAllocateInfo memory_allocate_info { VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO };
         memory_allocate_info.allocationSize = memory_requirements.size;
@@ -422,17 +506,10 @@ namespace gfx::vk {
             LOG(Error, "Failed to allocate memory for buffer \"%s\"", name.c_str());
             return {};
         }
-        if (vkBindImageMemory(device, image, device_memory, 0) != VK_SUCCESS) {
+        if (vkBindImageMemory(device, resource_info.image, device_memory, 0) != VK_SUCCESS) {
             LOG(Error, "Failed to bind memory for buffer \"%s\"", name.c_str());
             return {};
         }
-
-        auto id = m_desc_heap->alloc_descriptor(ResourceType::texture);
-
-        auto& resource_info = fetch_resource_info(id);
-        resource_info.access_mask = VK_ACCESS_NONE;
-        resource_info.image_layout = image_create_info.initialLayout;
-        resource_info.queue_family_index = VK_QUEUE_FAMILY_IGNORED;
 
         VkCommandBuffer cmd = m_queue_compute->create_command_buffer(device, nullptr, ++m_upload_fence_value_when_done);
         transition_resource(cmd, 
@@ -450,7 +527,7 @@ namespace gfx::vk {
         );
 
         VkImageViewCreateInfo image_view_create_info { VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO };
-        image_view_create_info.image = image;
+        image_view_create_info.image = resource_info.image;
         image_view_create_info.viewType = VK_IMAGE_VIEW_TYPE_2D;
         image_view_create_info.format = pixel_format_to_vk(pixel_format);
         image_view_create_info.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
@@ -463,15 +540,11 @@ namespace gfx::vk {
         image_view_create_info.subresourceRange.baseArrayLayer = 0;
         image_view_create_info.subresourceRange.layerCount = 1;
 
-        VkImageView image_view;
-        if (vkCreateImageView(device, &image_view_create_info, nullptr, &image_view) != VK_SUCCESS) {
-            LOG(Error, "Failed to create image view for render target \"%s\"", name.c_str());
+        if (vkCreateImageView(device, &image_view_create_info, nullptr, &resource_info.image_view) != VK_SUCCESS) {
+            LOG(Error, "Failed to create VkImageView for render target \"%s\"", name.c_str());
         }
 
-        // todo: resource->expect_texture().vk_image = image;
-        // todo: resource->expect_texture().vk_image_view = image_view;
-
-        m_desc_heap->write_texture_descriptor(*this, id, image_create_info.initialLayout, image_view);
+        m_desc_heap->write_texture_descriptor(*this, id, image_create_info.initialLayout, resource_info.image_view);
 
         return ResourceHandlePair{ id, resource };
     }

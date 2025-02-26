@@ -59,6 +59,8 @@ namespace gfx::vk {
         if (vkAllocateDescriptorSets(device.device, &desc_set_alloc_info, &desc_set) != VK_SUCCESS) {
             LOG(Error, "Failed to create descriptor set");
         }
+        
+        m_capacity = n_descriptors * 2;
     }
     
     ResourceHandle DescriptorHeap::alloc_descriptor(ResourceType type) {

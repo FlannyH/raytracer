@@ -18,6 +18,7 @@ namespace gfx::vk {
         VkDescriptorPool desc_pool;
         VkDescriptorSet desc_set;
 
+        uint32_t m_capacity = 0;
         uint32_t m_alloc_index = 0;
         std::deque<uint32_t> m_available_recycled_descriptor_indices;
         /*
