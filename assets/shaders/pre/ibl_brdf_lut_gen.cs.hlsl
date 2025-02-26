@@ -43,8 +43,8 @@ float3 importance_sample_ggx(float2 xi, float roughness2, float3 n) {
 }
 
 float geometry_schlick_ggx(float n_dot_v, float roughness) {
-    float r = (roughness + 1.0);
-    float k = (r * r) / 8.0;
+    float r = roughness;
+    float k = (r * r) / 2.0;
 
     float num   = n_dot_v;
     float denom = n_dot_v * (1.0 - k) + k;
@@ -67,19 +67,24 @@ sampler tex_sampler_clamp : register(s1);
 [numthreads(8, 8, 1)]
 void main(uint3 dispatch_thread_id : SV_DispatchThreadID) {
     RWTexture2D<float2> ibl_brdf_lut = ResourceDescriptorHeap[NonUniformResourceIndex(root_constants.ibl_brdf_lut & MASK_ID)];
-    // todo: is this the right way around?
-    const float roughness = max(0.001f, float(dispatch_thread_id.y) / root_constants.resolution); // small roughness value causes precision issues with importance sampling
-    const float n_dot_v = max(1e-6, float(dispatch_thread_id.x) / root_constants.resolution); // not 0, otherwise we get div by zero
+
+    const float roughness = (float(dispatch_thread_id.y) + 0.5f) / float(root_constants.resolution);
+    const float n_dot_v = (float(dispatch_thread_id.x) + 0.5f) / float(root_constants.resolution);
     const float3 n = float3(0.0, 0.0, 1.0);
 
-    const float3 v = float3(sqrt(1.0f - n_dot_v * n_dot_v), 0, n_dot_v);
+    const float3 v = float3(
+        sqrt(1.0f - n_dot_v * n_dot_v), 
+        0, 
+        n_dot_v
+    );
+    
     float a = 0.0f;
     float b = 0.0f;
 
     const uint n_samples = 1024;
     for (uint i = 0; i < n_samples; i++) {
         const float2 xi = hammersley(i, n_samples);
-        const float3 h = importance_sample_ggx(xi, roughness, n);
+        const float3 h = importance_sample_ggx(xi, max(roughness * roughness, 0.004), n); // max(0.004) for float precision reasons
         const float3 l = normalize(2 * dot(v, h) * h - v);
 
         const float n_dot_l = saturate(l.z);

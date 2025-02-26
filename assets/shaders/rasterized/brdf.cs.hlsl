@@ -77,8 +77,8 @@ float distribution_ggx(float n_dot_h, float roughness) {
 }
 
 float geometry_schlick_ggx(float n_dot_v, float roughness) {
-    float r = (roughness + 1.0);
-    float k = (r * r) / 8.0;
+    float r = roughness;
+    float k = (r * r) / 2.0;
 
     float num   = n_dot_v;
     float denom = n_dot_v * (1.0 - k) + k;
