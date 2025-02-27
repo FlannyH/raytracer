@@ -330,7 +330,7 @@ namespace gfx {
             m_curr_sky_cube.sky.handle.as_u32(),
             m_curr_sky_cube.ibl.handle.as_u32(),
             m_curr_sky_cube.offset_diffuse_sh,
-            (uint32_t)(m_curr_sky_cube.ibl.resource != nullptr ? m_curr_sky_cube.ibl.resource->expect_texture().n_subresources : 0),
+            (uint32_t)(m_curr_sky_cube.ibl.resource != nullptr ? m_curr_sky_cube.ibl.resource->expect_texture().n_subresources - 1 : 0),
             m_draw_packets[m_device->frame_index() % backbuffer_count].handle.as_u32(),
             view_data_offset,
             m_env_brdf_lut.handle.as_u32()
@@ -787,11 +787,12 @@ namespace gfx {
         float roughness = 0.0f;
         m_device->begin_compute_pass(m_pipeline_prefilter_cubemap, true);
         const auto& mip_handles = ibl.resource->subresource_handles;
-        const float roughness_step = 1.0f / ((float)mip_handles.size());
+        const float roughness_step = 0.925f / ((float)mip_handles.size());
         for (uint32_t i = 0; i < mip_handles.size(); ++i) {
             roughness += roughness_step;
-            // Roughness values of 1.0f cause a div by zero on the GPU, and values above 1.0 are wrong
-            if (roughness >= 1.0f) roughness = 0.99f;
+            const float k = 4.5f;
+            const float x = roughness;
+            const float eased_roughness = (expf(k * x) - 1.0f) / (expf(k) - 1.0f);
 
             m_device->use_resources({
                 {scratch, ResourceUsage::non_pixel_shader_read, 0},
@@ -802,7 +803,7 @@ namespace gfx {
                 mip_handles[i].as_u32_uav(),
                 (uint32_t)mip_res,
                 (uint32_t)mip_res,
-                to_fixed_16_16(powf(roughness, 1.5f)),
+                to_fixed_16_16(eased_roughness),
                 to_fixed_16_16(powf(quality, 2.0f))
             });
             LOG(Debug, "mip %2i, res: %4i: roughness: %.3f", i, mip_res, roughness);

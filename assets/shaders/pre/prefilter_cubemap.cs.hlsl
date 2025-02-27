@@ -93,21 +93,19 @@ void main(uint3 dispatch_thread_id : SV_DispatchThreadID) {
     float3 v = n;
 
     const float roughness = float(root_constants.roughness) / 65536.0f;
-    const float roughness2 = roughness * roughness;
     const float quality = float(root_constants.quality) / 65536.f;
     const int n_samples = max(1, int(1024.0f * quality * (pow(roughness, 2.0f) / 2.0f + 0.5f) * (512.0f / cubemap_w)));
 
-    float max_hdr_brightness = sqrt(quality) * 400.f * (1.0f - pow(roughness, 1.0f / 3.0f));
+    float max_hdr_brightness = sqrt(quality) * 1600.f * (1.0f - pow(roughness, 1.0f / 3.0f));
     float total_weight = 0.0f;
     float3 color = float3(0, 0, 0);
     for (int i = 0; i < n_samples; ++i) {
         const float2 xi = hammersley(i, n_samples);
-        const float3 h = importance_sample_ggx(xi, roughness2, n);
+        const float3 h = importance_sample_ggx(xi, roughness, n);
         const float h_dot_v = dot(h, v);
         const float3 l = 2 * (h_dot_v) * h - v;
 
         const float n_dot_l = saturate(dot(n, l));
-        if (n_dot_l > 0.0f) {
             // Select mip level to sample
             float n_dot_h = dot(n, h);
             float d = distribution_ggx(n_dot_h, roughness);
@@ -116,9 +114,8 @@ void main(uint3 dispatch_thread_id : SV_DispatchThreadID) {
             float sa_sample = 1.0 / (float(n_samples) * pdf + 0.0001);
             float mip = roughness == 0.0 ? 0.0 : 0.5 * log2(sa_sample / sa_pixel);
 
-            color += min(max_hdr_brightness, base_cube_map.SampleLevel(tex_sampler_clamp, l, mip) * n_dot_l);
-            total_weight += n_dot_l;   
-        }
+            color += min(max_hdr_brightness, base_cube_map.SampleLevel(tex_sampler_clamp, l, mip));
+            total_weight += 1.0;   
     }
 
     target_cube_map[uint3(x, y, face)] = color / total_weight;

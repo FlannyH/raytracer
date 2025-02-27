@@ -69,7 +69,7 @@ void main(uint3 dispatch_thread_id : SV_DispatchThreadID) {
     RWTexture2D<float2> ibl_brdf_lut = ResourceDescriptorHeap[NonUniformResourceIndex(root_constants.ibl_brdf_lut & MASK_ID)];
 
     const float roughness = (float(dispatch_thread_id.y) + 0.5f) / float(root_constants.resolution);
-    const float n_dot_v = (float(dispatch_thread_id.x) + 0.5f) / float(root_constants.resolution);
+    const float n_dot_v = max(0.005, (float(dispatch_thread_id.x) + 0.5f) / float(root_constants.resolution));
     const float3 n = float3(0.0, 0.0, 1.0);
 
     const float3 v = float3(
