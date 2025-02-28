@@ -26,8 +26,8 @@ float radical_inverse_vdc(uint bits) {
  }
 
 // https://de45xmedrsdbp.cloudfront.net/Resources/files/2013SiggraphPresentationsNotes-26915738.pdf
-float3 importance_sample_ggx(float2 xi, float roughness2, float3 n) {
-    const float a = roughness2;
+float3 importance_sample_ggx(float2 xi, float roughness, float3 n) {
+    const float a = roughness;
 
     const float phi = 2 * PI * xi.x;
     const float cos_theta = sqrt((1 - xi.y) / (1 + (a*a - 1) * xi.y));

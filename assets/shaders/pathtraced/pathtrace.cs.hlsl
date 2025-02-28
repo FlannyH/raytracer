@@ -136,7 +136,7 @@ float3 cosine_weighted_sample_diffuse(float2 xi, float3 n) {
     return (tangent_x * h.x) + (tangent_y * h.y) + (n * h.z);
 }
 
-float3 importance_sample_ggx(float2 xi, float3 r, float roughness) {
+float3 importance_sample_ggx(float2 xi, float roughness, float3 n) {
     const float a = roughness;
 
     const float phi = 2 * PI * xi.x;
@@ -149,10 +149,10 @@ float3 importance_sample_ggx(float2 xi, float3 r, float roughness) {
         cos_theta
     );
 
-    const float3 up = (abs(r.z) < 0.999) ? (float3(0, 0, 1)) : (float3(1, 0, 0));
-    const float3 tangent_x = normalize(cross(up, r));
-    const float3 tangent_y = cross(r, tangent_x);
-    return (tangent_x * h.x) + (tangent_y * h.y) + (r * h.z);
+    const float3 up = (abs(n.z) < 0.999) ? (float3(0, 0, 1)) : (float3(1, 0, 0));
+    const float3 tangent_x = normalize(cross(up, n));
+    const float3 tangent_y = cross(n, tangent_x);
+    return (tangent_x * h.x) + (tangent_y * h.y) + (n * h.z);
 }
 
 float3 fresnel_schlick(float cos_theta, float3 f0, float roughness) {
@@ -346,9 +346,6 @@ void main(uint3 dispatch_thread_id : SV_DispatchThreadID) {
             uint vertex_buffer_handle = ray_query.CommittedInstanceID();
             SurfaceInfo info = get_surface_info(triangle_index, vertex_buffer_handle, ray_query.CandidateTriangleBarycentrics(), ray_query.CommittedObjectToWorld3x4());
 
-            // output_texture[dispatch_thread_id.xy].xyz = info.normal_pbr;
-            // return;
-
             // Add contribution and pick a random direction along the normal for the next ray
             light += info.emissive * ray_tint * saturate(dot(info.normal_pbr, -ray.Direction));
             
@@ -360,7 +357,6 @@ void main(uint3 dispatch_thread_id : SV_DispatchThreadID) {
             float3 metal3 = info.metallic;
             float3 f0 = mix(f0_dielectric3, info.color.rgb, metal3);
 
-            // uint jittered_checkerboard = ((dispatch_thread_id.x % 2) ^ (dispatch_thread_id.y % 2) ^ (root_constants.frame_index % 2));
             const float prob_specular = mix(0.05f, 0.95f, info.metallic);
             const float prob_diffuse = (1.0 - prob_specular);
             const float random_float = float(sample_index % 65536) / 65536.0;
@@ -375,20 +371,20 @@ void main(uint3 dispatch_thread_id : SV_DispatchThreadID) {
             }
             else {
                 // Specular
-                float3 reflection = reflect(ray.Direction, info.normal_pbr);
                 float2 xi = hammersley(sample_index % n_sample_indices, n_sample_indices);
 
                 // Low roughness values cause float precision issues, which results in NaNs
-                float roughness2 = clamp(info.roughness * info.roughness, 0.01, 1.0); 
-                ray.Direction = importance_sample_ggx(xi, reflection, roughness2);
+                float roughness = clamp(info.roughness * info.roughness, 0.01, 1.0); 
+                float3 microfacet_normal = importance_sample_ggx(xi, roughness, info.normal_pbr);
+                ray.Direction = reflect(ray.Direction, microfacet_normal);
                 ray.Origin += ray.Direction * 0.0001; // Bias against self intersection
 
                 // Fresnel
                 float n_dot_d = saturate(dot(ray.Direction, info.normal_pbr));
-                float3 specular_f = fresnel_schlick(n_dot_d, f0, roughness2);
+                float3 specular_f = fresnel_schlick(n_dot_d, f0, roughness);
 
                 // Geometry
-                float g = geometry_schlick_ggx(n_dot_d, roughness2);
+                float g = geometry_schlick_ggx(n_dot_d, roughness);
 
                 ray_tint *= (specular_f * g) / prob_specular;
             }
