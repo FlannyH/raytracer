@@ -64,6 +64,20 @@ jobs:
         vulkan-components: Vulkan-Headers, Vulkan-Loader
         vulkan-use-cache: true
 
+    - name: Install DirectX Shader Compiler (Windows)
+      if: runner.os == 'Windows'
+      run: choco install directx-shader-compiler --yes
+      
+    - name: Install DirectX Shader Compiler (Linux)
+      if: runner.os == 'Linux'
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y wget unzip
+        wget -O dxc.zip \
+          https://github.com/microsoft/DirectXShaderCompiler/releases/download/v1.8.2502/dxc_2025_02_20.zip
+        unzip dxc.zip -d dxc
+        sudo mv dxc/bin/* /usr/local/bin/
+
     - name: Install Wayland dependencies
       if: runner.os == 'Linux'
       run: |
