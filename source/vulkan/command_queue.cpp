@@ -49,4 +49,14 @@ namespace gfx::vk {
         
         return cmd;
     }
+    
+    void CommandQueue::add_fence_wait_value(const Fence& fence, size_t value) {
+            this->m_wait_sems.push_back(fence.timeline_semaphore);
+            this->m_wait_values.push_back(value);
+    }
+    
+    void CommandQueue::add_fence_signal_value(const Fence& fence, size_t value) {
+            this->m_signal_sems.push_back(fence.timeline_semaphore);
+            this->m_signal_values.push_back(value);
+    }
 }

@@ -40,6 +40,7 @@ add_executable (raytracer
     "source/vulkan/descriptor_heap.cpp" "source/vulkan/descriptor_heap.h"    
     "source/vulkan/command_queue.cpp"   "source/vulkan/command_queue.h" 
     "source/vulkan/device.cpp"          "source/vulkan/device.h" 
+    "source/vulkan/fence.cpp"           "source/vulkan/fence.h" 
     "source/dx12/descriptor_heap.cpp"   "source/dx12/descriptor_heap.h"    
     "source/dx12/command_buffer.cpp"    "source/dx12/command_buffer.h" 
     "source/dx12/command_queue.cpp"     "source/dx12/command_queue.h" 

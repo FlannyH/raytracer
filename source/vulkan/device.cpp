@@ -9,12 +9,13 @@
 
 namespace gfx::vk {
     Device::Device(const int width, const int height, const bool debug_layer_enabled, const bool gpu_profiling_enabled) {
-        const std::array<const char*, 5> device_extensions_to_enable = {
+        const std::array<const char*, 6> device_extensions_to_enable = {
             "VK_KHR_swapchain",
             "VK_KHR_buffer_device_address",
             "VK_EXT_descriptor_indexing",
             "VK_KHR_acceleration_structure",
             "VK_KHR_deferred_host_operations",
+            "VK_KHR_timeline_semaphore",
         };
 
         glfwInit();
