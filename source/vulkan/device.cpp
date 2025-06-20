@@ -25,7 +25,7 @@ namespace gfx::vk {
         const char** instance_extensions_to_enable = glfwGetRequiredInstanceExtensions(&n_instance_extensions_to_enable);
 
         if (!glfwVulkanSupported()) {
-            LOG(Fatal, "GLFW reports Vulkan is not supported on this system.");
+            LOG(Fatal, "GLFW reports Vulkan is not supported on this system");
             return;
         }
 
@@ -49,9 +49,8 @@ namespace gfx::vk {
             instance_create_info.ppEnabledLayerNames = nullptr;
         }
 
-        VkInstance instance;
         VkResult result;
-        result = vkCreateInstance(&instance_create_info, nullptr, &instance);
+        result = vkCreateInstance(&instance_create_info, nullptr, &this->instance);
         if (result != VK_SUCCESS) {
             LOG(Fatal, "Failed to create Vulkan instance");
             LOG(Info, "VkResult: 0x%08x (%i)\n", result, result);

@@ -114,6 +114,8 @@ namespace gfx::vk {
         std::vector<VkImageMemoryBarrier> m_queued_image_memory_barriers;
         std::vector<VkBufferMemoryBarrier> m_queued_buffer_memory_barriers;
         
+        VkInstance instance;
+        
         // std::vector<Pipeline> m_loaded_pipelines;
 
         size_t m_upload_fence_value_when_done = 0;
