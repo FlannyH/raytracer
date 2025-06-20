@@ -1,5 +1,6 @@
 #include "command_queue.h"
 #include "device.h"
+#include "fence.h"
 
 namespace gfx::vk {
     CommandQueue::CommandQueue(Device& device, CommandBufferType type, const std::wstring &name) {
@@ -10,6 +11,7 @@ namespace gfx::vk {
         pool_create_info.queueFamilyIndex = device.queue_family_indices().graphics_family.value();
 
         vkCreateCommandPool(device.device, &pool_create_info, nullptr, &m_command_pool);
+        vkGetDeviceQueue(device.device, pool_create_info.queueFamilyIndex, 0, &this->queue);
     }
 
     // todo: do we even need the pipeline here?
@@ -58,5 +60,39 @@ namespace gfx::vk {
     void CommandQueue::add_fence_signal_value(const Fence& fence, size_t value) {
             this->m_signal_sems.push_back(fence.timeline_semaphore);
             this->m_signal_values.push_back(value);
+    }
+
+    void CommandQueue::execute() {
+        if (m_command_lists_to_execute.empty()) return;
+
+        const std::vector<VkPipelineStageFlags> stage_flags(this->m_wait_values.size(), VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT);
+
+        std::vector<VkCommandBuffer> cmds;
+        cmds.reserve(this->m_command_lists_to_execute.size());
+        for (size_t i = 0; i < this->m_command_lists_to_execute.size(); ++i) {
+            cmds.push_back(this->m_command_buffer_pool[this->m_command_lists_to_execute[i]]);
+        }
+
+        const VkTimelineSemaphoreSubmitInfo sem_submit_info = {
+            .sType = VK_STRUCTURE_TYPE_TIMELINE_SEMAPHORE_SUBMIT_INFO,
+            .pNext = nullptr,
+            .waitSemaphoreValueCount = (uint32_t)this->m_wait_values.size(),
+            .pWaitSemaphoreValues = this->m_wait_values.data(),
+            .signalSemaphoreValueCount = (uint32_t)this->m_signal_values.size(),
+            .pSignalSemaphoreValues = this->m_signal_values.data(),
+        };
+
+        const VkSubmitInfo submit_info = {
+            .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
+            .pNext = &sem_submit_info,
+            .waitSemaphoreCount = (uint32_t)this->m_wait_sems.size(),
+            .pWaitSemaphores = this->m_wait_sems.data(),
+            .pWaitDstStageMask = stage_flags.data(),
+            .commandBufferCount = (uint32_t)this->m_command_lists_to_execute.size(),
+            .pCommandBuffers = cmds.data(),
+            .signalSemaphoreCount = (uint32_t)this->m_signal_sems.size(),
+            .pSignalSemaphores = this->m_signal_sems.data(),
+        };
+        vkQueueSubmit(this->queue, 1, &submit_info, VK_NULL_HANDLE);
     }
 }

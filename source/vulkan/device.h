@@ -103,8 +103,9 @@ namespace gfx::vk {
         GLFWwindow* m_window_glfw = nullptr;
         QueueFamilyIndices m_indices{};
         
-        std::shared_ptr<CommandQueue> m_queue_compute = nullptr;
+        std::shared_ptr<CommandQueue> m_queue_upload = nullptr;
         std::shared_ptr<CommandQueue> m_queue_graphics = nullptr;
+        std::shared_ptr<Fence> m_upload_queue_completion_fence = nullptr;
 
         std::shared_ptr<DescriptorHeap> m_desc_heap = nullptr;
         VkSampler m_samplers[3];
@@ -112,6 +113,8 @@ namespace gfx::vk {
         std::unordered_map<uint32_t, ResourceInfo> m_resource_info;
         std::vector<VkImageMemoryBarrier> m_queued_image_memory_barriers;
         std::vector<VkBufferMemoryBarrier> m_queued_buffer_memory_barriers;
+        
+        // std::vector<Pipeline> m_loaded_pipelines;
 
         size_t m_upload_fence_value_when_done = 0;
     };

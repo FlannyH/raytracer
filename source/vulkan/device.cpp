@@ -5,6 +5,7 @@
 #include "command_queue.h"
 #include "descriptor_heap.h"
 #include "helpers.h"
+#include "fence.h"
 #include "../input.h"
 
 namespace gfx::vk {
@@ -150,7 +151,7 @@ namespace gfx::vk {
         }
 
         m_queue_graphics = std::make_shared<CommandQueue>(*this, CommandBufferType::graphics);
-        m_queue_compute = std::make_shared<CommandQueue>(*this, CommandBufferType::compute);
+        m_queue_upload = std::make_shared<CommandQueue>(*this, CommandBufferType::compute);
         m_desc_heap = std::make_shared<DescriptorHeap>(*this, 100'000); // todo: unhardcode this
         
         // Regular texture sampler
@@ -225,8 +226,32 @@ namespace gfx::vk {
     }
 
     PipelineHandle Device::create_raster_pipeline(const std::string& name, const std::string& vertex_shader_path, const std::string& pixel_shader_path, const std::initializer_list<ResourceHandlePair> render_targets, const ResourceHandlePair depth_target) {
-        TODO();
-        return PIPELINE_NULL;
+        std::vector<DXGI_FORMAT> render_target_formats;
+        DXGI_FORMAT depth_target_format = DXGI_FORMAT_UNKNOWN;
+
+        // If we specify render targets, specify the formats
+        for (auto& render_target : render_targets) {
+            const auto& resource = render_target.resource;
+            const auto& texture = resource->expect_texture();
+            // render_target_formats.emplace_back(pixel_format_to_vk(texture.pixel_format));
+        }
+
+        // Otherwise, assume swapchain target and get its format
+        if (render_target_formats.empty()) {
+            // render_target_formats.push_back(m_swapchain->curr_framebuffer()->GetDesc().Format);
+        }
+
+        // Get depth format
+        if (depth_target.handle.type != (uint32_t)ResourceType::none) {
+            const auto& resource = depth_target.resource;
+            const auto& texture = resource->expect_texture();
+            // depth_target_format = pixel_format_to_vk(texture.pixel_format);
+        }
+
+        // const auto id = m_loaded_pipelines.size();
+        // m_loaded_pipelines.emplace_back(*this, name, vertex_shader_path, pixel_shader_path, render_target_formats, depth_target_format);
+        // return id;
+        return 0;
     }
 
     void Device::begin_raster_pass(PipelineHandle pipeline, RasterPassInfo&& render_pass_info) {
@@ -302,7 +327,7 @@ namespace gfx::vk {
         image_create_info.usage = VK_IMAGE_USAGE_SAMPLED_BIT;
         if (usage == ResourceUsage::compute_write) image_create_info.usage |= VK_IMAGE_USAGE_STORAGE_BIT;
         image_create_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-        image_create_info.initialLayout = VK_IMAGE_LAYOUT_PREINITIALIZED;
+        image_create_info.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
         resource_info.image_layout = image_create_info.initialLayout;
 
         if (vkCreateImage(device, &image_create_info, nullptr, &resource_info.image) != VK_SUCCESS) {
@@ -349,9 +374,32 @@ namespace gfx::vk {
             LOG(Error, "Failed to create VkImageView for texture \"%s\"", name.c_str());
         }
 
+        // todo: transition image and copy texture into it
+        const auto handle = ResourceHandlePair { id,resource };
+        const auto cmd = m_queue_upload->create_command_buffer(device, nullptr, m_upload_fence_value_when_done);
+        transition_resource(cmd, 
+            ResourceHandlePair{id, resource}, 
+            ResourceInfo { 
+                .image_layout = VK_IMAGE_LAYOUT_GENERAL
+            }, 
+            VkImageSubresourceRange{
+                .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+                .baseMipLevel = 0,
+                .levelCount = 1,
+                .baseArrayLayer = 0,
+                .layerCount = 1
+            }
+        );
+        execute_resource_transitions(cmd, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT);
+
+        m_queue_upload->execute();
+        m_upload_queue_completion_fence->gpu_signal(m_queue_upload, m_upload_fence_value_when_done);
+        m_upload_queue_completion_fence->cpu_wait(m_upload_fence_value_when_done);
+        // wait for complete
+        
         m_desc_heap->write_texture_descriptor(*this, id, image_create_info.initialLayout, resource_info.image_view);
 
-        return ResourceHandlePair { id,resource };
+        return handle;
     }
 
     ResourceHandlePair Device::load_mesh(const std::string& name, const uint64_t n_triangles, Triangle* tris) {
@@ -421,7 +469,7 @@ namespace gfx::vk {
 
             // Upload the data to the destination buffer
             ++m_upload_fence_value_when_done;
-            auto cmd = m_queue_compute->create_command_buffer(device, nullptr, m_upload_fence_value_when_done);
+            auto cmd = m_queue_upload->create_command_buffer(device, nullptr, m_upload_fence_value_when_done);
             
             VkBufferCopy region = {};
             region.srcOffset = 0;
@@ -512,7 +560,7 @@ namespace gfx::vk {
             return {};
         }
 
-        VkCommandBuffer cmd = m_queue_compute->create_command_buffer(device, nullptr, ++m_upload_fence_value_when_done);
+        VkCommandBuffer cmd = m_queue_upload->create_command_buffer(device, nullptr, ++m_upload_fence_value_when_done);
         transition_resource(cmd, 
             ResourceHandlePair{id, resource}, 
             ResourceInfo { 
@@ -526,6 +574,7 @@ namespace gfx::vk {
                 .layerCount = 1
             }
         );
+        execute_resource_transitions(cmd, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT);
 
         VkImageViewCreateInfo image_view_create_info { VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO };
         image_view_create_info.image = resource_info.image;
@@ -545,7 +594,7 @@ namespace gfx::vk {
             LOG(Error, "Failed to create VkImageView for render target \"%s\"", name.c_str());
         }
 
-        m_desc_heap->write_texture_descriptor(*this, id, image_create_info.initialLayout, resource_info.image_view);
+        m_desc_heap->write_texture_descriptor(*this, id, resource_info.image_layout, resource_info.image_view);
 
         return ResourceHandlePair{ id, resource };
     }
@@ -609,7 +658,7 @@ namespace gfx::vk {
             return {};
         }
 
-        VkCommandBuffer cmd = m_queue_compute->create_command_buffer(device, nullptr, ++m_upload_fence_value_when_done);
+        VkCommandBuffer cmd = m_queue_upload->create_command_buffer(device, nullptr, ++m_upload_fence_value_when_done);
         transition_resource(cmd, 
             ResourceHandlePair{id, resource}, 
             ResourceInfo { 
@@ -623,6 +672,7 @@ namespace gfx::vk {
                 .layerCount = 1
             }
         );
+        execute_resource_transitions(cmd, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT);
 
         VkImageViewCreateInfo image_view_create_info { VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO };
         image_view_create_info.image = resource_info.image;
@@ -687,9 +737,10 @@ namespace gfx::vk {
     }
 
     void Device::transition_resource(VkCommandBuffer cmd, ResourceHandlePair resource, ResourceInfo&& new_state, VkImageSubresourceRange subresource_range) {
-        const ResourceInfo& resource_info = fetch_resource_info(resource.handle);
-
+        ResourceInfo& resource_info = fetch_resource_info(resource.handle);
+        
     	if (new_state.image_layout != VK_IMAGE_LAYOUT_UNDEFINED) {
+            resource_info.image_layout = new_state.image_layout;
             m_queued_image_memory_barriers.emplace_back(VkImageMemoryBarrier {
                 .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
                 .srcAccessMask = resource_info.access_mask,
@@ -706,7 +757,7 @@ namespace gfx::vk {
                 :
                     new_state.queue_family_index
                 ,
-                .image = fetch_resource_info(resource.handle).image,
+                .image = resource_info.image,
                 .subresourceRange = subresource_range
             });
         }
@@ -725,7 +776,7 @@ namespace gfx::vk {
                 :
                     new_state.queue_family_index
                 ,
-                .buffer = fetch_resource_info(resource.handle).buffer,
+                .buffer = resource_info.buffer,
                 .offset = 0,
                 .size = resource.resource->expect_buffer().size
             });
