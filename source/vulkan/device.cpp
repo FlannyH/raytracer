@@ -33,9 +33,17 @@ namespace gfx::vk {
             LOG(Debug, "Required instance extension: %s", instance_extensions_to_enable[i]);
         }
 
+        VkApplicationInfo app_info = {
+            .sType = VK_STRUCTURE_TYPE_APPLICATION_INFO,
+            .pApplicationName = "Raytracer",
+            .pEngineName = "FlanRenderer-New",
+            .apiVersion = VK_MAKE_API_VERSION(0, 1, 2, 0),
+        };
+
         VkInstanceCreateInfo instance_create_info{ VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO };
         instance_create_info.enabledExtensionCount = n_instance_extensions_to_enable;
         instance_create_info.ppEnabledExtensionNames = instance_extensions_to_enable;
+        instance_create_info.pApplicationInfo = &app_info;
 
         if (debug_layer_enabled) {
             const std::array<const char*, 1> debug_layers_to_enable = {
@@ -95,6 +103,19 @@ namespace gfx::vk {
 
             if (device_properties.deviceType != VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU) continue;
             
+            VkPhysicalDeviceTimelineSemaphoreFeatures timeline_features = {
+                .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_TIMELINE_SEMAPHORE_FEATURES,
+                .pNext = NULL,
+                .timelineSemaphore = VK_TRUE,
+            };
+            VkPhysicalDeviceFeatures2 features2 = {
+                .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2,
+                .pNext = &timeline_features,
+            };
+            vkGetPhysicalDeviceFeatures2(physical_device, &features2);
+            
+            if (!timeline_features.timelineSemaphore) continue;
+            
             LOG(Info, "Using device \"%s\"", device_properties.deviceName);
 
             uint32_t n_queue_family_properties = 0;
@@ -127,7 +148,7 @@ namespace gfx::vk {
                 }
             }};
 
-            VkPhysicalDeviceFeatures physical_device_features{};
+            VkPhysicalDeviceFeatures& physical_device_features = features2.features;
             physical_device_features.samplerAnisotropy = true;
 
             VkDeviceCreateInfo device_create_info{ VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO };
@@ -135,7 +156,8 @@ namespace gfx::vk {
             device_create_info.pQueueCreateInfos = device_queue_create_info.data();
             device_create_info.enabledExtensionCount = device_extensions_to_enable.size();
             device_create_info.ppEnabledExtensionNames = device_extensions_to_enable.data();
-            device_create_info.pEnabledFeatures = &physical_device_features;
+            device_create_info.pEnabledFeatures = nullptr;
+            device_create_info.pNext = &features2;
 
             m_physical_device = physical_device;
 
@@ -180,7 +202,6 @@ namespace gfx::vk {
         vkCreateSampler(device, &create_info, nullptr, &m_samplers[1]);
 
         // Cubemap
-        // todo: lookup and cubemap are the exact same, maybe merge?
         vkCreateSampler(device, &create_info, nullptr, &m_samplers[2]);
     }
     
