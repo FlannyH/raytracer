@@ -203,6 +203,8 @@ namespace gfx::vk {
 
         // Cubemap
         vkCreateSampler(device, &create_info, nullptr, &m_samplers[2]);
+
+        m_upload_queue_completion_fence = std::make_shared<Fence>(this);
     }
     
     Device::~Device() {
@@ -271,6 +273,7 @@ namespace gfx::vk {
         // const auto id = m_loaded_pipelines.size();
         // m_loaded_pipelines.emplace_back(*this, name, vertex_shader_path, pixel_shader_path, render_target_formats, depth_target_format);
         // return id;
+        TODO();
         return 0;
     }
 
@@ -396,11 +399,14 @@ namespace gfx::vk {
 
         // todo: transition image and copy texture into it
         const auto handle = ResourceHandlePair { id,resource };
-        const auto cmd = m_queue_upload->create_command_buffer(device, nullptr, m_upload_fence_value_when_done);
+        const auto cmd = m_queue_upload->create_command_buffer(device, nullptr, ++m_upload_fence_value_when_done);
+        unsigned int access_mask = VK_ACCESS_SHADER_READ_BIT;
+        if (usage == ResourceUsage::compute_write) access_mask = access_mask | VK_ACCESS_SHADER_WRITE_BIT;
         transition_resource(cmd, 
             ResourceHandlePair{id, resource}, 
             ResourceInfo { 
-                .image_layout = VK_IMAGE_LAYOUT_GENERAL
+                .access_mask = (VkAccessFlags)access_mask,
+                .image_layout = VK_IMAGE_LAYOUT_GENERAL, // todo: pick one based on resource usage flags - and don't forget about the call to write_texture_descriptor a few lines further
             }, 
             VkImageSubresourceRange{
                 .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
@@ -410,14 +416,14 @@ namespace gfx::vk {
                 .layerCount = 1
             }
         );
-        execute_resource_transitions(cmd, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT);
+        execute_resource_transitions(cmd, VK_PIPELINE_STAGE_HOST_BIT, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT);
 
-        m_queue_upload->execute();
         m_upload_queue_completion_fence->gpu_signal(m_queue_upload, m_upload_fence_value_when_done);
+        m_queue_upload->execute();
         m_upload_queue_completion_fence->cpu_wait(m_upload_fence_value_when_done);
         // wait for complete
         
-        m_desc_heap->write_texture_descriptor(*this, id, image_create_info.initialLayout, resource_info.image_view);
+        m_desc_heap->write_texture_descriptor(*this, id, VK_IMAGE_LAYOUT_GENERAL, resource_info.image_view);
 
         return handle;
     }
@@ -584,7 +590,8 @@ namespace gfx::vk {
         transition_resource(cmd, 
             ResourceHandlePair{id, resource}, 
             ResourceInfo { 
-                .image_layout = extra_usage == ResourceUsage::compute_write? VK_IMAGE_LAYOUT_GENERAL : VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
+                .access_mask = VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT | VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+                .image_layout = extra_usage == ResourceUsage::compute_write? VK_IMAGE_LAYOUT_GENERAL : VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
             }, 
             VkImageSubresourceRange{
                 .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
@@ -594,7 +601,10 @@ namespace gfx::vk {
                 .layerCount = 1
             }
         );
-        execute_resource_transitions(cmd, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT);
+        execute_resource_transitions(cmd, VK_PIPELINE_STAGE_HOST_BIT, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT);
+        m_upload_queue_completion_fence->gpu_signal(m_queue_upload, m_upload_fence_value_when_done);
+        m_queue_upload->execute();
+        m_upload_queue_completion_fence->cpu_wait(m_upload_fence_value_when_done);
 
         VkImageViewCreateInfo image_view_create_info { VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO };
         image_view_create_info.image = resource_info.image;
@@ -649,7 +659,7 @@ namespace gfx::vk {
         image_create_info.arrayLayers = 1;
         image_create_info.samples = VK_SAMPLE_COUNT_1_BIT;
         image_create_info.tiling = VK_IMAGE_TILING_OPTIMAL;
-        image_create_info.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
+        image_create_info.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT; // todo: look into unhardcording this?
         image_create_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
         image_create_info.initialLayout = VK_IMAGE_LAYOUT_PREINITIALIZED;
         resource_info.image_layout = image_create_info.initialLayout;
@@ -682,6 +692,7 @@ namespace gfx::vk {
         transition_resource(cmd, 
             ResourceHandlePair{id, resource}, 
             ResourceInfo { 
+                .access_mask = VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
                 .image_layout = VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL
             }, 
             VkImageSubresourceRange{
@@ -692,7 +703,10 @@ namespace gfx::vk {
                 .layerCount = 1
             }
         );
-        execute_resource_transitions(cmd, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT);
+        execute_resource_transitions(cmd, VK_PIPELINE_STAGE_HOST_BIT, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT);
+        m_upload_queue_completion_fence->gpu_signal(m_queue_upload, m_upload_fence_value_when_done);
+        m_queue_upload->execute();
+        m_upload_queue_completion_fence->cpu_wait(m_upload_fence_value_when_done);
 
         VkImageViewCreateInfo image_view_create_info { VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO };
         image_view_create_info.image = resource_info.image;
@@ -712,7 +726,7 @@ namespace gfx::vk {
             LOG(Error, "Failed to create VkImageView for depth target \"%s\"", name.c_str());
         }
 
-        m_desc_heap->write_texture_descriptor(*this, id, image_create_info.initialLayout, resource_info.image_view);
+        m_desc_heap->write_texture_descriptor(*this, id, VK_IMAGE_LAYOUT_GENERAL, resource_info.image_view);
 
         return ResourceHandlePair{ id, resource };
     }
@@ -760,7 +774,6 @@ namespace gfx::vk {
         ResourceInfo& resource_info = fetch_resource_info(resource.handle);
         
     	if (new_state.image_layout != VK_IMAGE_LAYOUT_UNDEFINED) {
-            resource_info.image_layout = new_state.image_layout;
             m_queued_image_memory_barriers.emplace_back(VkImageMemoryBarrier {
                 .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
                 .srcAccessMask = resource_info.access_mask,
@@ -780,6 +793,7 @@ namespace gfx::vk {
                 .image = resource_info.image,
                 .subresourceRange = subresource_range
             });
+            resource_info.image_layout = new_state.image_layout;
         }
         else {
             m_queued_buffer_memory_barriers.emplace_back(VkBufferMemoryBarrier {
