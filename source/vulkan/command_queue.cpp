@@ -71,6 +71,7 @@ namespace gfx::vk {
         cmds.reserve(this->m_command_lists_to_execute.size());
         for (size_t i = 0; i < this->m_command_lists_to_execute.size(); ++i) {
             cmds.push_back(this->m_command_buffer_pool[this->m_command_lists_to_execute[i]]);
+            vkEndCommandBuffer(cmds[i]);
         }
 
         const VkTimelineSemaphoreSubmitInfo sem_submit_info = {
@@ -94,5 +95,11 @@ namespace gfx::vk {
             .pSignalSemaphores = this->m_signal_sems.data(),
         };
         vkQueueSubmit(this->queue, 1, &submit_info, VK_NULL_HANDLE);
+
+        this->m_command_lists_to_execute.clear();
+        this->m_signal_values.clear();
+        this->m_signal_sems.clear();
+        this->m_wait_values.clear();
+        this->m_wait_sems.clear();
     }
 }
