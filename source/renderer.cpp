@@ -791,7 +791,7 @@ namespace gfx {
         for (uint32_t i = 0; i < mip_handles.size(); ++i) {
             roughness += roughness_step;
             const float k = 4.5f;
-            const float x = roughness;
+            const float x = std::max(0.000075f, roughness);
             const float eased_roughness = (expf(k * x) - 1.0f) / (expf(k) - 1.0f);
 
             m_device->use_resources({
