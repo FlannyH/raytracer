@@ -348,9 +348,15 @@ void main(uint3 dispatch_thread_id : SV_DispatchThreadID) {
 
             // Add contribution and pick a random direction along the normal for the next ray
             light += info.emissive * ray_tint * saturate(dot(info.normal_pbr, -ray.Direction));
-            
-            // todo: transparency
+
+            const float random_float = float(sample_index % 65536) / 65536.0;
             ray.Origin += ray_query.CommittedRayT() * ray.Direction;
+
+            // Transparency            
+            if (random_float > info.color.a) {
+                ray.Origin += ray.Direction * 0.00001; // Bias against self intersection
+                continue;
+            }
 
             float f0_dielectric = 0.04f;
             float3 f0_dielectric3 = 0.04f;
@@ -359,7 +365,6 @@ void main(uint3 dispatch_thread_id : SV_DispatchThreadID) {
 
             const float prob_specular = mix(0.05f, 0.95f, info.metallic);
             const float prob_diffuse = (1.0 - prob_specular);
-            const float random_float = float(sample_index % 65536) / 65536.0;
 
             float3 diffuse_mul = 1.0 - info.metallic;
 
