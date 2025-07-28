@@ -118,7 +118,8 @@ namespace gfx::vk {
         
         VkInstance instance;
         
-        // std::vector<Pipeline> m_loaded_pipelines;
+        // Rendering context
+        std::vector<Pipeline> m_loaded_pipelines;
 
         size_t m_upload_fence_value_when_done = 0;
     };

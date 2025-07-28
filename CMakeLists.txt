@@ -1,7 +1,4 @@
-﻿# CMakeList.txt : CMake project for raytracer, include source and define
-# project specific logic here.
-#
-cmake_minimum_required (VERSION 3.25)
+﻿cmake_minimum_required (VERSION 3.25)
 
 # Enable Hot Reload for MSVC compilers if supported.
 if (POLICY CMP0141)
@@ -40,6 +37,7 @@ add_executable (raytracer
     "source/main.cpp"      
     "source/vulkan/descriptor_heap.cpp" "source/vulkan/descriptor_heap.h"    
     "source/vulkan/command_queue.cpp"   "source/vulkan/command_queue.h" 
+    "source/vulkan/pipeline.cpp"        "source/vulkan/pipeline.h" 
     "source/vulkan/device.cpp"          "source/vulkan/device.h" 
     "source/vulkan/fence.cpp"           "source/vulkan/fence.h" 
     "source/dx12/descriptor_heap.cpp"   "source/dx12/descriptor_heap.h"    

@@ -6,6 +6,7 @@
 #include "descriptor_heap.h"
 #include "helpers.h"
 #include "fence.h"
+#include "pipeline.h"
 #include "../input.h"
 
 namespace gfx::vk {
@@ -295,8 +296,9 @@ namespace gfx::vk {
     }
 
     PipelineHandle Device::create_compute_pipeline(const std::string& name, const std::string& compute_shader_path) {
-        TODO();
-        return PipelineHandle();
+        const PipelineHandle id = m_loaded_pipelines.size();
+        m_loaded_pipelines.emplace_back(*this, name, compute_shader_path);
+        return id;
     }
 
     void Device::begin_compute_pass(PipelineHandle pipeline, bool async) {
