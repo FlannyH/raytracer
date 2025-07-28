@@ -55,6 +55,8 @@ namespace gfx::vk {
         void set_full_screen(bool full_screen) override;
         void begin_frame() override;
         void end_frame() override;
+        size_t execute_async() override;
+        void wait_async(size_t target_fence_value) override;
         void set_graphics_root_constants(const std::vector<uint32_t>& constants) override;
         void set_compute_root_constants(const std::vector<uint32_t>& constants) override;
         int frame_index() override;

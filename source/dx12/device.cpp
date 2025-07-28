@@ -361,16 +361,16 @@ namespace gfx::dx12 {
             m_width = width;
             m_height = height;
         }
-        m_upload_queue->execute();
-        m_upload_queue_completion_fence->gpu_signal(m_upload_queue, m_upload_fence_value_when_done);
-        m_upload_queue_completion_fence->cpu_wait(m_upload_fence_value_when_done);
+        
+        execute_async();
+
         m_swapchain->next_framebuffer();
         m_queue_gfx->clean_up_old_command_buffers(m_swapchain->current_fence_completed_value());
-        m_upload_queue->clean_up_old_command_buffers(m_upload_fence_value_when_done);
         clean_up_old_resources();
     }
 
     void Device::end_frame() {
+        wait_async(m_upload_fence_value_when_done);
         m_swapchain->prepare_present(m_curr_pass_cmd);
         m_queue_gfx->execute();
         m_swapchain->synchronize(m_queue_gfx);
@@ -402,6 +402,17 @@ namespace gfx::dx12 {
 #endif
             m_query_labels.clear();
         }
+    }
+
+    size_t Device::execute_async() {
+        m_upload_queue->execute();
+        m_upload_queue_completion_fence->gpu_signal(m_upload_queue, m_upload_fence_value_when_done);
+        return m_upload_fence_value_when_done;
+    }
+
+    void Device::wait_async(size_t target_fence_value) {
+        m_upload_queue_completion_fence->cpu_wait(target_fence_value);
+        m_upload_queue->clean_up_old_command_buffers(target_fence_value);
     }
 
     void Device::set_graphics_root_constants(const std::vector<uint32_t>& constants) {

@@ -229,6 +229,15 @@ namespace gfx::vk {
         glfwSwapBuffers(m_window_glfw);
     }
 
+    size_t Device::execute_async() {
+        TODO();
+        return 0;
+    }
+
+    void Device::wait_async(size_t target_fence_value) {
+        TODO();
+    }
+
     void Device::set_graphics_root_constants(const std::vector<uint32_t>& constants) {
         TODO();
     }

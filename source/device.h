@@ -77,6 +77,8 @@ namespace gfx {
         virtual void set_full_screen(bool full_screen) = 0;
         virtual void begin_frame() = 0;
         virtual void end_frame() = 0;
+        virtual void wait_async(size_t target_fence_value) = 0;
+        virtual size_t execute_async() = 0; // returns target fence value
         virtual void set_graphics_root_constants(const std::vector<uint32_t>& constants) = 0;
         virtual void set_compute_root_constants(const std::vector<uint32_t>& constants) = 0;
         virtual int frame_index() = 0;
