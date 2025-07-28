@@ -8,8 +8,8 @@ namespace gfx::dx12 {
         assert(render_target_formats.size() <= 8 && "Too many render targets!");
 
         // Compile shaders
-        const auto vs = Shader(vertex_shader_path, "main", ShaderType::vertex); // todo: add customizable entry point
-        const auto ps = Shader(pixel_shader_path, "main", ShaderType::pixel); // todo: add customizable entry point
+        const auto vs = Shader(vertex_shader_path, "main", ShaderType::vertex, RenderBackend::dx12); // todo: add customizable entry point
+        const auto ps = Shader(pixel_shader_path, "main", ShaderType::pixel, RenderBackend::dx12); // todo: add customizable entry point
 
         // Make sure it worked
         if (vs.shader_blob.Get() == nullptr) {
@@ -83,7 +83,7 @@ namespace gfx::dx12 {
 
     Pipeline::Pipeline(const Device& device, const std::string& name, const std::string& compute_shader_path) : name(name) {
         // Compile shader
-        const auto cs = Shader(compute_shader_path, "main", ShaderType::compute); // todo: add customizable entry point
+        const auto cs = Shader(compute_shader_path, "main", ShaderType::compute, RenderBackend::dx12); // todo: add customizable entry point
 
         // Make sure it worked
         if (cs.shader_blob.Get() == nullptr) {

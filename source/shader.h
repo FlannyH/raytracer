@@ -4,6 +4,7 @@
 #include "common.h"
 #include "dxc/dxcapi.h"
 #include <d3dcommon.h>
+#include "renderer.h"
 
 namespace gfx {
     struct Device;
@@ -17,7 +18,7 @@ namespace gfx {
     std::string profile_from_shader_type(ShaderType type);
 
     struct Shader {
-        explicit Shader(const std::string& path, const std::string& entry_point, ShaderType type);
+        explicit Shader(const std::string& path, const std::string& entry_point, ShaderType type, const gfx::RenderBackend backend);
 
     public:
         ComPtr<ID3DBlob> shader_blob;

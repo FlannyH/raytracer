@@ -36,7 +36,7 @@ namespace gfx {
         return temp;
     }
 
-    Shader::Shader(const std::string& path, const std::string& entry_point, const ShaderType type) {
+    Shader::Shader(const std::string& path, const std::string& entry_point, const ShaderType type, const gfx::RenderBackend backend) {
         // Init dxc
         if (_dxc_compiler.Get() == nullptr) {
             DxcCreateInstance(CLSID_DxcCompiler, IID_PPV_ARGS(&_dxc_compiler));
@@ -57,6 +57,7 @@ namespace gfx {
         }
 
         // Set up compilation arguments
+        bool strip = false;
         std::vector<LPCWSTR> args;
         args.emplace_back(wpath.c_str());
         args.emplace_back(L"-T");
@@ -64,9 +65,15 @@ namespace gfx {
         args.emplace_back(L"-E");
         args.emplace_back(wentry_point.c_str());
         args.emplace_back(L"-Qstrip_debug");
-        args.emplace_back(L"-Qstrip_reflect");
         args.emplace_back(L"-HV 2021");
         args.emplace_back(L"-res-may-alias");
+        if (backend == RenderBackend::vulkan) {
+            args.emplace_back(L"-spirv");
+        }
+        else if (backend == RenderBackend::dx12) {
+            args.emplace_back(L"-Qstrip_reflect");
+            strip = true;
+        }
         args.emplace_back(DXC_ARG_WARNINGS_ARE_ERRORS); //-WX
 #ifdef _DEBUG
         args.emplace_back(DXC_ARG_DEBUG); //-Zi
@@ -100,13 +107,15 @@ namespace gfx {
 
         // Get PDB file
 #ifdef _DEBUG
-        ComPtr<IDxcBlob> pdb_data;
-        ComPtr<IDxcBlobUtf16> pdb_path;
-        validate(result->GetOutput(DXC_OUT_PDB, IID_PPV_ARGS(&pdb_data), &pdb_path));
-        auto pdb_path_string = to_string((wchar_t*)pdb_path->GetStringPointer());
-        FILE* pdb = fopen(pdb_path_string.c_str(), "wb"); 
-        fwrite(pdb_data->GetBufferPointer(), 1, pdb_data->GetBufferSize(), pdb);
-        fclose(pdb);
+        if (strip) {
+            ComPtr<IDxcBlob> pdb_data;
+            ComPtr<IDxcBlobUtf16> pdb_path;
+            validate(result->GetOutput(DXC_OUT_PDB, IID_PPV_ARGS(&pdb_data), &pdb_path));
+            auto pdb_path_string = to_string((wchar_t*)pdb_path->GetStringPointer());
+            FILE* pdb = fopen(pdb_path_string.c_str(), "wb"); 
+            fwrite(pdb_data->GetBufferPointer(), 1, pdb_data->GetBufferSize(), pdb);
+            fclose(pdb);
+        }
 #endif
 
         // Get shader blob
