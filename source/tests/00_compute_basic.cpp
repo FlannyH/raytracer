@@ -16,15 +16,22 @@ int main(int n_args, char** args) {
     // Queue compute shader
     device->begin_compute_pass(pipeline, true);
     device->set_compute_root_constants({buffer.handle.as_u32()});
-    device->dispatch_threadgroups(sizeof(buffer_data), 1, 1);
+    device->dispatch_threadgroups(sizeof(buffer_data) / (64 * sizeof(buffer_data[0])), 1, 1);
     device->end_compute_pass();
 
     // Run compute shader
     device->wait_async(device->execute_async());
 
     // Verify results
+    int correct = 0;
+    int total = 0;
     device->readback_buffer(buffer, 0, sizeof(buffer_data), &buffer_data);
     for (size_t i = 0; i < BYTE_COUNT; ++i) {
-        if (buffer_data[i] != i) {LOG(Error, "buffer_data[%i] == %i (expected %i)!", i, buffer_data[i], i);}
+        if (buffer_data[i] != i) {
+            LOG(Error, "buffer_data[%i] == %i (expected %i)!", i, buffer_data[i], i);
+        }
+        else ++correct;
+        ++total;
     }
+    LOG(Info, "%i / %i values correct", correct, total);
 }  
