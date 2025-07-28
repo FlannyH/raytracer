@@ -15,9 +15,9 @@ namespace gfx::dx12 {
     public:
         ComPtr<ID3D12PipelineState> pipeline_state;
         ComPtr<ID3D12RootSignature> root_signature;
-        std::string name;
-
+        
     private:
+        std::string name;
         void create_global_root_signature(const Device& device);
 
     };
