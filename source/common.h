@@ -73,3 +73,6 @@ void add_and_align(T& destination, const T value_to_add, const T alignment) {
 }
 
 #define TODO() { LOG(Info, "%s(%i): TODO", __FILE__, __LINE__); exit(1); }
+
+template<typename T, size_t N>
+constexpr size_t countof(T(&)[N]) noexcept { return N; }
