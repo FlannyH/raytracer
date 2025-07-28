@@ -36,6 +36,7 @@ project ("raytracer")
 
 # Add source to this project's executable.
 add_executable (raytracer 
+    # "source/tests/00_compute_basic.cpp"      
     "source/main.cpp"      
     "source/vulkan/descriptor_heap.cpp" "source/vulkan/descriptor_heap.h"    
     "source/vulkan/command_queue.cpp"   "source/vulkan/command_queue.h" 
