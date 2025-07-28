@@ -295,6 +295,7 @@ namespace gfx::vk {
     }
 
     PipelineHandle Device::create_compute_pipeline(const std::string& name, const std::string& compute_shader_path) {
+        TODO();
         return PipelineHandle();
     }
 
@@ -484,7 +485,7 @@ namespace gfx::vk {
         }
 
         // Populate buffer
-        if (data != nullptr && usage == (ResourceUsage::cpu_writable) || usage == (ResourceUsage::cpu_read_write) || usage == (ResourceUsage::copy_source)) {
+        if (data != nullptr && (usage == (ResourceUsage::cpu_writable) || usage == (ResourceUsage::cpu_read_write) || usage == (ResourceUsage::copy_source))) {
             // todo: do i need to flush this memory?
             void* mapped_buffer;
             const auto result = vkMapMemory(device, device_memory, 0, size, 0, &mapped_buffer);
