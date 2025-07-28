@@ -21,6 +21,12 @@ namespace gfx {
     struct Transform;
     struct Fence;
 
+    enum class RenderBackend {
+        none = 0,
+        dx12 = 1,
+        vulkan = 2,
+    };
+
     struct RasterPassInfo {
         std::vector<ResourceHandlePair> color_targets; // If empty, it will instead use the swapchain framebuffer as a color target
         ResourceHandlePair depth_target; // Optional; passing `ResourceHandle::none()` will disable depth testing

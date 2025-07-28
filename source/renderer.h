@@ -11,12 +11,6 @@ namespace gfx {
         glm::vec3 camera_world_position{};
     };
 
-    enum class RenderBackend {
-        none = 0,
-        dx12 = 1,
-        vulkan = 2,
-    };
-
     class Renderer {
     public:
         // Initialisation and state
